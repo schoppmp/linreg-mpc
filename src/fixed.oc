@@ -1,0 +1,33 @@
+#include <obliv.oh>
+#include "fixed.oh"
+
+obliv fixed32_t ofixed_add(obliv fixed32_t a, obliv fixed32_t b) {
+	return a + b;
+}
+
+obliv fixed32_t ofixed_sub(obliv fixed32_t a, obliv fixed32_t b) {
+	return a - b;
+}
+
+obliv fixed32_t ofixed_mul(obliv fixed32_t a, obliv fixed32_t b, int p) {
+	return (a * b) >> p;
+}
+
+obliv fixed32_t ofixed_div(obliv fixed32_t a, obliv fixed32_t b, int p) {
+	return (a << p) / b;
+}
+
+obliv fixed32_t ofixed_sqrt(obliv fixed32_t a, int p) {
+	obliv fixed32_t x = a << p;
+	obliv fixed32_t r = 0;
+	for(int32_t e = 1<<30; e != 0; e >>= 2) {	
+		obliv if(x >= r + e) {
+			x -= r + e;
+			r = (r >> 1) + e;
+		} else {
+			r = r >> 1;
+		}
+	}
+	return r;
+}
+

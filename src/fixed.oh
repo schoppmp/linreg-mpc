@@ -1,0 +1,8 @@
+#pragma once
+#include "fixed.h"
+
+obliv fixed32_t ofixed_add(obliv fixed32_t a, obliv fixed32_t b);
+obliv fixed32_t ofixed_sub(obliv fixed32_t a, obliv fixed32_t b);
+obliv fixed32_t ofixed_mul(obliv fixed32_t a, obliv fixed32_t b, int p);
+obliv fixed32_t ofixed_div(obliv fixed32_t a, obliv fixed32_t b, int p);
+obliv fixed32_t ofixed_sqrt(obliv fixed32_t a, int p);
