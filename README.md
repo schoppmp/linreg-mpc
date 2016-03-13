@@ -19,7 +19,7 @@ bin/test_fixed 1234 2 5 11 0.5 10 -3
 ```
 Output:
 ```
-Time elapsed: 0.219377
-Number of gates: 6812
-Result: 4.500000
+Time elapsed: 0.195243
+Number of gates: 26308
+Result: 4.501114
 ```

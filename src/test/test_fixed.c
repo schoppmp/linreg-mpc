@@ -2,16 +2,10 @@
 #include <stdio.h>
 #include "test/test_fixed.h"
 #include "util.h"
-
-// convenient error handling
-#define check(cond, format, ...) \
-	do {if(!(cond)) { \
-		fprintf(stderr, format "\n", ##__VA_ARGS__); \
-		goto error; \
-	}} while(0);
+#include "error.h"
 
 
-const int precision = 8;
+const int precision = 16;
 
 int main(int argc, char **argv) {
 	ProtocolDesc pd;

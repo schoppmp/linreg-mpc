@@ -10,17 +10,17 @@ obliv fixed32_t ofixed_sub(obliv fixed32_t a, obliv fixed32_t b) {
 }
 
 obliv fixed32_t ofixed_mul(obliv fixed32_t a, obliv fixed32_t b, int p) {
-	return (a * b) >> p;
+	return (obliv fixed32_t) (((obliv int64_t) a * b) >> p);
 }
 
 obliv fixed32_t ofixed_div(obliv fixed32_t a, obliv fixed32_t b, int p) {
-	return (a << p) / b;
+	return (obliv fixed32_t) (((obliv int64_t) a << p) / b);
 }
 
 obliv fixed32_t ofixed_sqrt(obliv fixed32_t a, int p) {
-	obliv fixed32_t x = a << p;
-	obliv fixed32_t r = 0;
-	for(int32_t e = 1<<30; e != 0; e >>= 2) {	
+	obliv int64_t x = (obliv int64_t) a << p;
+	obliv int64_t r = 0;
+	for(int64_t e = 1ll << (30 + p); e != 0; e >>= 2) {	
 		obliv if(x >= r + e) {
 			x -= r + e;
 			r = (r >> 1) + e;
@@ -28,6 +28,6 @@ obliv fixed32_t ofixed_sqrt(obliv fixed32_t a, int p) {
 			r = r >> 1;
 		}
 	}
-	return r;
+	return (obliv fixed32_t) r;
 }
 
