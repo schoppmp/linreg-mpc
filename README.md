@@ -8,8 +8,8 @@ If the `oblivcc` executable is not in the user's `PATH`, the `OBLIVCC` variable 
 make OBLIVCC=/path/to/oblivcc
 ```
 
-## Test Cholesky decomposition
-Solves a simple 4x4 linear system using cholesky decomposition.
+## Test Cholesky and LDL^T decomposition
+Solves a simple 4x4 linear system using cholesky and LDL^T decomposition.
 
 Usage: `bin/test_linear_system [Port] [Party]`
 
