@@ -1,12 +1,26 @@
 OBLIVCC=oblivcc
 REMOTE_HOST=localhost
 CFLAGS=-DREMOTE_HOST=$(REMOTE_HOST) -O3 -Werror
-binaryName=solveLS
+
 binDir=bin
+objDir=obj
 srcDir=src
 
+compile=mkdir -p $(@D) && $(OBLIVCC) $(CFLAGS) -c -I $(srcDir) $^ -o $@
+link=mkdir -p $(@D) && $(OBLIVCC) $(LFLAGS) $^ -o $@
 
-$(binDir)/test_fixed: $(srcDir)/fixed.oc $(srcDir)/fixed.c $(srcDir)/test/test_fixed.c $(srcDir)/test/test_fixed.oc $(srcDir)/util.c
-	$(OBLIVCC) $(CFLAGS) -I $(srcDir) $^ -o $@
+native=$(objDir)/$(1)_c.o
+obliv=$(objDir)/$(1)_o.o
+both=$(call native,$(1)) $(call obliv,$(1))
+
+$(binDir)/test_fixed: $(call both,test/test_fixed) $(call both,fixed) $(call native,util)
+	$(link)
+
+$(objDir)/%_c.o: $(srcDir)/%.c
+	$(compile)
+
+$(objDir)/%_o.o: $(srcDir)/%.oc
+	$(compile)
+
 clean:
-	rm -f $(binDir)/test_fixed
+	rm -rf $(binDir) $(objDir)
