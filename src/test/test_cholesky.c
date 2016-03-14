@@ -6,12 +6,12 @@
 
 
 const int precision = 16;
-#define DIM 2
+#define DIM 3
 
-double a_d[DIM][DIM] = {{1,2},{3,4}};
-double mask_a_d[DIM][DIM] = {{10, -0.20},{-30, 0.40}};
-double b_d[DIM] = {5, 6};
-double mask_b_d[DIM] = {555, -666};
+double a_d[DIM][DIM] = {{11,7,3},{7,8,2},{3,2,5}};
+double mask_a_d[DIM][DIM] = {{10, -0.20, -30},{0.40, 50, -0.60}, {7,8,9}};
+double b_d[DIM] = {1,2,3};
+double mask_b_d[DIM] = {555, -666, 0.777};
 
 int main(int argc, char **argv) {
 	check(argc >= 3, "Usage: %s [Port] [Party]", argv[0]);
@@ -62,12 +62,12 @@ int main(int argc, char **argv) {
 	cleanupProtocol(&pd);
 
 	if(party == 2) { 
-		check(ls.beta.len != -1, "Computation error.");
+		check(ls.beta.len == d, "Computation error.");
 		printf("Time elapsed: %f\n", wallClock() - time);
 		printf("Number of gates: %d\n", ls.gates);
 		printf("Result: ");
 		for(size_t i = 0; i < ls.beta.len; i++) {
-			printf("%f ", ls.beta.value[i]);
+			printf("%f ", fixed_to_double(ls.beta.value[i], precision));
 		}
 		printf("\n");
 	}

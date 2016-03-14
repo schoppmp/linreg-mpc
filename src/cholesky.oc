@@ -14,11 +14,14 @@ void cholesky(void *v) {
 	obliv fixed32_t *a = alloca(((d * (d+1)) / 2) * sizeof(obliv fixed32_t));
 	obliv fixed32_t *b = alloca(d * sizeof(obliv fixed32_t));
 	obliv fixed32_t *y = alloca(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *beta = alloca(d * sizeof(obliv fixed32_t));
+
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
 		ls->beta.len = -1;
 		return;
 	}
+
 
 	// allocate output vector if not already done and we are party 2
 	if(!(ls->beta.value) && ocCurrentParty() == 2) {
@@ -48,11 +51,12 @@ void cholesky(void *v) {
 	}
 
 	// compute beta, where L beta = y
-	for(size_t i = d-1; i >= 0; i--) {
-		for(size_t j = d-1; j > i; j--) {
-			y[i] -= ofixed_mul(a[idx(j,i)], ls->beta.value[j], ls->precision);
+	for(ssize_t i = d-1; i >= 0; i--) {
+		for(ssize_t j = d-1; j > i; j--) {
+			y[i] -= ofixed_mul(a[idx(j,i)], beta[j], ls->precision);
 		}
-		revealOblivInt(&(ls->beta)+i, ofixed_div(y[i], a[idx(i,i)], ls->precision), 2);
+		beta[i] = ofixed_div(y[i], a[idx(i,i)], ls->precision);
+		revealOblivInt(ls->beta.value + i, beta[i], 2);
 	}
 
 	ls->gates = yaoGateCount();

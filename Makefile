@@ -6,8 +6,7 @@ binDir=bin
 objDir=obj
 srcDir=src
 
-compile_c=mkdir -p $(@D) && $(CC) $(CFLAGS) -c -I /usr/include/oblivc -I $(srcDir) $^ -o $@
-compile_o=mkdir -p $(@D) && $(OBLIVCC) $(CFLAGS) -c -I $(srcDir) $^ -o $@
+compile=mkdir -p $(@D) && $(OBLIVCC) $(CFLAGS) -c -I $(srcDir) $^ -o $@
 link=mkdir -p $(@D) && $(OBLIVCC) $(LFLAGS) $^ -o $@
 
 native=$(objDir)/$(1)_c.o
@@ -21,10 +20,10 @@ $(binDir)/test_fixed: $(call both,test/test_fixed) $(call both,fixed) $(call nat
 	$(link)
 
 $(objDir)/%_c.o: $(srcDir)/%.c
-	$(compile_c)
+	$(compile)
 
 $(objDir)/%_o.o: $(srcDir)/%.oc
-	$(compile_o)
+	$(compile)
 
 clean:
 	rm -rf $(binDir) $(objDir)
