@@ -1,0 +1,69 @@
+#include <obliv.oh>
+#include "linear.h"
+#include "linear.oh"
+#include "fixed.h"
+#include "fixed.oh"
+
+
+
+// solves a symmetric, positive definite linear system using LDL^T decomposition
+void ldlt(void *v) {
+	linear_system_t *ls = v;
+	// allocate space for obliv values and read inputs
+	// we can do moth computations in-place in this case
+	size_t d = ls->a.d[0];
+	obliv fixed32_t *a = alloca(((d * (d+1)) / 2) * sizeof(obliv fixed32_t));
+	obliv fixed32_t *b = alloca(d * sizeof(obliv fixed32_t));
+
+	if(read_symmetric_linear_system(ls, a, b)) {
+		fprintf(stderr, "Could not read inputs.");
+		ls->beta.len = -1;
+		return;
+	}
+
+
+	// allocate output vector if not already done and we are party 2
+	if(!(ls->beta.value) && ocCurrentParty() == 2) {
+		ls->beta.len = d;
+		ls->beta.value = malloc(d * sizeof(fixed32_t));
+	}
+
+	// decompose a into LD
+	for(size_t j = 0; j < d; j++) {
+		for(size_t k = 0; k < j; k++) {
+			for(size_t i = j; i < d; i++) {
+				a[idx(i,j)] -= ofixed_mul(ofixed_mul(
+							a[idx(i,k)], 
+							a[idx(j,k)], ls->precision),
+							a[idx(k,k)], ls->precision);
+			}
+		}
+		for(size_t k = j + 1; k < d; k++) {
+			a[idx(k,j)] = ofixed_div(a[idx(k,j)], a[idx(j,j)], ls->precision);
+		}
+	}
+	
+	// compute b', where L b' = b
+	for(size_t i = 0; i < d; i++) {
+		for(size_t j = 0; j < i; j++) {
+			b[i] -= ofixed_mul(a[idx(i,j)], b[j], ls->precision);
+		}
+	}
+
+	// compute b'', where D b'' = b'
+	for(size_t i = 0; i < d; i++) {
+		b[i] = ofixed_div(b[i], a[idx(i,i)], ls->precision);
+	}
+
+	// compute beta, where L beta = b''
+	for(ssize_t i = d-1; i >= 0; i--) {
+		for(ssize_t j = d-1; j > i; j--) {
+			b[i] -= ofixed_mul(a[idx(j,i)], b[j], ls->precision);
+		}
+		revealOblivInt(ls->beta.value + i, b[i], 2);
+	}
+
+	ls->gates = yaoGateCount();
+	return;
+
+}

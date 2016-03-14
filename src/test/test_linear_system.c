@@ -6,17 +6,16 @@
 
 
 const int precision = 16;
-#define DIM 3
+#define DIM 4
 
-double a_d[DIM][DIM] = {{11,7,3},{7,8,2},{3,2,5}};
-double mask_a_d[DIM][DIM] = {{10, -0.20, -30},{0.40, 50, -0.60}, {7,8,9}};
-double b_d[DIM] = {1,2,3};
-double mask_b_d[DIM] = {555, -666, 0.777};
+double a_d[DIM][DIM] = {{11,0.7,-3,-4},{0.7,8,2,-5},{-3,2,5,-6},{-4,-5,-6,123.456}};
+double mask_a_d[DIM][DIM] = {{10, -0.20, -30, 0},{0.40, 50, -0.60, 0}, {7,8,9,0}, {12,34,56,789}};
+double b_d[DIM] = {123,-456,7,-0.8};
+double mask_b_d[DIM] = {555, -666, 0.777, -0.888};
 
 int main(int argc, char **argv) {
 	check(argc >= 3, "Usage: %s [Port] [Party]", argv[0]);
 
-	ProtocolDesc pd;
 	linear_system_t ls;
 	int d = DIM;
 
@@ -55,22 +54,28 @@ int main(int argc, char **argv) {
 	}
 	check(party > 0, "Party must be either 1 or 2.");
 
-	double time = wallClock();
+	ProtocolDesc pd;
 	ocTestUtilTcpOrDie(&pd, party==1, argv[1]);
 	setCurrentParty(&pd, party);
-	execYaoProtocol(&pd, cholesky, &ls);
-	cleanupProtocol(&pd);
+	void (*algorithms[])(void *) = {cholesky, ldlt};
+	for(int i = 0; i < 2; i++) {
+		double time = wallClock();
+		execYaoProtocol(&pd, algorithms[i], &ls);
 
-	if(party == 2) { 
-		check(ls.beta.len == d, "Computation error.");
-		printf("Time elapsed: %f\n", wallClock() - time);
-		printf("Number of gates: %d\n", ls.gates);
-		printf("Result: ");
-		for(size_t i = 0; i < ls.beta.len; i++) {
-			printf("%f ", fixed_to_double(ls.beta.value[i], precision));
+		if(party == 2) { 
+			check(ls.beta.len == d, "Computation error.");
+			printf("\n");
+			printf("Algorithm: %s\n", i == 0 ? "Cholesky" : "LDL^T");
+			printf("Time elapsed: %f\n", wallClock() - time);
+			printf("Number of gates: %d\n", ls.gates);
+			printf("Result: ");
+			for(size_t i = 0; i < ls.beta.len; i++) {
+				printf("%f ", fixed_to_double(ls.beta.value[i], precision));
+			}
+			printf("\n");
 		}
-		printf("\n");
 	}
+	cleanupProtocol(&pd);
 
 	return 0;
 error:

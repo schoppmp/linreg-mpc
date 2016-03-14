@@ -30,3 +30,4 @@ static size_t idx(size_t i, size_t j) {
 
 // functions to solve LSs
 void cholesky(void *);
+void ldlt(void *);
