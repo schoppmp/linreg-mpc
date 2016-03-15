@@ -30,7 +30,7 @@ Time elapsed: 0.348329
 Number of gates: 174943
 Result: 28.824432 -71.199356 47.602890 0.357407 
 ```
-Note that LDL^T uses slightly fewer garbled gates.
+Note that LDL^T uses slightly fewer garbled gates. However, this advantage diminishes for larger input matrices, making Cholesky decomposition more efficient.
 To compare the accuracy, see the [solution](http://www.wolframalpha.com/input/?i=LinearSolve[{{11,0.7,-3,-4},{0.7,8,2,-5},{-3,2,5,-6},{-4,-5,-6,123.456}},{123,-456,7,-0.8}]]) with data shared in plaintext.
 
 ## Test fixed point arithmetic
