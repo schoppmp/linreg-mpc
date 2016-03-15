@@ -28,16 +28,11 @@ void ldlt(void *v) {
 	}
 
 	// decompose a into LD
-	// the a_j vector is an optimisation, reducing the number of multiplications
-	// from 2 * d^3 to d^3 + d^2
-	obliv fixed32_t *a_j = alloca(d * sizeof(obliv fixed32_t));
 	for(size_t j = 0; j < d; j++) {
 		for(size_t k = 0; k < j; k++) {
-			a_j[k] = ofixed_mul(a[idx(j,k)], a[idx(k,k)], ls->precision);
-		}
-		for(size_t i = j; i < d; i++) {
-			for(size_t k = 0; k < j; k++) {
-				a[idx(i,j)] -= ofixed_mul(a[idx(i,k)], a_j[k], ls->precision);
+			obliv fixed32_t a_jk_kk = ofixed_mul(a[idx(j,k)], a[idx(k,k)], ls->precision);
+			for(size_t i = j; i < d; i++) {
+				a[idx(i,j)] -= ofixed_mul(a[idx(i,k)], a_jk_kk, ls->precision);
 			}
 		}
 		for(size_t k = j + 1; k < d; k++) {
