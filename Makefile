@@ -13,7 +13,7 @@ native=$(objDir)/$(1)_c.o
 obliv=$(objDir)/$(1)_o.o
 both=$(call native,$(1)) $(call obliv,$(1))
 
-$(binDir)/test_linear_system: $(call native,test/test_linear_system) $(call obliv,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky)
+$(binDir)/test_linear_system: $(call native,test/test_linear_system) $(call obliv,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd)
 	$(link)
 
 $(binDir)/test_fixed: $(call both,test/test_fixed) $(call both,fixed) $(call native,util)

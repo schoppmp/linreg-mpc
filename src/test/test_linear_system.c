@@ -53,19 +53,21 @@ int main(int argc, char **argv) {
 		ls.beta.len = d;
 	}
 	check(party > 0, "Party must be either 1 or 2.");
+	ls.num_iterations = 10; // TODO: tune number
 
 	ProtocolDesc pd;
 	ocTestUtilTcpOrDie(&pd, party==1, argv[1]);
 	setCurrentParty(&pd, party);
-	void (*algorithms[])(void *) = {cholesky, ldlt};
-	for(int i = 0; i < 2; i++) {
+	void (*algorithms[])(void *) = {cholesky, ldlt, cgd};
+	char *algorithm_names[] = {"Cholesky", "LDL^T", "Conjugate Gradient Descent"};
+	for(int i = 0; i < 3; i++) {
 		double time = wallClock();
 		execYaoProtocol(&pd, algorithms[i], &ls);
 
 		if(party == 2) { 
 			check(ls.beta.len == d, "Computation error.");
 			printf("\n");
-			printf("Algorithm: %s\n", i == 0 ? "Cholesky" : "LDL^T");
+			printf("Algorithm: %s\n", algorithm_names[i]);
 			printf("Time elapsed: %f\n", wallClock() - time);
 			printf("Number of gates: %d\n", ls.gates);
 			printf("Result: ");

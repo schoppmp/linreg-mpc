@@ -17,6 +17,7 @@ typedef struct {
 	vector_t beta;
 	int precision;
 	int gates;
+	int num_iterations; // for cgd
 } linear_system_t;
 
 // helper function that maps indices into a symmetric matrix
@@ -31,3 +32,4 @@ static size_t idx(size_t i, size_t j) {
 // functions to solve LSs
 void cholesky(void *);
 void ldlt(void *);
+void cgd(void *);
