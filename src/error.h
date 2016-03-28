@@ -1,4 +1,5 @@
 #pragma once
+#include <stdio.h>
 
 // convenient error handling
 #define check(cond, format, ...) \
