@@ -5,7 +5,7 @@
 #include "error.h"
 
 
-const int precision = 16;
+const int precision = 8;
 #define DIM 4
 
 double a_d[DIM][DIM] = {{11,0.7,-3,-4},{0.7,8,2,-5},{-3,2,5,-6},{-4,-5,-6,123.456}};
@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
 		ls.beta.len = d;
 	}
 	check(party > 0, "Party must be either 1 or 2.");
-	ls.num_iterations = 10; // TODO: tune number
+	ls.num_iterations = 20; // TODO: tune number
 
 	ProtocolDesc pd;
 	ocTestUtilTcpOrDie(&pd, party==1, argv[1]);

@@ -1,0 +1,86 @@
+#include <obliv.oh>
+#include <stdio.h>
+#include "linear.h"
+#include "linear.oh"
+#include "fixed.h"
+#include "fixed.oh"
+
+
+// solves a symmetric, positive definite linear system using LDL^T decomposition
+void cgd(void *v) {
+	linear_system_t *ls = v;
+	// allocate space for obliv values and read inputs
+	// we can do most computations in-place in this case
+	size_t d = ls->a.d[0];
+	obliv fixed32_t *a = alloca(((d * (d+1)) / 2) * sizeof(obliv fixed32_t));
+	obliv fixed32_t *b = alloca(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *r = alloca(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *p = alloca(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *x = alloca(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *ap = alloca(d * sizeof(obliv fixed32_t));
+
+	if(read_symmetric_linear_system(ls, a, b)) {
+		fprintf(stderr, "Could not read inputs.");
+		ls->beta.len = -1;
+		return;
+	}
+
+	// allocate output vector if not already done and we are party 2
+	if(!(ls->beta.value) && ocCurrentParty() == 2) {
+		ls->beta.len = d;
+		ls->beta.value = malloc(d * sizeof(fixed32_t));
+	}
+
+
+	// initialise
+	obliv fixed32_t rsold = 0;
+	for(size_t i = 0; i < d; i++) {
+		x[i] = 0;
+		r[i] = b[i];
+		p[i] = r[i];
+		rsold += ofixed_mul(r[i], r[i], ls->precision);
+	}
+
+	// loop for a fixed number of iterations
+	for(size_t round = 0; round < ls->num_iterations; round++) {
+		obliv fixed32_t alpha = 0;
+		obliv fixed32_t rsnew = 0;
+		for(size_t i = 0; i < d; i++) {
+			ap[i] = 0;
+			for(size_t j = 0; j < d; j++) {
+				ap[i] += ofixed_mul(a[idx(i,j)], p[j], ls->precision);
+			}
+			alpha += ofixed_mul(p[i], ap[i], ls->precision);
+		}
+		alpha = ofixed_div(rsold, alpha, ls->precision);
+
+		fixed32_t temp;
+		revealOblivInt(&temp, rsold, 2);
+		if(ocCurrentParty() == 2) printf("\n%3zd   r: %14f   x: ", round, fixed_to_double(temp, ls->precision));
+		for(size_t i = 0; i < d; i++) {
+			x[i] += ofixed_mul(alpha, p[i], ls->precision);
+			r[i] -= ofixed_mul(alpha, ap[i], ls->precision);
+			rsnew += ofixed_mul(r[i], r[i], ls->precision);
+			// debug
+	                revealOblivInt(ls->beta.value + i, x[i], 2);
+			if(ocCurrentParty() == 2) {
+				printf("%10f ", fixed_to_double(ls->beta.value[i], ls->precision));
+			}
+
+		}
+	
+		for(size_t i = 0; i < d; i++) {
+			p[i] = r[i] + ofixed_mul(ofixed_div(rsnew, rsold, ls->precision), p[i], ls->precision);
+		}
+		rsold = rsnew;
+	}
+
+	// return the result
+	for(size_t i = 0; i < d; i++) {
+		revealOblivInt(ls->beta.value + i, x[i], 2);
+	}
+
+	ls->gates = yaoGateCount();
+	return;
+
+}
