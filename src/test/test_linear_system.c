@@ -8,7 +8,7 @@
 const int precision = 16;
 #define DIM 4
 
-linear_system_t read_ls_from_file(int party, char* filepath){
+void read_ls_from_file(int party, char* filepath, linear_system_t* ls){
   FILE *file;
   file = fopen(filepath, "r");
   if(file == NULL) perror("Error opening file");
@@ -70,27 +70,27 @@ linear_system_t read_ls_from_file(int party, char* filepath){
     res = fscanf(file, "%lf", &b_mask[i]);
     b_mask_fixed_prec[i] = double_to_fixed(b_mask[i], precision);
     b_masked_fixed_prec[i] = b_mask_fixed_prec[i] + b_fixed_prec[i];
-    printf("%f ", b_mask[i]);
+    printf("%f ", b_mask_fixed_prec[i]);
   }
+  printf("\n");
 
   fclose(file);
 
   // Construct instance ls
-  linear_system_t ls;
-  ls.a.d[0] = ls.a.d[1] = ls.b.len = m;
-  ls.precision = precision;
+  ls->a.d[0] = m;
+  ls->a.d[1] = ls->b.len = m;
+  ls->precision = precision;
   if(party == 1) {
-    ls.a.value = A_masked_fixed_prec;
-    ls.b.value = b_masked_fixed_prec;
-    ls.beta.value = NULL;
-    ls.beta.len = -1;
+    ls->a.value = A_masked_fixed_prec;
+    ls->b.value = b_masked_fixed_prec;
+    ls->beta.value = NULL;
+    ls->beta.len = -1;
   } else if(party == 2) {
-    ls.a.value = A_mask_fixed_prec;
-    ls.b.value = b_mask_fixed_prec;
-    ls.beta.value = malloc(m*sizeof(fixed32_t));
-    ls.beta.len = m;
+    ls->a.value = A_mask_fixed_prec;
+    ls->b.value = b_mask_fixed_prec;
+    ls->beta.value = malloc(m*sizeof(fixed32_t));
+    ls->beta.len = m;
   }
-  return ls;
 }
 
 /* double a_d[DIM][DIM] = {{11,0.7,-3,-4},{0.7,8,2,-5},{-3,2,5,-6},{-4,-5,-6,123.456}}; */
@@ -107,8 +107,11 @@ int main(int argc, char **argv) {
 		party = 2;
 	}
 	check(party > 0, "Party must be either 1 or 2.");
-	linear_system_t ls = read_ls_from_file(party, argv[3]);
-
+	linear_system_t ls;
+	read_ls_from_file(party, argv[3], &ls);
+	for(size_t i = 0; i < ls.b.len; i++) {
+	  printf("\n%lf", ls.b.value[i]);
+	}
 
 	/* int d = DIM; */
 
