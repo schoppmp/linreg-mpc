@@ -17,7 +17,7 @@ def write_system(A, b, filepath = None):
         for i in range(b.shape[0]):
             f.write(str(b[i]))
 
-def write_sls_instance(A, A_, b, b_, filepath = None):
+def write_sls_instance(A, A_, b, b_, solution, filepath = None):
     with open(filepath, 'w') as f:
         f.write('{0} {1}\n'.format(A.shape[0], A.shape[1]))
         for i in range(A.shape[0]):
@@ -40,24 +40,35 @@ def write_sls_instance(A, A_, b, b_, filepath = None):
         for i in range(b_.shape[0]):
             f.write(str(b_[i]))
             f.write(' ')
+        f.write('\n')
+        f.write('{0}\n'.format(solution.shape[0]))
+        for i in range(solution.shape[0]):
+            f.write(str(solution[i]))
+            f.write(' ')
 
 def generate_sls_instance(n, d, lambda_, filepath):
-    (A, b) = generate_lin_system(n, d, lambda_)
+    (A, b, solution) = generate_lin_system(n, d, lambda_)
     mask_A = random.rand(d, d)
     mask_b = random.rand(d)
-    masked_A = A + mask_A
-    masked_b = b + mask_b
+    # masked_A = A + mask_A
+    # masked_b = b + mask_b
     if filepath:
-        write_sls_instance(masked_A, mask_A, masked_b, mask_b, filepath)
-    return (masked_A, mask_A, masked_b, mask_b)
+        write_sls_instance(A, mask_A, b, mask_b, solution, filepath)
+    
+    # A_test = masked_A - mask_A
+    # b_test = masked_b - mask_b
+    assert numpy.allclose(A.dot(solution), b)
+
+    return (masked_A, mask_A, masked_b, mask_b, solution)
     
 def generate_lin_system(n, d, lambda_, filepath=None):
     (X, y, beta, e) = generate_lin_regression(n, d)
     A = X.T.dot(X) + numpy.inner(numpy.identity(d), lambda_)
     b = X.T.dot(y)
+    x = linalg.solve(A, b)
     if filepath:
         write_system(A, b)
-    return (A, b)
+    return (A, b, x)
 
 def generate_lin_regression(n, d, filepath=None):
     assert d>1
@@ -86,5 +97,5 @@ if __name__ == "__main__":
         filepath_lr = os.path.join(args.dest_folder, filename_lr)
         filepath_ls = os.path.join(args.dest_folder, filename_ls)
         #generate_lin_regression(args.n, args.d, filepath_lr)
-        (masked_A, mask_A, masked_b, mask_b) = generate_sls_instance(args.n, args.d, 3, filepath_ls)
+        (masked_A, mask_A, masked_b, mask_b, solution) = generate_sls_instance(args.n, args.d, 0, filepath_ls)
 
