@@ -19,7 +19,7 @@ linear_system_t read_ls_from_file(int party, char* filepath){
   res = fscanf(file, "%d", &m);
   double** A = malloc(n*sizeof(double*)); 
   for(size_t i = 0; i < n; ++i) A[i] = malloc(m*sizeof(double));
-  fixed32_t *A_fixed_prec = alloca(n*m*sizeof(fixed32_t));
+  fixed32_t *A_fixed_prec = malloc(n*m*sizeof(fixed32_t));
   printf("A =\n");
   for(size_t i = 0; i < n; i++) {
     for(size_t j = 0; j < m; j++) {
@@ -35,7 +35,7 @@ linear_system_t read_ls_from_file(int party, char* filepath){
   res = fscanf(file, "%d", &l);
   printf("b =\n");
   double* b = malloc(l*sizeof(double)); 
-  fixed32_t *b_fixed_prec = alloca(l*sizeof(fixed32_t));
+  fixed32_t *b_fixed_prec = malloc(l*sizeof(fixed32_t));
   for(size_t i = 0; i < l; i++) {
     res = fscanf(file, "%lf", &b[i]);
     b_fixed_prec[i] = double_to_fixed(b[i], precision);
@@ -47,8 +47,8 @@ linear_system_t read_ls_from_file(int party, char* filepath){
   res = fscanf(file, "%d", &m);
   double** A_mask = malloc(n*sizeof(double*)); 
   for(size_t i = 0; i < n; ++i) A_mask[i] = malloc(m*sizeof(double));
-  fixed32_t *A_mask_fixed_prec = alloca(n*m*sizeof(fixed32_t));
-  fixed32_t *A_masked_fixed_prec = alloca(n*m*sizeof(fixed32_t));
+  fixed32_t *A_mask_fixed_prec = malloc(n*m*sizeof(fixed32_t));
+  fixed32_t *A_masked_fixed_prec = malloc(n*m*sizeof(fixed32_t));
   printf("\nA_mask =\n");
   for(size_t i = 0; i < n; i++) {
     for(size_t j = 0; j < m; j++) {
@@ -64,8 +64,8 @@ linear_system_t read_ls_from_file(int party, char* filepath){
   int res = fscanf(file, "%d", &l);
   printf("b_mask =\n");
   double* b_mask = malloc(l*sizeof(double)); 
-  fixed32_t *b_masked_fixed_prec = alloca(l*sizeof(fixed32_t));
-  fixed32_t *b_mask_fixed_prec = alloca(l*sizeof(fixed32_t));
+  fixed32_t *b_masked_fixed_prec = malloc(l*sizeof(fixed32_t));
+  fixed32_t *b_mask_fixed_prec = malloc(l*sizeof(fixed32_t));
   for(size_t i = 0; i < l; i++) {
     res = fscanf(file, "%lf", &b_mask[i]);
     b_mask_fixed_prec[i] = double_to_fixed(b_mask[i], precision);
@@ -85,9 +85,9 @@ linear_system_t read_ls_from_file(int party, char* filepath){
     ls.beta.value = NULL;
     ls.beta.len = -1;
   } else if(party == 2) {
-    ls.a.value = A_masked_fixed_prec;
-    ls.b.value = b_masked_fixed_prec;
-    ls.beta.value = alloca(m*sizeof(fixed32_t));
+    ls.a.value = A_mask_fixed_prec;
+    ls.b.value = b_mask_fixed_prec;
+    ls.beta.value = malloc(m*sizeof(fixed32_t));
     ls.beta.len = m;
   }
   return ls;
