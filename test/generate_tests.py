@@ -59,7 +59,7 @@ def generate_sls_instance(n, d, lambda_, filepath):
     # b_test = masked_b - mask_b
     assert numpy.allclose(A.dot(solution), b)
 
-    return (masked_A, mask_A, masked_b, mask_b, solution)
+    return (A, mask_A, b, mask_b, solution)
     
 def generate_lin_system(n, d, lambda_, filepath=None):
     (X, y, beta, e) = generate_lin_regression(n, d)
@@ -97,5 +97,5 @@ if __name__ == "__main__":
         filepath_lr = os.path.join(args.dest_folder, filename_lr)
         filepath_ls = os.path.join(args.dest_folder, filename_ls)
         #generate_lin_regression(args.n, args.d, filepath_lr)
-        (masked_A, mask_A, masked_b, mask_b, solution) = generate_sls_instance(args.n, args.d, 0, filepath_ls)
+        (A, mask_A, b, mask_b, solution) = generate_sls_instance(args.n, args.d, 0, filepath_ls)
 
