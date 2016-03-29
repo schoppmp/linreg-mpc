@@ -13,60 +13,63 @@ linear_system_t read_ls_from_file(int party, char* filepath){
   file = fopen(filepath, "r");
   if(file == NULL) perror("Error opening file");
 
-  // Read masked matrix A
+  // Read matrix A
   int n, m;
   int res = fscanf(file, "%d", &n);
   res = fscanf(file, "%d", &m);
-  double** A_masked = malloc(n*sizeof(double*)); 
-  for(size_t i = 0; i < n; ++i) A_masked[i] = malloc(m*sizeof(double));
-  fixed32_t *A_masked_fixed_prec = alloca(n*m*sizeof(fixed32_t));
-  printf("A_masked[%d][%d] =\n", n, m);
+  double** A = malloc(n*sizeof(double*)); 
+  for(size_t i = 0; i < n; ++i) A[i] = malloc(m*sizeof(double));
+  fixed32_t *A_fixed_prec = alloca(n*m*sizeof(fixed32_t));
+  printf("A =\n");
   for(size_t i = 0; i < n; i++) {
     for(size_t j = 0; j < m; j++) {
-      res = fscanf(file, "%lf", &A_masked[i][j]);
-      A_masked_fixed_prec[i*n+j] = double_to_fixed(A_masked[i][j], precision);
-      printf("%f ", A_masked[i][j]);
+      res = fscanf(file, "%lf", &A[i][j]);
+      A_fixed_prec[i*n+j] = double_to_fixed(A[i][j], precision);
+      printf("%f ", A[i][j]);
     }
     printf("\n");
   }
     
-  // Read masked vector b
+  // Read vector b
   int l;
   res = fscanf(file, "%d", &l);
-  printf("b_masked[%d] =\n", l);
-  double* b_masked = malloc(l*sizeof(double)); 
-  fixed32_t *b_masked_fixed_prec = alloca(l*sizeof(fixed32_t));
+  printf("b =\n");
+  double* b = malloc(l*sizeof(double)); 
+  fixed32_t *b_fixed_prec = alloca(l*sizeof(fixed32_t));
   for(size_t i = 0; i < l; i++) {
-    res = fscanf(file, "%lf", &b_masked[i]);
-    b_masked_fixed_prec[i] = double_to_fixed(b_masked[i], precision);
-    printf("%f ", b_masked[i]);
+    res = fscanf(file, "%lf", &b[i]);
+    b_fixed_prec[i] = double_to_fixed(b[i], precision);
+    printf("%f ", b[i]);
   }
     
-  // Read mask for A
+  // Read mask for A and compute masked A
   res = fscanf(file, "%d", &n);
   res = fscanf(file, "%d", &m);
   double** A_mask = malloc(n*sizeof(double*)); 
   for(size_t i = 0; i < n; ++i) A_mask[i] = malloc(m*sizeof(double));
   fixed32_t *A_mask_fixed_prec = alloca(n*m*sizeof(fixed32_t));
-  printf("A_mask[%d][%d] =\n", n, m);
-  // Read masked matrix
+  fixed32_t *A_masked_fixed_prec = alloca(n*m*sizeof(fixed32_t));
+  printf("\nA_mask =\n");
   for(size_t i = 0; i < n; i++) {
     for(size_t j = 0; j < m; j++) {
       res = fscanf(file, "%lf", &A_mask[i][j]);
       A_mask_fixed_prec[i*n+j] = double_to_fixed(A_mask[i][j], precision);
+      A_masked_fixed_prec[i*n+j] = A_mask_fixed_prec[i*n+j] + A_fixed_prec[i*n+j];
       printf("%f ", A_mask[i][j]);
     }
     printf("\n");
   }
   
-  // Read mask for b
+  // Read mask for b and compute masked b
   int res = fscanf(file, "%d", &l);
-  printf("b_mask[%d] =\n", l);
+  printf("b_mask =\n");
   double* b_mask = malloc(l*sizeof(double)); 
+  fixed32_t *b_masked_fixed_prec = alloca(l*sizeof(fixed32_t));
   fixed32_t *b_mask_fixed_prec = alloca(l*sizeof(fixed32_t));
   for(size_t i = 0; i < l; i++) {
     res = fscanf(file, "%lf", &b_mask[i]);
     b_mask_fixed_prec[i] = double_to_fixed(b_mask[i], precision);
+    b_masked_fixed_prec[i] = b_mask_fixed_prec[i] + b_fixed_prec[i];
     printf("%f ", b_mask[i]);
   }
 
@@ -77,13 +80,13 @@ linear_system_t read_ls_from_file(int party, char* filepath){
   ls.a.d[0] = ls.a.d[1] = ls.b.len = m;
   ls.precision = precision;
   if(party == 1) {
-    ls.a.value = A_masked;
-    ls.b.value = b_masked;
+    ls.a.value = A_masked_fixed_prec;
+    ls.b.value = b_masked_fixed_prec;
     ls.beta.value = NULL;
     ls.beta.len = -1;
   } else if(party == 2) {
-    ls.a.value = A_mask;
-    ls.b.value = b_mask;
+    ls.a.value = A_masked_fixed_prec;
+    ls.b.value = b_masked_fixed_prec;
     ls.beta.value = alloca(m*sizeof(fixed32_t));
     ls.beta.len = m;
   }
