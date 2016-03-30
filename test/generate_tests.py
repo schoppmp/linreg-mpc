@@ -48,8 +48,8 @@ def write_sls_instance(A, A_, b, b_, solution, filepath = None):
 
 def generate_sls_instance(n, d, lambda_, filepath):
     (A, b, solution) = generate_lin_system(n, d, lambda_)
-    mask_A = random.rand(d, d)
-    mask_b = random.rand(d)
+    mask_A = n * random.rand(d, d)
+    mask_b = n * d * random.rand(d)
     # masked_A = A + mask_A
     # masked_b = b + mask_b
     if filepath:
@@ -97,5 +97,5 @@ if __name__ == "__main__":
         filepath_lr = os.path.join(args.dest_folder, filename_lr)
         filepath_ls = os.path.join(args.dest_folder, filename_ls)
         #generate_lin_regression(args.n, args.d, filepath_lr)
-        (A, mask_A, b, mask_b, solution) = generate_sls_instance(args.n, args.d, 0, filepath_ls)
+        (A, mask_A, b, mask_b, solution) = generate_sls_instance(args.n, args.d, 3, filepath_ls)
 
