@@ -5,6 +5,8 @@
 #include "fixed.h"
 #include "fixed.oh"
 
+#define ABS(a) (a > 0 ? a : - a)
+
 
 // solves a symmetric, positive definite linear system using LDL^T decomposition
 void cgd(void *v) {
@@ -34,8 +36,41 @@ void cgd(void *v) {
 	obliv fixed32_t *p = alloca(d * sizeof(obliv fixed32_t));
 	obliv fixed32_t *beta = alloca(d * sizeof(obliv fixed32_t));
 	obliv fixed32_t *ap = alloca(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *m = alloca(d * sizeof(obliv fixed32_t));
+	fixed32_t temp;
 	
 	int prec = ls->precision;
+
+	for(size_t i = 0; i < d; i++) {
+		// scaling diagonal matrix
+		m[i] = 0;
+		for(size_t j = 0; j < d; j++) {
+			obliv fixed32_t a_ij = a[idx(i,j)];
+			obliv if(a_ij > 0) {
+				m[i] += a_ij;
+			} else {
+				m[i] -= a_ij;
+			}
+		}
+		m[i] = ofixed_sqrt(m[i], prec);
+	}
+
+	if(ocCurrentParty() == 2) printf("m: ", fixed_to_double(temp, prec));
+	for(size_t i = 0; i < d; i++) {
+		revealOblivInt(&temp, m[i], 2);
+		if(ocCurrentParty() == 2) printf("%10.4f ", fixed_to_double(temp, prec));
+	}
+	if(ocCurrentParty() == 2) printf("\n");
+
+	// scale A and b
+	for(size_t i = 0; i < d; i++) {
+		for(size_t j = 0; j <= i; j++) { // A is symmetric
+			a[idx(i,j)] = ofixed_div(a[idx(i,j)], m[i], prec);
+			a[idx(i,j)] = ofixed_div(a[idx(i,j)], m[j], prec);
+		}
+		b[i] = ofixed_div(b[i], m[i], prec);
+	}
+
 
 	// initialise
 	for(size_t i = 0; i < d; i++) {
@@ -44,7 +79,6 @@ void cgd(void *v) {
 		p[i] = g[i];
 	}
 	
-	fixed32_t temp;
 	for(size_t t = 0; t < ls->num_iterations; t++) {
 		obliv fixed32_t eta = 0, gamma = 0, q = 0;
 		for(size_t i = 0; i < d; i++) {
@@ -61,18 +95,28 @@ void cgd(void *v) {
 
 		for(size_t i = 0; i < d; i++) {
 			beta[i] += ofixed_mul(eta, p[i], prec);
+		}
+
+		for(size_t i = 0; i < d; i++) {
 			g[i] -= ofixed_mul(eta, ap[i], prec);
 			gamma += ofixed_mul(ofixed_div(g[i], eta, prec), ofixed_div(g[i], q, prec), prec);
 		}
 		
-		revealOblivInt(&temp, gamma, 2);
-		if(ocCurrentParty() == 2) printf("%10.4f   ", fixed_to_double(temp, prec));
+		revealOblivInt(&temp, eta, 2);
+		if(ocCurrentParty() == 2) printf("eta: %10.4f   ", fixed_to_double(temp, prec));
+		revealOblivInt(&temp, q, 2);
+		if(ocCurrentParty() == 2) printf("q: %10.4f   x: ", fixed_to_double(temp, prec));
 		for(size_t i = 0; i < d; i++) {
 			p[i] = g[i] + ofixed_mul(gamma, p[i], prec);
-			revealOblivInt(&temp, p[i], 2);
+			revealOblivInt(&temp, beta[i], 2);
 			if(ocCurrentParty() == 2) printf("%10.4f ", fixed_to_double(temp, prec));
 		}
-		if(ocCurrentParty() == 2) puts("\n");
+		if(ocCurrentParty() == 2) printf("\n");
+	}
+
+	// re-scale beta
+	for(size_t i = 0; i < d; i++) {
+		beta[i] = ofixed_div(beta[i], m[i], prec);
 	}
 
 	// return the result
