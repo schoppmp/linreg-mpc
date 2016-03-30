@@ -21,13 +21,12 @@ typedef struct {
 
 // helper function that maps indices into a symmetric matrix
 // to an index into a one-dimensional array
-static size_t idx(size_t i, size_t j) {
-	if(j > i) {
-		i^=j; j^=i; i^=j;
-	}
-	return (i * (i + 1)) / 2 + j;
-}
+size_t idx(size_t i, size_t j);
 
 // functions to solve LSs
 void cholesky(void *);
 void ldlt(void *);
+
+// IO helpers
+int read_matrix(FILE *, matrix_t *, int);
+int read_vector(FILE *, vector_t *, int);
