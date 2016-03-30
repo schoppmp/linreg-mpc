@@ -1,6 +1,13 @@
 #include <obliv.oh>
 #include "fixed.oh"
 
+// returns a mask of the lowest (FIXED_BIT_SIZE + p) bits.
+// saves garbled gates for some operations
+static int64_t fixed_mask(int p) {
+	return ((1ll << (FIXED_BIT_SIZE + p)) - 1);
+}
+
+
 obliv fixed32_t ofixed_add(obliv fixed32_t a, obliv fixed32_t b) {
 	return a + b;
 }
@@ -18,12 +25,14 @@ obliv fixed32_t ofixed_div(obliv fixed32_t a, obliv fixed32_t b, int p) {
 }
 
 obliv fixed32_t ofixed_sqrt(obliv fixed32_t a, int p) {
-	obliv int64_t x = (obliv int64_t) a << p;
+	// limit number of bits
+	int64_t mask = fixed_mask(p);
+	obliv int64_t x = ((obliv int64_t) a << p) & mask;
 	obliv int64_t r = 0;
-	for(int64_t e = 1ll << (30 + p); e != 0; e >>= 2) {	
-		obliv if(x >= r + e) {
+	for(int64_t e = mask + 1; e != 0; e >>= 2) {
+		obliv if((x & mask) >= ((r + e) & mask)) {
 			x -= r + e;
-			r = (r >> 1) + e;
+			r = ((r >> 1) + e) & mask;
 		} else {
 			r = r >> 1;
 		}

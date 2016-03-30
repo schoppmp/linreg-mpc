@@ -1,4 +1,5 @@
 #include <obliv.oh>
+#include <stdio.h>
 #include "linear.h"
 #include "linear.oh"
 #include "fixed.h"
