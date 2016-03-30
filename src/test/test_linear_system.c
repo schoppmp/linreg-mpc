@@ -5,7 +5,7 @@
 #include "util.h"
 #include "error.h"
 
-const int precision = 8;
+const int precision = 16;
 
 int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	FILE *file = NULL;
