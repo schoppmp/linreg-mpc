@@ -47,7 +47,10 @@ def write_sls_instance(A, A_, b, b_, solution, filepath = None):
             f.write(' ')
 
 def generate_sls_instance(n, d, lambda_, filepath):
-    (A, b, solution) = generate_lin_system(n, d, lambda_)
+    if not lambda_: 
+        (A, b, solution) = generate_lin_system(n, d, float(d)/n)
+    else:
+        (A, b, solution) = generate_lin_system(n, d, lambda_)
     mask_A = n * random.rand(d, d)
     mask_b = n * d * random.rand(d)
     # masked_A = A + mask_A
@@ -63,8 +66,8 @@ def generate_sls_instance(n, d, lambda_, filepath):
     
 def generate_lin_system(n, d, lambda_, filepath=None):
     (X, y, beta, e) = generate_lin_regression(n, d)
-    A = X.T.dot(X) + numpy.inner(numpy.identity(d), lambda_)
-    b = X.T.dot(y)
+    A = 1./n*X.T.dot(X) + numpy.inner(numpy.identity(d), lambda_)
+    b = 1./n*X.T.dot(y)
     x = linalg.solve(A, b)
     if filepath:
         write_system(A, b)
@@ -72,9 +75,9 @@ def generate_lin_system(n, d, lambda_, filepath=None):
 
 def generate_lin_regression(n, d, filepath=None):
     assert d>1
-    X = random.rand(n, d)
-    beta = random.rand(d)
-    mu, sigma = 0, 0.1 # mean and standard deviation
+    X = random.uniform(low=-1, high=1, size=(n, d))
+    beta = random.uniform(low=-1, high=1, size=d)
+    mu, sigma = 0, 1 # mean and standard deviation
     e = numpy.array(random.normal(mu, sigma, n))
     y = X.dot(beta) + e.T
     return (X, y, beta, e)
@@ -97,5 +100,5 @@ if __name__ == "__main__":
         filepath_lr = os.path.join(args.dest_folder, filename_lr)
         filepath_ls = os.path.join(args.dest_folder, filename_ls)
         #generate_lin_regression(args.n, args.d, filepath_lr)
-        (A, mask_A, b, mask_b, solution) = generate_sls_instance(args.n, args.d, 3, filepath_ls)
+        (A, mask_A, b, mask_b, solution) = generate_sls_instance(args.n, args.d, None, filepath_ls)
 
