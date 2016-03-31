@@ -6,8 +6,18 @@
 #include "fixed.oh"
 #include <signal.h>
 
+int flag = 0;
+void sig_handler(int signo) {
+	printf("Shutting down.\n");
+	flag = 1;
+}
+
 // solves a symmetric, positive definite linear system using LDL^T decomposition
 void cgd(void *v) {
+
+	struct sigaction act;
+	act.sa_handler = &sig_handler;
+	sigaction(SIGINT, &act, NULL);
 
 	linear_system_t *ls = v;
 	// allocate space for obliv values and read inputs
@@ -86,8 +96,10 @@ void cgd(void *v) {
 		g[i] = b[i];
 		p[i] = g[i];
 	}
+
+	if(ocCurrentParty() == 2) {printf("Starting iteration.\n");}
 	
-	for(size_t t = 0; t < ls->num_iterations; t++) {
+	for(size_t t = 0; !flag && t < ls->num_iterations; t++) {
 		obliv fixed32_t eta = 0, gamma = 0, q = 0;
 		for(size_t i = 0; i < d; i++) {
 			ap[i] = 0;
@@ -114,16 +126,18 @@ void cgd(void *v) {
 			gamma += ofixed_mul(ofixed_div(g[i], eta, prec), ofixed_div(g[i], q, prec), prec);
 		}
 		
-		revealOblivInt(&temp, eta, 2);
-		if(ocCurrentParty() == 2) printf("eta: %10.4f   ", fixed_to_double(temp, prec));
-		revealOblivInt(&temp, q, 2);
-		if(ocCurrentParty() == 2) printf("q: %d   g: ", temp);//fixed_to_double(temp, prec));
+/*		revealOblivInt(&temp, eta, 2);*/
+/*		if(ocCurrentParty() == 2) printf("eta: %10.4f   ", fixed_to_double(temp, prec));*/
+/*		revealOblivInt(&temp, q, 2);*/
+/*		if(ocCurrentParty() == 2) printf("q: %10.4f   beta: ", fixed_to_double(temp, prec));*/
 		for(size_t i = 0; i < d; i++) {
 			p[i] = g[i] + ofixed_mul(gamma, p[i], prec);
-			revealOblivInt(&temp, g[i], 2);
-			if(ocCurrentParty() == 2) printf("%10.4f ", fixed_to_double(temp, prec));
+/*			revealOblivInt(&temp, beta[i], 2);*/
+/*			if(ocCurrentParty() == 2) printf("%10.4f ", fixed_to_double(temp, prec));*/
 		}
 		if(ocCurrentParty() == 2) printf("\n");
+
+		flag = ocBroadcastBool(flag, 1) || ocBroadcastBool(flag, 2);
 	}
 
 	// re-scale beta
