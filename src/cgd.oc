@@ -5,9 +5,6 @@
 #include "fixed.h"
 #include "fixed.oh"
 
-#define ABS(a) (a > 0 ? a : - a)
-
-
 // solves a symmetric, positive definite linear system using LDL^T decomposition
 void cgd(void *v) {
 	linear_system_t *ls = v;
@@ -46,12 +43,15 @@ void cgd(void *v) {
 		m[i] = 0;
 		for(size_t j = 0; j < d; j++) {
 			obliv fixed32_t a_ij = a[idx(i,j)];
+			revealOblivInt(&temp, a_ij, 2);
+			if(ocCurrentParty() == 2) printf("%10.4f ", fixed_to_double(temp, prec));
 			obliv if(a_ij > 0) {
 				m[i] += a_ij;
 			} else {
 				m[i] -= a_ij;
 			}
 		}
+		if(ocCurrentParty() == 2) printf("\n");
 		m[i] = ofixed_sqrt(m[i], prec);
 	}
 
@@ -62,13 +62,19 @@ void cgd(void *v) {
 	}
 	if(ocCurrentParty() == 2) printf("\n");
 
+	if(ocCurrentParty() == 2) printf("\n");
 	// scale A and b
 	for(size_t i = 0; i < d; i++) {
 		for(size_t j = 0; j <= i; j++) { // A is symmetric
 			a[idx(i,j)] = ofixed_div(a[idx(i,j)], m[i], prec);
 			a[idx(i,j)] = ofixed_div(a[idx(i,j)], m[j], prec);
+			revealOblivInt(&temp, a[idx(i,j)], 2);
+			if(ocCurrentParty() == 2) printf("%10.4f ", fixed_to_double(temp, prec));
 		}
 		b[i] = ofixed_div(b[i], m[i], prec);
+		revealOblivInt(&temp, b[i], 2);
+		if(ocCurrentParty() == 2) printf("%15.4f ", fixed_to_double(temp, prec));
+		if(ocCurrentParty() == 2) printf("\n");
 	}
 
 
