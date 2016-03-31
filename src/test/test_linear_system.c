@@ -5,7 +5,7 @@
 #include "util.h"
 #include "error.h"
 
-const int precision = 16;
+const int precision = 24;
 
 int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	FILE *file = NULL;
@@ -81,14 +81,14 @@ int main(int argc, char **argv) {
 
 	linear_system_t ls;
 	read_ls_from_file(party, argv[3], &ls);
-	ls.num_iterations = ls.b.len; // TODO: tune number
+	ls.num_iterations = 20;// ls.b.len; // TODO: tune number
 
 	ProtocolDesc pd;
 	ocTestUtilTcpOrDie(&pd, party==1, argv[1]);
 	setCurrentParty(&pd, party);
 	void (*algorithms[])(void *) = {cholesky, ldlt, cgd};
 	char *algorithm_names[] = {"Cholesky", "LDL^T", "Conjugate Gradient Descent"};
-	for(int i = 0; i < 3; i++) {
+	for(int i = 2; i < 3; i++) {
 		double time = wallClock();
 		execYaoProtocol(&pd, algorithms[i], &ls);
 
