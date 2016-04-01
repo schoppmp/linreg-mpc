@@ -5,7 +5,7 @@ import numpy
 import os
 
 
-def write_system(A, b, filepath = None):
+def write_system(A, b, filepath=None):
     with open(filepath, 'w') as f:
         f.write('{0} {1}\n'.format(A.shape[0], A.shape[1]))
         for i in range(A.shape[0]):
@@ -17,7 +17,8 @@ def write_system(A, b, filepath = None):
         for i in range(b.shape[0]):
             f.write(str(b[i]))
 
-def write_sls_instance(A, A_, b, b_, solution, filepath = None):
+
+def write_sls_instance(A, A_, b, b_, solution, filepath=None):
     with open(filepath, 'w') as f:
         f.write('{0} {1}\n'.format(A.shape[0], A.shape[1]))
         for i in range(A.shape[0]):
@@ -46,8 +47,9 @@ def write_sls_instance(A, A_, b, b_, solution, filepath = None):
             f.write(str(solution[i]))
             f.write(' ')
 
+
 def generate_sls_instance(n, d, lambda_, filepath):
-    if not lambda_: 
+    if not lambda_:
         (A, b, solution) = generate_lin_system(n, d, float(d)/n)
     else:
         (A, b, solution) = generate_lin_system(n, d, lambda_)
@@ -57,13 +59,13 @@ def generate_sls_instance(n, d, lambda_, filepath):
     # masked_b = b + mask_b
     if filepath:
         write_sls_instance(A, mask_A, b, mask_b, solution, filepath)
-    
     # A_test = masked_A - mask_A
     # b_test = masked_b - mask_b
     assert numpy.allclose(A.dot(solution), b)
 
     return (A, mask_A, b, mask_b, solution)
-    
+
+
 def generate_lin_system(n, d, lambda_, filepath=None):
     (X, y, beta, e) = generate_lin_regression(n, d)
     A = 1./n*X.T.dot(X) + numpy.inner(numpy.identity(d), lambda_)
@@ -73,18 +75,19 @@ def generate_lin_system(n, d, lambda_, filepath=None):
         write_system(A, b)
     return (A, b, x)
 
+
 def generate_lin_regression(n, d, filepath=None):
-    assert d>1
     X = random.uniform(low=-1, high=1, size=(n, d))
     beta = random.uniform(low=-1, high=1, size=d)
-    mu, sigma = 0, 1 # mean and standard deviation
+    mu, sigma = 0, 1  # mean and standard deviation
     e = numpy.array(random.normal(mu, sigma, n))
     y = X.dot(beta) + e.T
     return (X, y, beta, e)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='A generator for pseudorandom positive definitive matrices')
+    parser = argparse.ArgumentParser(
+        description='A generator for pseudorandom positive definitive matrices')
     parser.add_argument('n', help='Number of rows', type=int)
     parser.add_argument('d', help='Number of columns', type=int)
     parser.add_argument('dest_folder', help='Destination folder')
@@ -93,12 +96,10 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     VERBOSE = args.verbose
-    
     for i in range(args.num_matrices):
         filename_lr = 'test_LR_{0}x{1}_{2}.test'.format(args.n, args.d, i)
         filename_ls = 'test_LS_{0}x{1}_{2}.test'.format(args.n, args.d, i)
         filepath_lr = os.path.join(args.dest_folder, filename_lr)
         filepath_ls = os.path.join(args.dest_folder, filename_ls)
-        #generate_lin_regression(args.n, args.d, filepath_lr)
-        (A, mask_A, b, mask_b, solution) = generate_sls_instance(args.n, args.d, None, filepath_ls)
-
+        (A, mask_A, b, mask_b, solution) = generate_sls_instance(
+            args.n, args.d, None, filepath_ls)
