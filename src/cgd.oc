@@ -132,8 +132,8 @@ void cgd(void *v) {
 /*		if(ocCurrentParty() == 2) printf("q: %10.4f   beta: ", fixed_to_double(temp, prec));*/
 		for(size_t i = 0; i < d; i++) {
 			p[i] = g[i] + ofixed_mul(gamma, p[i], prec);
-/*			revealOblivInt(&temp, beta[i], 2);*/
-/*			if(ocCurrentParty() == 2) printf("%10.4f ", fixed_to_double(temp, prec));*/
+			revealOblivInt(&temp, beta[i], 2);
+			if(ocCurrentParty() == 2) printf("%10.4f ", fixed_to_double(temp, prec));
 		}
 		if(ocCurrentParty() == 2) printf("\n");
 
