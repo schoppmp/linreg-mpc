@@ -56,8 +56,6 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	}
 	return 0;
 
-	printf("mark0\n");
-
 error:	// for some reason, oblivc removes this label if the stuff 
 	// below isn't commented out. TODO: fix this and do proper cleanup
 	/* fclose(file);
@@ -88,14 +86,16 @@ int main(int argc, char **argv) {
 	setCurrentParty(&pd, party);
 	void (*algorithms[])(void *) = {cholesky, ldlt, cgd};
 	char *algorithm_names[] = {"Cholesky", "LDL^T", "Conjugate Gradient Descent"};
-	for(int i = 2; i < 3; i++) {
+	for(int i = 0; i < 3; i++) {
 		double time = wallClock();
+		if(party == 2) {
+			printf("\n");
+			printf("Algorithm: %s\n", algorithm_names[i]);
+		}
 		execYaoProtocol(&pd, algorithms[i], &ls);
 
 		if(party == 2) { 
 		  //check(ls.beta.len == d, "Computation error.");
-			printf("\n");
-			printf("Algorithm: %s\n", algorithm_names[i]);
 			printf("Time elapsed: %f\n", wallClock() - time);
 			printf("Number of gates: %d\n", ls.gates);
 			printf("Result: ");
