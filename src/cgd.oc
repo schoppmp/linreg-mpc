@@ -5,6 +5,7 @@
 #include "fixed.h"
 #include "fixed.oh"
 #include <signal.h>
+//#include "util.h"
 
 int flag = 0;
 void sig_handler(int signo) {
@@ -97,8 +98,8 @@ void cgd(void *v) {
 		p[i] = g[i];
 	}
 
-	if(ocCurrentParty() == 2) {printf("Starting iteration.\n");}
-	
+	if(ocCurrentParty() == 2) {printf("Starting iterations.\n");}
+	//double time = wallClock();
 	for(size_t t = 0; !flag && t < ls->num_iterations; t++) {
 		obliv fixed32_t eta = 0, gamma = 0, q = 0;
 		for(size_t i = 0; i < d; i++) {
@@ -130,11 +131,13 @@ void cgd(void *v) {
 /*		if(ocCurrentParty() == 2) printf("eta: %10.4f   ", fixed_to_double(temp, prec));*/
 /*		revealOblivInt(&temp, q, 2);*/
 /*		if(ocCurrentParty() == 2) printf("q: %10.4f   beta: ", fixed_to_double(temp, prec));*/
+		if(ocCurrentParty() == 2) printf("g: ");
 		for(size_t i = 0; i < d; i++) {
 			p[i] = g[i] + ofixed_mul(gamma, p[i], prec);
-			revealOblivInt(&temp, beta[i], 2);
+			revealOblivInt(&temp, g[i], 2);
 			if(ocCurrentParty() == 2) printf("%10.4f ", fixed_to_double(temp, prec));
 		}
+		//printf("Time elapsed: %f", wallClock() - time);
 		if(ocCurrentParty() == 2) printf("\n");
 
 		flag = ocBroadcastBool(flag, 1) || ocBroadcastBool(flag, 2);
