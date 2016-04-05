@@ -13,7 +13,8 @@ void sig_handler(int signo) {
 	flag = 1;
 }
 
-// solves a symmetric, positive definite linear system using LDL^T decomposition
+// solves a symmetric, positive definite linear system using coordinate gradient descent
+// and scaling.
 void cgd(void *v) {
 
 	struct sigaction act;
@@ -131,13 +132,14 @@ void cgd(void *v) {
 /*		if(ocCurrentParty() == 2) printf("eta: %10.4f   ", fixed_to_double(temp, prec));*/
 /*		revealOblivInt(&temp, q, 2);*/
 /*		if(ocCurrentParty() == 2) printf("q: %10.4f   beta: ", fixed_to_double(temp, prec));*/
-		if(ocCurrentParty() == 2) printf("g: ");
+		if(ocCurrentParty() == 2) printf("Iteration %d:\n", t);
 		for(size_t i = 0; i < d; i++) {
 			p[i] = g[i] + ofixed_mul(gamma, p[i], prec);
-			revealOblivInt(&temp, g[i], 2);
+			revealOblivInt(&temp, beta[i], 2);
 			if(ocCurrentParty() == 2) printf("%10.4f ", fixed_to_double(temp, prec));
 		}
-		//printf("Time elapsed: %f", wallClock() - time);
+		if(ocCurrentParty() == 2) printf("\n");
+		if(ocCurrentParty() == 2) printf("    Yao's gates count: %d", yaoGateCount());
 		if(ocCurrentParty() == 2) printf("\n");
 
 		flag = ocBroadcastBool(flag, 1) || ocBroadcastBool(flag, 2);
