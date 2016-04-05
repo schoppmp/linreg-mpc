@@ -4,6 +4,7 @@
 #include "linear.h"
 #include "util.h"
 #include "error.h"
+//#include <gcrypt.h>
 
 const int precision = 24;
 
@@ -23,15 +24,24 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	check(!res, "Could not read A.");
 	res = read_vector(file, &b, precision);
 	check(!res, "Could not read b.");
-	res = read_matrix(file, &A_mask, precision);
-	check(!res, "Could not read A_mask.");
-	res = read_vector(file, &b_mask, precision);
-	check(!res, "Could not read b_mask.");
+
+	// generate random masks
+	A_mask.value = calloc(A.d[0] * A.d[1] , sizeof(fixed32_t));
+	b_mask.value = calloc(b.len , sizeof(fixed32_t));
+//	gcry_randomize(A_mask.value, A.d[0] * A.d[1] * sizeof(fixed32_t), GCRY_STRONG_RANDOM);
+//	gcry_randomize(b_mask.value, b.len * sizeof(fixed32_t), GCRY_STRONG_RANDOM);
+	A_mask.d[0] = A.d[0];
+	A_mask.d[1] = A.d[1];
+	b_mask.len = b.len;
+
 	for(size_t i = 0; i < A.d[0]; i++) {
 		for(size_t j = 0; j < A.d[1]; j++) {
-			A.value[i*A.d[1]+j] += A_mask.value[i*A.d[1]+j];
+			size_t index = i*A.d[1]+j;
+			A_mask.value[index] = 123456; 
+			A.value[index] = (uint32_t) A.value[index] + (uint32_t) A_mask.value[index];
 		}
-		b.value[i] += b_mask.value[i];
+		b_mask.value[i] = 0xDEADBEEF;
+		b.value[i] = (uint32_t) b.value[i] - (uint32_t) b_mask.value[i];
 	}
 
 	fclose(file);
@@ -39,7 +49,7 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 
 	// Construct instance ls
 	ls->precision = precision;
-	if(party == 1) {
+	if(party != 1) {
 		ls->a = A;
 		ls->b = b;
 		ls->beta.value = NULL;
@@ -83,7 +93,7 @@ int main(int argc, char **argv) {
 
 	linear_system_t ls;
 	read_ls_from_file(party, argv[3], &ls);
-	if(strcmp(algorithm, "CGD")){
+	if(!strcmp(algorithm, "cgd")){
 	       ls.num_iterations = atoi(argv[5]);
 	} else {
 	       ls.num_iterations = 0;
@@ -145,6 +155,9 @@ int main(int argc, char **argv) {
 	}
 	*/
 	cleanupProtocol(&pd);
+	/*free(ls.a.value);
+	free(ls.b.value);
+	free(ls.beta.value);*/
 
 	return 0;
 error:

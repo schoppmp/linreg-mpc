@@ -21,26 +21,17 @@ int read_symmetric_linear_system(linear_system_t *ls, obliv fixed32_t *a, obliv 
 		feedOblivInt(d, 2), 0);
 	check(equal, "Inputs of the two parties differ.");
 
-	// alocate space and read inputs
-	// since A is symmetric, we only need half the matrix!
-	mask_a = alloca(((d * (d+1)) / 2) * sizeof(obliv fixed32_t));
+	// since A is symmetric, we only need to read half the matrix!
 	for(size_t i = 0; i < d; i++) {
 		for(size_t j = 0; j <= i; j++) {
-			mask_a[idx(i, j)] = feedOblivInt(ls->a.value[i*d+j], 2);
+			obliv uint32_t mask = feedOblivInt(ls->a.value[i*d+j], 2);
 			a[idx(i, j)] = feedOblivInt(ls->a.value[i*d+j], 1);
+
+			a[idx(i,j)] = ((obliv uint32_t) a[idx(i,j)] + mask);
 		}
-	}
-
-	mask_b = alloca(d * sizeof(obliv fixed32_t));
-	feedOblivIntArray(b, ls->b.value, d, 1);
-	feedOblivIntArray(mask_b, ls->b.value, d, 2);
-
-	// subtract the masks
-	for(size_t i = 0; i < ((d * (d+1)) / 2); i++) {
-		a[i] -= mask_a[i];
-	}
-	for(size_t i = 0; i < d; i++) {
-		b[i] -= mask_b[i];
+		obliv uint32_t mask = feedOblivInt(ls->b.value[i], 2);
+		b[i] = feedOblivInt(ls->b.value[i], 1);
+		b[i] = (obliv uint32_t) b[i] + mask;
 	}
 
 	return 0;
