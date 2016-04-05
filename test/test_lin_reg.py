@@ -26,9 +26,10 @@ if __name__ == "__main__":
     assert args.algorithm in ['cgd', 'cholesky', 'ldlt']
     VERBOSE = args.verbose
     for i in range(args.num_examples):
-        filename_ls = 'test_LS_{0}x{1}_{2}.test'.format(args.n, args.d, i)
-        filename_ls_out = 'test_LS_{0}x{1}_{2}.test.out'.format(
-            args.n, args.d, i)
+        filename_ls = 'test_LS_{0}x{1}_{2}_{3}.test'.format(
+            args.n, args.d, args.algorithm, i)
+        filename_ls_out = 'test_LS_{0}x{1}_{2}_{3}.test.out'.format(
+            args.n, args.d, args.algorithm, i)
         filepath_ls = os.path.join(args.dest_folder, filename_ls)
         filepath_ls_out = os.path.join(args.dest_folder, filename_ls_out)
         (A, mask_A, b, mask_b, solution) = generate_lin_system(
@@ -42,9 +43,18 @@ if __name__ == "__main__":
         cmd2 = cmd[:2] + ['2'] + cmd[3:]
         subprocess.Popen(cmd1)
         s = subprocess.check_output(cmd2)
-        print s
+        f = open(filepath_ls_out, 'w')
+        cgd_iter_solutions = []
+        cgd_iter_gate_sizes = []
         lines = s.split('\n')
         for line in lines:
+            if args.algorithm == 'cgd':
+                m = re.match('((\s+[\d\.-]+)+)', line)
+                if m:
+                    cgd_iter_solutions.append(map(float, m.group(1).split()))
+                m = re.match('\s*Yao\'s\s+gates\s+count:\s+(\d+)$', line)
+                if m:
+                    cgd_iter_gate_sizes.append(int(m.group(1)))
             m = re.match('Algorithm:\s*(\S+)', line)
             if m:
                 alg = m.group(1)
@@ -53,11 +63,25 @@ if __name__ == "__main__":
                 time = float(m.group(1))
             m = re.match('Number\s+of\s+gates:\s*(\S+)', line)
             if m:
-                gate_num = int(m.group(1))
+                gate_count = int(m.group(1))
             m = re.match('Result:\s*(.+)', line)
             if m:
                 result = map(float, m.group(1).split())
-
-                #print result
-                print 'solution: ', solution
-                print 'error: ', spatial.distance.euclidean(result, solution)
+                error = spatial.distance.euclidean(result, solution)
+                f.write('n d algorithm time error gate_count')
+                f.write('\n{0} {1} {2} {3} {4} {5}'.format(args.n, args.d,
+                    args.algorithm, time, error, gate_count))
+                if args.algorithm == 'cgd':
+                    gate_count_after_iters =\
+                        gate_count - cgd_iter_gate_sizes[-1]
+                    cgd_iter_gate_sizes = map(
+                        lambda x: x+gate_count_after_iters,
+                        cgd_iter_gate_sizes)
+                    assert len(cgd_iter_gate_sizes) == len(cgd_iter_solutions)
+                    f.write('\niter_i error_i gate_count_i')
+                    for i in range(len(cgd_iter_solutions)):
+                        error_i = spatial.distance.euclidean(
+                            cgd_iter_solutions[i], solution)
+                        f.write('\n{0} {1} {2}'.format(
+                            i+1, error_i, cgd_iter_gate_sizes[i]))
+        f.close()

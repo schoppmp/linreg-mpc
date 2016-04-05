@@ -84,7 +84,8 @@ def generate_lin_system(n, d, filepath=None):
     mask_A = random.uniform(low=-10, high=10, size=(d, d))
     mask_b = random.uniform(low=-10, high=10, size=d)
     if filepath:
-        write_system(A, b, y, filepath)
+        # write_system(A, b, y, filepath)
+        write_sls_instance(A, mask_A, b, mask_b, y, filepath)
     return (A, mask_A, b, mask_b, y)
 
 
