@@ -76,7 +76,7 @@ def generate_sls_instance_from_regression_problem(n, d, lambda_, filepath):
 
 
 def generate_lin_system(n, d, filepath=None):
-    X = random.randn(n, d)    
+    X = random.randn(n, d)
     A = 1./n*X.T.dot(X)
     y = random.uniform(low=-1, high=1, size=d)
     b = A.dot(y)
