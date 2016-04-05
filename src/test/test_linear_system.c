@@ -68,7 +68,11 @@ error:	// for some reason, oblivc removes this label if the stuff
 
 
 int main(int argc, char **argv) {
-	check(argc >= 3, "Usage: %s [Port] [Party] [Input file]", argv[0]);
+	check(argc >= 5, "Usage: %s [Port] [Party] [Input file] [Algorithm] [Num. iterations CGD]", argv[0]);
+	char *algorithm = argv[4];
+	check(!strcmp(algorithm, "cholesky") || !strcmp(algorithm, "ldlt")  || !strcmp(algorithm, "cgd"), 
+	      "Algorithm must be cholesky, ldlt, or cgd.");
+	check(strcmp(algorithm, "cgd") || argc == 6, "Number of iterations for CGD must be provided");
 	int party = 0;
 	if(!strcmp(argv[2], "1")) {
 		party = 1;
@@ -79,11 +83,45 @@ int main(int argc, char **argv) {
 
 	linear_system_t ls;
 	read_ls_from_file(party, argv[3], &ls);
-	ls.num_iterations = ls.b.len; // TODO: tune number
+	if(strcmp(algorithm, "CGD")){
+	       ls.num_iterations = atoi(argv[5]);
+	} else {
+	       ls.num_iterations = 0;
+	}
 
 	ProtocolDesc pd;
 	ocTestUtilTcpOrDie(&pd, party==1, argv[1]);
 	setCurrentParty(&pd, party);
+
+	double time = wallClock();
+	if(party == 2) {
+	      printf("\n");
+	      printf("Algorithm: %s\n", algorithm);
+	}
+	void (*algorithms[])(void *) = {cholesky, ldlt, cgd};
+	int alg_index;
+	if(!strcmp(algorithm, "cholesky")) {
+              alg_index = 0;
+	} else if (!strcmp(algorithm, "ldlt")) {
+              alg_index = 1;
+	} else {
+	      alg_index = 2;
+	}
+	
+	execYaoProtocol(&pd, algorithms[alg_index], &ls);
+	
+	if(party == 2) { 
+	  //check(ls.beta.len == d, "Computation error.");
+	  printf("Time elapsed: %f\n", wallClock() - time);
+	  printf("Number of gates: %d\n", ls.gates);
+	  printf("Result: ");
+	  for(size_t i = 0; i < ls.beta.len; i++) {
+	    printf("%f ", fixed_to_double(ls.beta.value[i], precision));
+	  }
+	  printf("\n");
+	}
+
+	/* This code is to run all three algorithms
 	void (*algorithms[])(void *) = {cholesky, ldlt, cgd};
 	char *algorithm_names[] = {"Cholesky", "LDL^T", "Conjugate Gradient Descent"};
 	for(int i = 0; i < 3; i++) {
@@ -105,6 +143,7 @@ int main(int argc, char **argv) {
 			printf("\n");
 		}
 	}
+	*/
 	cleanupProtocol(&pd);
 
 	return 0;
