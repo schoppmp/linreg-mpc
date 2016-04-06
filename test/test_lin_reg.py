@@ -43,15 +43,23 @@ if __name__ == "__main__":
         cmd2 = cmd[:2] + ['2'] + cmd[3:]
         subprocess.Popen(cmd1)
         s = subprocess.check_output(cmd2)
+        print s
         f = open(filepath_ls_out, 'w')
         cgd_iter_solutions = []
         cgd_iter_gate_sizes = []
         lines = s.split('\n')
         for line in lines:
             if args.algorithm == 'cgd':
-                m = re.match('((\s+[\d\.-]+)+)', line)
+                m = re.match('m\s+=\s+((\s*[\d\.-]+)+)', line)
                 if m:
-                    cgd_iter_solutions.append(map(float, m.group(1).split()))
+                    scaling = map(float, m.group(1).split())
+                m = re.match('((\s*[\d\.-]+)+)', line)
+                if m:
+                    scaled_solution = map(float, m.group(1).split())
+                    rescaled_solution = [
+                        scaled_solution[i]/scaling[i]
+                        for i in range(len(scaling))]
+                    cgd_iter_solutions.append(rescaled_solution)
                 m = re.match('\s*Yao\'s\s+gates\s+count:\s+(\d+)$', line)
                 if m:
                     cgd_iter_gate_sizes.append(int(m.group(1)))
@@ -66,6 +74,8 @@ if __name__ == "__main__":
                 gate_count = int(m.group(1))
             m = re.match('Result:\s*(.+)', line)
             if m:
+                #print solution
+                #print cgd_iter_solutions
                 result = map(float, m.group(1).split())
                 error = spatial.distance.euclidean(result, solution)
                 f.write('n d algorithm time error gate_count')
