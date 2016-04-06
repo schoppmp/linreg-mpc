@@ -90,18 +90,9 @@ if __name__ == "__main__":
     else:
         algorithms = [args.algorithm]
     VERBOSE = args.verbose
-
-
-#    with open('tmp.in') as f:
- #       s = f.read()
-  #      parse_output(100, 100, 'cgd', range(100), s, 'tmp.out')
-
-    #sys.exit()
-
-
-    for i in range(args.num_examples):
+    for example in range(args.num_examples):
         filename_ls = 'test_LS_{0}x{1}_{2}.test'.format(
-            args.n, args.d, i)
+            args.n, args.d, example)
         filepath_ls = os.path.join(args.dest_folder, filename_ls)
         (A, mask_A, b, mask_b, solution) = generate_lin_system(
             args.n, args.d, filepath_ls)
@@ -109,7 +100,7 @@ if __name__ == "__main__":
             print 'Generated example {0}'.format(filename_ls)
         for alg in algorithms:
             filename_ls_out = 'test_LS_{0}x{1}_{2}_{3}.test.out'.format(
-                args.n, args.d, alg, i)
+                args.n, args.d, alg, example)
             filepath_ls_out = os.path.join(args.dest_folder, filename_ls_out)
             if VERBOSE:
                 print 'Solving {0} with {1}'.format(filename_ls, alg)
