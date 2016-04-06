@@ -51,7 +51,7 @@ void cgd(void *v) {
 	fixed32_t temp;
 	
 	int prec = ls->precision;
-
+	if(ocCurrentParty() == 2) printf("m = ");
 	for(size_t i = 0; i < d; i++) {
 		// scaling diagonal matrix
 		m[i] = 0;
@@ -67,7 +67,10 @@ void cgd(void *v) {
 		}
 /*		if(ocCurrentParty() == 2) printf("\n");*/
 		m[i] = ofixed_sqrt(m[i], prec);
+		revealOblivInt(&temp, m[i], 2);
+		if(ocCurrentParty() == 2) printf("%f ", fixed_to_double(temp, prec));
 	}
+	if(ocCurrentParty() == 2) printf("\n");
 
 /*	if(ocCurrentParty() == 2) printf("m: ", fixed_to_double(temp, prec));*/
 	for(size_t i = 0; i < d; i++) {
@@ -136,10 +139,10 @@ void cgd(void *v) {
 		for(size_t i = 0; i < d; i++) {
 			p[i] = g[i] + ofixed_mul(gamma, p[i], prec);
 			revealOblivInt(&temp, beta[i], 2);
-			if(ocCurrentParty() == 2) printf("%10.4f ", fixed_to_double(temp, prec));
+			if(ocCurrentParty() == 2) printf("%f ", fixed_to_double(temp, prec));
 		}
 		if(ocCurrentParty() == 2) printf("\n");
-		if(ocCurrentParty() == 2) printf("    Yao's gates count: %d", yaoGateCount());
+		if(ocCurrentParty() == 2) printf("Yao's gates count: %d", yaoGateCount());
 		if(ocCurrentParty() == 2) printf("\n");
 
 		flag = ocBroadcastBool(flag, 1) || ocBroadcastBool(flag, 2);
