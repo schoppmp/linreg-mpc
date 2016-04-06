@@ -27,7 +27,7 @@ def parse_output(n, d, alg, solution, s, filepath_ls_out):
                     scaled_solution[i]/scaling[i]
                     for i in range(len(scaling))]
                 cgd_iter_solutions.append(rescaled_solution)
-            m = re.match('\s*Yao\'s\s+gates\s+count:\s+(\d+)$', line)
+            m = re.match('\s*Yao\'s\s+gates\s+count:\s+(.+)$', line)
             if m:
                 cgd_iter_gate_sizes.append(int(m.group(1)))
         m = re.match('Algorithm:\s*(\S+)', line)
