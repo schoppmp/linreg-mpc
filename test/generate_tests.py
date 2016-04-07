@@ -18,6 +18,7 @@ def write_system(A, b, solution, filepath):
         f.write('{0}\n'.format(b.shape[0]))
         for i in range(b.shape[0]):
             f.write(str(b[i]))
+            f.write(' ')
         f.write('\n')
         f.write('{0}\n'.format(solution.shape[0]))
         for i in range(solution.shape[0]):
