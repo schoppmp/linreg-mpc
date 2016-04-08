@@ -9,8 +9,10 @@ import subprocess
 import re
 
 
-def parse_output(n, d, alg, solution, s, filepath_ls_out):
-    print s
+def parse_output(n, d, alg, solution, s, filepath_ls_out, filepath_ls_exec):
+    print s, 
+    with open(filepath_ls_exec, 'w') as f_exec:
+        f_exec.write(s)
     f = open(filepath_ls_out, 'w')
     cgd_iter_solutions = []
     cgd_iter_gate_sizes = []
@@ -102,6 +104,9 @@ if __name__ == "__main__":
             filename_ls_out = 'test_LS_{0}x{1}_{2}_{3}.test.out'.format(
                 args.n, args.d, alg, example)
             filepath_ls_out = os.path.join(args.dest_folder, filename_ls_out)
+            filename_ls_exec = 'test_LS_{0}x{1}_{2}_{3}.test.exec'.format(
+                args.n, args.d, alg, example)
+            filepath_ls_exec = os.path.join(args.dest_folder, filename_ls_exec)
             if VERBOSE:
                 print 'Solving {0} with {1}'.format(filename_ls, alg)
             cmd = [args.exec_path, '1234', None, filepath_ls,
@@ -110,4 +115,5 @@ if __name__ == "__main__":
             cmd2 = cmd[:2] + ['2'] + cmd[3:]
             subprocess.Popen(cmd1)
             s = subprocess.check_output(cmd2)
-            parse_output(args.n, args.d, alg, solution, s, filepath_ls_out)
+            parse_output(args.n, args.d, alg, solution, s,
+                filepath_ls_out, filepath_ls_exec)
