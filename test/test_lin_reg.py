@@ -7,7 +7,7 @@ import numpy
 import os
 import subprocess
 import re
-
+import time
 
 def parse_output(n, d, alg, solution, s, filepath_ls_out, filepath_ls_exec):
     print s, 
@@ -83,6 +83,7 @@ if __name__ == "__main__":
     parser.add_argument('dest_folder', help='Destination folder for the results')
     parser.add_argument('num_examples', help='Number of instances to be ran',
         type=int)
+    parser.add_argument('port', help='port', type=int)
     parser.add_argument('--verbose', '-v', action='store_true',
         help='Run in verbose mode')
     args = parser.parse_args()
@@ -109,11 +110,14 @@ if __name__ == "__main__":
             filepath_ls_exec = os.path.join(args.dest_folder, filename_ls_exec)
             if VERBOSE:
                 print 'Solving {0} with {1}'.format(filename_ls, alg)
-            cmd = [args.exec_path, '1234', None, filepath_ls,
+            cmd = [args.exec_path, str(args.port), None, filepath_ls,
                 alg, str(args.num_iters_cgd)]
             cmd1 = cmd[:2] + ['1'] + cmd[3:]
             cmd2 = cmd[:2] + ['2'] + cmd[3:]
             subprocess.Popen(cmd1)
+            #time.sleep(0.1)
+            print ' '.join(cmd1)
+            print ' '.join(cmd2)
             s = subprocess.check_output(cmd2)
             parse_output(args.n, args.d, alg, solution, s,
                 filepath_ls_out, filepath_ls_exec)
