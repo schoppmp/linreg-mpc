@@ -38,7 +38,7 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 		for(size_t j = 0; j < A.d[1]; j++) {
 			size_t index = i*A.d[1]+j;
 			A_mask.value[index] = 123456; 
-			A.value[index] = (uint32_t) A.value[index] + (uint32_t) A_mask.value[index];
+			A.value[index] = (uint32_t) A.value[index] - (uint32_t) A_mask.value[index];
 		}
 		b_mask.value[i] = 0xDEADBEEF;
 		b.value[i] = (uint32_t) b.value[i] - (uint32_t) b_mask.value[i];
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
 	  printf("Number of gates: %d\n", ls.gates);
 	  printf("Result: ");
 	  for(size_t i = 0; i < ls.beta.len; i++) {
-	    printf("%f ", fixed_to_double(ls.beta.value[i], precision));
+	    printf("%20.15f ", fixed_to_double(ls.beta.value[i], precision));
 	  }
 	  printf("\n");
 	}
@@ -148,7 +148,7 @@ int main(int argc, char **argv) {
 			printf("Number of gates: %d\n", ls.gates);
 			printf("Result: ");
 			for(size_t i = 0; i < ls.beta.len; i++) {
-				printf("%f ", fixed_to_double(ls.beta.value[i], precision));
+				printf("%20.15f ", fixed_to_double(ls.beta.value[i], precision));
 			}
 			printf("\n");
 		}

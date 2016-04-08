@@ -65,7 +65,7 @@ void cgd(void *v) {
 		}
 		m[i] = ofixed_sqrt(m[i], prec);
 		revealOblivInt(&temp, m[i], 2);
-		if(ocCurrentParty() == 2) printf("%f ", fixed_to_double(temp, prec));
+		if(ocCurrentParty() == 2) printf("%20.15f ", fixed_to_double(temp, prec));
 	}
 	if(ocCurrentParty() == 2) printf("\n");
 
@@ -115,7 +115,7 @@ void cgd(void *v) {
 		for(size_t i = 0; i < d; i++) {
 			p[i] = g[i] + ofixed_mul(gamma, p[i], prec);
 			revealOblivInt(&temp, beta[i], 2);
-			if(ocCurrentParty() == 2) printf("%10f ", fixed_to_double(temp, prec));
+			if(ocCurrentParty() == 2) printf("%20.15f ", fixed_to_double(temp, prec));
 		}
 		if(ocCurrentParty() == 2) printf("\n");
 		if(ocCurrentParty() == 2) printf("Yao's gates count: %d", yaoGateCount());
