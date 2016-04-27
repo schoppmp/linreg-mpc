@@ -4,7 +4,6 @@
 #include "linear.h"
 #include "util.h"
 #include "error.h"
-//#include <gcrypt.h>
 
 const int precision = 24;
 
@@ -28,8 +27,6 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	// generate random masks
 	A_mask.value = calloc(A.d[0] * A.d[1] , sizeof(fixed32_t));
 	b_mask.value = calloc(b.len , sizeof(fixed32_t));
-//	gcry_randomize(A_mask.value, A.d[0] * A.d[1] * sizeof(fixed32_t), GCRY_STRONG_RANDOM);
-//	gcry_randomize(b_mask.value, b.len * sizeof(fixed32_t), GCRY_STRONG_RANDOM);
 	A_mask.d[0] = A.d[0];
 	A_mask.d[1] = A.d[1];
 	b_mask.len = b.len;
@@ -37,7 +34,7 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	for(size_t i = 0; i < A.d[0]; i++) {
 		for(size_t j = 0; j < A.d[1]; j++) {
 			size_t index = i*A.d[1]+j;
-			A_mask.value[index] = 123456; 
+			A_mask.value[index] = 123456; // Of course in a real application random masks would be used
 			A.value[index] = (uint32_t) A.value[index] - (uint32_t) A_mask.value[index];
 		}
 		b_mask.value[i] = 0xDEADBEEF;
