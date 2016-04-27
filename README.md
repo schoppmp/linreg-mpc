@@ -36,6 +36,16 @@ It consists of
 - The length of `x`
 - The solution `x` of the linear system `Ax=b`
 
+The results of the computation are printed to the standard output:
+```
+bin/test_linear_system 1234 2 example.txt cholesky
+
+Algorithm: cholesky
+Time elapsed: 1.061934
+Number of gates: 812339
+Result:    0.571828544139862    0.065958380699158   -0.820781826972961   -0.422045469284058   -0.794872820377350   -0.691504597663879   -0.404688179492950    0.765466809272766 
+```
+
 Random input files can be generated using the script `generate_tests.py`:
 ```
 usage: generate_tests.py [-h] [--verbose] n d dest_folder num_matrices
