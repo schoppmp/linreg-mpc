@@ -56,7 +56,7 @@ def write_sls_instance(A, A_, b, b_, solution, filepath):
             f.write(' ')
 
 
-def generate_sls_instance_from_regression_problem(n, d, lambda_, filepath):
+def generate_sls_instance_from_regression_problem(n, d, filepath, lambda_=None):
     if not lambda_:
         (A, b, solution) = generate_lin_system_from_regression_problem(
             n, d, float(d)/n)
@@ -68,7 +68,8 @@ def generate_sls_instance_from_regression_problem(n, d, lambda_, filepath):
     # masked_A = A + mask_A
     # masked_b = b + mask_b
     if filepath:
-        write_sls_instance(A, mask_A, b, mask_b, solution, filepath)
+        write_system(A, b, solution, filepath)
+        #write_sls_instance(A, mask_A, b, mask_b, solution, filepath)
     # A_test = masked_A - mask_A
     # b_test = masked_b - mask_b
     assert numpy.allclose(A.dot(solution), b)
