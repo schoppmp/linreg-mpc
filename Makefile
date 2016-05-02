@@ -1,29 +1,45 @@
-OBLIVCC=oblivcc
-REMOTE_HOST=localhost
-CFLAGS=-DREMOTE_HOST=$(REMOTE_HOST) -O3 -Werror
 
 binDir=bin
 objDir=obj
 srcDir=src
 
-compile=mkdir -p $(@D) && $(OBLIVCC) $(CFLAGS) -c -I $(srcDir) $^ -o $@
-link=mkdir -p $(@D) && $(OBLIVCC) $(LFLAGS) $^ -o $@
+OBLIVCC=oblivcc
+REMOTE_HOST=localhost
+CFLAGS=-O3 -Werror -I $(srcDir)
+OCFLAGS=$(CFLAGS) -DREMOTE_HOST=$(REMOTE_HOST)
+
+mkpath=mkdir -p $(@D)
+compile=$(mkpath) && $(CC) $(CFLAGS) -c $< -o $@
+link=$(mkpath) && $(CC) $(LFLAGS) $^ -o $@
+compile_obliv=$(mkpath) && $(OBLIVCC) $(OCFLAGS) -c $< -o $@
+link_obliv=$(mkpath) && $(OBLIVCC) $(OLFLAGS) $^ -o $@
 
 native=$(objDir)/$(1)_c.o
 obliv=$(objDir)/$(1)_o.o
 both=$(call native,$(1)) $(call obliv,$(1))
 
+all: $(binDir)/test_multiplication $(binDir)/test_linear_system
+
+$(binDir)/test_multiplication: $(objDir)/test/test_multiplication.pb-c.o $(objDir)/test/test_multiplication.o
+	$(link) -lzmq -lprotobuf-c
+
 $(binDir)/test_linear_system: $(call native,test/test_linear_system) $(call both,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd)
-	$(link)
+	$(link_obliv)
 
 $(binDir)/test_fixed: $(call both,test/test_fixed) $(call both,fixed) $(call native,util)
-	$(link)
+	$(link_obliv)
 
 $(objDir)/%_c.o: $(srcDir)/%.c
-	$(compile)
+	$(compile_obliv)
 
 $(objDir)/%_o.o: $(srcDir)/%.oc
+	$(compile_obliv)
+
+$(objDir)/%.o: $(srcDir)/%.c
 	$(compile)
+
+$(srcDir)/%.pb-c.c: $(srcDir)/%.proto
+	cd $(<D) && protoc-c $(<F) --c_out=.
 
 clean:
 	rm -rf $(binDir) $(objDir)
