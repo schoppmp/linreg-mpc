@@ -20,8 +20,8 @@ both=$(call native,$(1)) $(call obliv,$(1))
 
 all: $(binDir)/test_multiplication $(binDir)/test_linear_system
 
-$(binDir)/test_multiplication: $(objDir)/test/test_multiplication.pb-c.o $(objDir)/test/test_multiplication.o
-	$(link) -lzmq -lprotobuf-c
+$(binDir)/test_multiplication: $(objDir)/test/test_multiplication.pb-c.o $(objDir)/test/test_multiplication.o $(objDir)/fixed.o
+	$(link) -lzmq -lprotobuf-c -lgcrypt
 
 $(binDir)/test_linear_system: $(call native,test/test_linear_system) $(call both,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd)
 	$(link_obliv)
