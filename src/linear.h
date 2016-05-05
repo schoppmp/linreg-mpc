@@ -1,5 +1,6 @@
 #pragma once
 #include "fixed.h"
+#include <stdio.h>
 
 typedef struct {
 	size_t d[2];
