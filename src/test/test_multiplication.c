@@ -12,6 +12,16 @@
 #include "test/test_multiplication.pb-c.h"
 
 
+/*
+  We are now using a PULL/PUSH.
+  Each party pulls from its own public endpoint
+  and pushes to the other parties endpoints.
+  We might have synchronization problems if
+  party 1 is faster than the initializer, as 
+  party 2 might mistake sender.
+  This will not happen once messages are authenticated.
+*/
+
 const int precision = 10;
 const char *endpoint[3] = {
 	"tcp://127.0.0.1:4567",
@@ -20,6 +30,8 @@ const char *endpoint[3] = {
 };
 
 static int receive_value(fixed32_t *value, void *sender) {
+	int *val = sender;
+  	printf("Receiving...\n");
 	int status;
 	check(value && sender, "receive_value: arguments may not be null");
 	// receive message
@@ -33,6 +45,8 @@ static int receive_value(fixed32_t *value, void *sender) {
 	check(pmsg != NULL, "Could not unpack message");
 	*value = pmsg->value;
 
+	printf("Received value %x\n", *value);
+
 	// cleanup
 	test__fixed__free_unpacked(pmsg, NULL);
 	zmq_msg_close(&zmsg);
@@ -44,12 +58,13 @@ error:
 
 static int send_value(fixed32_t value, void *recipient) {
 	int status;
+	int *rec = recipient;
+	printf("Sending value %x...", value);
 	check(recipient, "send_value: recipient may not be null");
 	// initialize message
 	Test__Fixed pmsg;
 	test__fixed__init(&pmsg);
 	pmsg.value = value;
-
 	zmq_msg_t zmsg;
 	status = zmq_msg_init_size(&zmsg, test__fixed__get_packed_size(&pmsg));
 	check(status == 0, "Could not initialize message: %s", zmq_strerror(errno));
@@ -57,7 +72,7 @@ static int send_value(fixed32_t value, void *recipient) {
 	test__fixed__pack(&pmsg, zmq_msg_data(&zmsg));
 	status = zmq_msg_send(&zmsg, recipient, ZMQ_DONTWAIT); // asynchronous send
 	check(status != -1, "Could not send message: %s", zmq_strerror(errno));
-
+	printf("Done.\n");
 	// cleanup
 	zmq_msg_close(&zmsg);
 	return 0;
@@ -73,7 +88,7 @@ int main(int argc, char **argv) {
 	check(argc >= 2, "Usage: %s Party [Input]", argv[0]);
 
 	// parties are indexed starting with 1 to be 
-	// consistent with notation inpapers
+	// consistent with notation in papers
 	int party = 0;
 	if(!strcmp(argv[1], "1")) {
 		party = 1;
@@ -88,7 +103,7 @@ int main(int argc, char **argv) {
 	double input;
 	if(party < 3) {
 		check(argc >= 3, "Parties 1 and 2 need to provide an input");
-		input = atof(argv[5]);
+		input = atof(argv[2]);
 		check(errno == 0, "Invalid input: %s", strerror(errno));
 	}
 
@@ -96,17 +111,27 @@ int main(int argc, char **argv) {
 	context = zmq_ctx_new();
 	check(context, "Could not create context: %s", zmq_strerror(errno));
 	// create and connect sockets
-	for(int i = 0; i < 2; i++) {
+	for(int i = 0; i < 3; i++) {
 		if(i == party - 1) { // create listen socket
-			socket[i] = zmq_socket(context, ZMQ_REP);
+		        socket[i] = zmq_socket(context, ZMQ_PULL);
 			check(socket[i], "Could not create socket: %s", zmq_strerror(errno));
 			status = zmq_bind(socket[i], endpoint[i]);
 			check(status == 0, "Could not bind socket %s: %s", endpoint[i], zmq_strerror(errno));
+			printf("Party %d pulling from %s\n", party, endpoint[i]);
+			/* socket[i] = zmq_socket(context, ZMQ_REP); */
+			/* check(socket[i], "Could not create socket: %s", zmq_strerror(errno)); */
+			/* status = zmq_bind(socket[i], endpoint[i]); */
+			/* check(status == 0, "Could not bind socket %s: %s", endpoint[i], zmq_strerror(errno)); */
 		} else { // connect to the other parties
-			socket[i] = zmq_socket(context, ZMQ_REQ);
+		        socket[i] = zmq_socket (context, ZMQ_PUSH);
 			check(socket[i], "Could not create socket: %s", zmq_strerror(errno));
-			status = zmq_connect(socket[i], endpoint[i]);
-			check(status == 0, "Could not connect to %s: %s", endpoint[i], zmq_strerror(errno));
+			zmq_connect(socket[i], endpoint[i]);
+			check(status == 0, "Could not bind socket %s: %s", endpoint[i], zmq_strerror(errno));
+			printf("Party %d pushing to %s\n", party, endpoint[i]);
+			/* socket[i] = zmq_socket(context, ZMQ_REQ); */
+			/* check(socket[i], "Could not create socket: %s", zmq_strerror(errno)); */
+			/* status = zmq_connect(socket[i], endpoint[i]); */
+			/* check(status == 0, "Could not connect to %s: %s", endpoint[i], zmq_strerror(errno)); */
 		}
 		//int linger = 0; // discard unsent messages when shutting down
 		//zmq_setsockopt(socket[i], ZMQ_LINGER, &linger, sizeof(linger));
@@ -117,29 +142,54 @@ int main(int argc, char **argv) {
 		check(gcry_check_version(GCRYPT_VERSION), "Unsupported gcrypt version");
 		gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
 		// generate random masks and send them to parties 1 and 2
+		fixed32_t mask[2];
 		for(int i = 0; i < 2; i++) {
-			fixed32_t mask;
-			gcry_randomize(&mask, 4, GCRY_STRONG_RANDOM);
-			status = send_value(mask, socket[i]);
+			gcry_randomize(&mask[i], 4, GCRY_STRONG_RANDOM);
+			printf("TI:: Sending message to party %d: %x\n", i+1, mask[i]);
+			status = send_value(mask[i], socket[i]);
 			check(status == 0, "Error sending message to party %d", i+1);
 		}
+
+		printf("Party %d:: Share: %x\n", party, mask[0]*mask[1]);
+
 	} else {
 		fixed32_t a;
 		fixed32_t x = double_to_fixed(input, precision);
+		printf("Party %d:: Expecting value in socket %d\n", party, party-1);
 		status = receive_value(&a, socket[party-1]);
 		check(status == 0, "Error receiving message from TI");
 
-		// send (x + a) to other party
-		//status = send_value(x + a, socket[party % 2]);
-		//check(status == 0, "Error sending message to party %d", (party % 2) + 1);
+		printf("Party %d:: value received: %x\n", party, a);
 
-		// receive value from other party
-		//fixed32_t a2;
-		//status = receive_value(&a2, socket[party % 2]);
-		//check(status == 0, "Error receiving message from party %d", (party % 2) + 1);
+		if(party == 1){
+		  	// send (x + a) to party 2
+		        status = send_value(x + a, socket[party % 2]);
+			check(status == 0, "Error sending message to party %d", party % 2 + 1);
+
+			printf("Party %d:: Value sent to party %d: %x\n", party, party % 2 + 1, a);
 		
+			// receive value from party 2
+			fixed32_t a2;
+			status = receive_value(&a2, socket[party - 1]);
+			check(status == 0, "Error receiving message from party %d", party % 2 + 1);
 
-		printf("Value received: %x\n", a);
+			printf("Party %d:: Share: %x\n", party, -(x + a)*a2+a*a2);
+
+		} else { // party == 2
+		       // receive value from party 1
+		       fixed32_t a2;
+		       status = receive_value(&a2, socket[party - 1]);
+		       check(status == 0, "Error receiving message from party %d", party % 2 + 1);
+		
+		       // send (x + a) to party 1
+		       status = send_value(x + a, socket[party % 2]);
+		       check(status == 0, "Error sending message to party %d", party % 2 + 1);
+
+		       printf("Party %d:: Value sent to party %d: %x\n", party, party % 2 + 1, a);
+
+		       printf("Party %d:: Share: %x\n", party, a*a2);
+		}
+		
 	}
 		
 	retval = 0;
