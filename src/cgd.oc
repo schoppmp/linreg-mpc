@@ -58,7 +58,6 @@ void cgd(void *v) {
 		ls->beta.value = malloc(d * sizeof(fixed32_t));
 	}
 
-
 	// loop for a fixed number of iterations
 	fixed32_t temp;
 	obliv fixed32_t otemp;
