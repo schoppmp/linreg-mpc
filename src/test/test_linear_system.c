@@ -152,9 +152,9 @@ int main(int argc, char **argv) {
 	}
 	*/
 	cleanupProtocol(&pd);
-	/*free(ls.a.value);
+	free(ls.a.value);
 	free(ls.b.value);
-	free(ls.beta.value);*/
+	if (ls.beta.value) free(ls.beta.value);
 
 	return 0;
 error:

@@ -3,40 +3,44 @@
 
 // returns a mask of the lowest (FIXED_BIT_SIZE + p) bits.
 // saves garbled gates for some operations
-static int64_t fixed_mask(int p) {
-	return ((1ll << (FIXED_BIT_SIZE + p)) - 1);
+//static int64_t fixed_mask(int p) {
+//	return ((1ll << (FIXED_BIT_SIZE + p)) - 1);
+//}
+
+size_t ceildiv(size_t dividend, size_t divisor) {
+	return (dividend + divisor - 1) / divisor;
 }
 
-
-obliv fixed32_t ofixed_add(obliv fixed32_t a, obliv fixed32_t b) {
-	return a + b;
+void ofixed_add(obig *out, obig a, obig b) obliv {
+	obig_add_signed(out, a, b);	
 }
 
-obliv fixed32_t ofixed_sub(obliv fixed32_t a, obliv fixed32_t b) {
-	return a - b;
+void ofixed_sub(obig *out, obig a, obig b) obliv {
+	obig_sub_signed(out, a, b);	
 }
 
-obliv fixed32_t ofixed_mul(obliv fixed32_t a, obliv fixed32_t b, int p) {
-	return (obliv fixed32_t) (((obliv int64_t) a * b) >> p);
+void ofixed_mul(obig *out, obig a, obig b, size_t p) obliv {
+	obig temp;
+	~obliv() obig_init(&temp, a.digits + b.digits);
+	obig_mul_signed(&temp, a, b);
+	obig_shr_native_signed(out, temp, p);
+	~obliv() obig_free(&temp);
 }
 
-obliv fixed32_t ofixed_div(obliv fixed32_t a, obliv fixed32_t b, int p) {
-	return (obliv fixed32_t) (((obliv int64_t) a << p) / b);
+obliv bool ofixed_div(obig *out, obig a, obig b, size_t p) obliv {
+	obig temp;
+	~obliv() obig_init(&temp, a.digits + ceildiv(p,8));
+	obig_shl_native_signed(&temp, a, p);
+	obliv bool result = obig_div_mod_signed(out, NULL, temp, b);
+	~obliv() obig_free(&temp);
+	return result;
 }
 
-obliv fixed32_t ofixed_sqrt(obliv fixed32_t a, int p) {
-	// limit number of bits
-	int64_t mask = fixed_mask(p);
-	obliv int64_t x = ((obliv int64_t) a << p) & mask;
-	obliv int64_t r = 0;
-	for(int64_t e = mask + 1; e != 0; e >>= 2) {
-		obliv if((x & mask) >= ((r + e) & mask)) {
-			x -= r + e;
-			r = ((r >> 1) + e) & mask;
-		} else {
-			r = r >> 1;
-		}
-	}
-	return (obliv fixed32_t) r;
+void ofixed_sqrt(obig *out, obig a, size_t p) obliv {
+	obig temp;
+	~obliv() obig_init(&temp, a.digits + ceildiv(p,8));
+	obig_shl_native_signed(&temp, a, p);
+	obig_sqrt(out, temp);
+	~obliv() obig_free(&temp);
 }
 

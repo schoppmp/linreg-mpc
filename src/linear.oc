@@ -3,9 +3,11 @@
 #include "error.h"
 
 
-int read_symmetric_linear_system(linear_system_t *ls, obliv fixed32_t *a, obliv fixed32_t *b) {
+int read_symmetric_linear_system(linear_system_t *ls, obig *a, obig *b) {
 	// party 1 inputs matrix A and vector b, party 2 inputs the masks.
-	obliv fixed32_t *mask_a, *mask_b;
+	//obliv fixed32_t *mask_a, *mask_b;
+	obig mask;
+	obig_init(&mask, FIXED_BIT_SIZE);
 
 	size_t d;
 	// check inputs for validity
@@ -24,18 +26,20 @@ int read_symmetric_linear_system(linear_system_t *ls, obliv fixed32_t *a, obliv 
 	// since A is symmetric, we only need to read half the matrix!
 	for(size_t i = 0; i < d; i++) {
 		for(size_t j = 0; j <= i; j++) {
-			obliv uint32_t mask = feedOblivInt(ls->a.value[i*d+j], 2);
-			a[idx(i, j)] = feedOblivInt(ls->a.value[i*d+j], 1);
+			obig_import_onative(&mask, feedOblivInt(ls->a.value[i*d+j], 2));
+			obig_import_onative_signed(&a[idx(i, j)], feedOblivInt(ls->a.value[i*d+j], 1));
 
-			a[idx(i,j)] = ((obliv uint32_t) a[idx(i,j)] + mask);
+			obig_add(&a[idx(i,j)], a[idx(i,j)], mask);
 		}
-		obliv uint32_t mask = feedOblivInt(ls->b.value[i], 2);
-		b[i] = feedOblivInt(ls->b.value[i], 1);
-		b[i] = (obliv uint32_t) b[i] + mask;
+		obig_import_onative(&mask, feedOblivInt(ls->b.value[i], 2));
+		obig_import_onative_signed(&b[i], feedOblivInt(ls->b.value[i], 1));
+		obig_add(&b[i], b[i], mask);
 	}
 
+	obig_free(&mask);
 	return 0;
 
 error:
+	//obig_free(&mask);
 	return -1;
 }

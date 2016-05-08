@@ -12,8 +12,20 @@ void ldlt(void *v) {
 	// allocate space for obliv values and read inputs
 	// we can do most computations in-place in this case
 	size_t d = ls->a.d[0];
-	obliv fixed32_t *a = alloca(((d * (d+1)) / 2) * sizeof(obliv fixed32_t));
-	obliv fixed32_t *b = alloca(d * sizeof(obliv fixed32_t));
+	obig *a = alloca(((d * (d+1)) / 2) * sizeof(obig));
+	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
+		obig_init(&a[ii], 4+(ls->precision/8));
+	}
+
+	obig *b = alloca(d * sizeof(obig));
+	for (size_t ii = 0; ii < d; ii++) {
+		obig_init(&b[ii], 4+(ls->precision/8));
+	}
+
+	obig a_jk_kk;
+	obig_init(&a_jk_kk, 4+(ls->precision/8));
+	obig otemp;
+	obig_init(&otemp, 4+(ls->precision/8));
 
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
@@ -31,37 +43,58 @@ void ldlt(void *v) {
 	// decompose a into LD
 	for(size_t j = 0; j < d; j++) {
 		for(size_t k = 0; k < j; k++) {
-			obliv fixed32_t a_jk_kk = ofixed_mul(a[idx(j,k)], a[idx(k,k)], ls->precision);
+			ofixed_mul(&a_jk_kk, a[idx(j,k)], a[idx(k,k)], ls->precision);
+			//obliv fixed32_t a_jk_kk = ofixed_mul(a[idx(j,k)], a[idx(k,k)], ls->precision);
 			for(size_t i = j; i < d; i++) {
-				a[idx(i,j)] -= ofixed_mul(a[idx(i,k)], a_jk_kk, ls->precision);
+				ofixed_mul(&otemp, a[idx(i,k)], a_jk_kk, ls->precision);
+				ofixed_sub(&a[idx(i,j)], a[idx(i,j)], otemp);
+				//a[idx(i,j)] -= ofixed_mul(a[idx(i,k)], a_jk_kk, ls->precision);
 			}
 		}
 		for(size_t k = j + 1; k < d; k++) {
-			a[idx(k,j)] = ofixed_div(a[idx(k,j)], a[idx(j,j)], ls->precision);
+			ofixed_div(&a[idx(k,j)], a[idx(k,j)], a[idx(j,j)], ls->precision);
+			//a[idx(k,j)] = ofixed_div(a[idx(k,j)], a[idx(j,j)], ls->precision);
 		}
 	}
 	
 	// compute b', where L b' = b
 	for(size_t i = 0; i < d; i++) {
 		for(size_t j = 0; j < i; j++) {
-			b[i] -= ofixed_mul(a[idx(i,j)], b[j], ls->precision);
+			ofixed_mul(&otemp, a[idx(i,j)], b[j], ls->precision);
+			ofixed_sub(&b[i], b[i], otemp);
+			//b[i] -= ofixed_mul(a[idx(i,j)], b[j], ls->precision);
 		}
 	}
 
 	// compute b'', where D b'' = b'
 	for(size_t i = 0; i < d; i++) {
-		b[i] = ofixed_div(b[i], a[idx(i,i)], ls->precision);
+		ofixed_div(&b[i], b[i], a[idx(i,i)], ls->precision);
+		//b[i] = ofixed_div(b[i], a[idx(i,i)], ls->precision);
 	}
 
 	// compute beta, where L beta = b''
 	for(ssize_t i = d-1; i >= 0; i--) {
 		for(ssize_t j = d-1; j > i; j--) {
-			b[i] -= ofixed_mul(a[idx(j,i)], b[j], ls->precision);
+			ofixed_mul(&otemp, a[idx(j,i)], b[j], ls->precision);
+			ofixed_sub(&b[i], b[i], otemp);
+			//b[i] -= ofixed_mul(a[idx(j,i)], b[j], ls->precision);
 		}
-		revealOblivInt(ls->beta.value + i, b[i], 2);
+		obliv fixed32_t temp = obig_export_onative_signed(b[i]);
+		revealOblivInt(ls->beta.value + i, temp, 2);
+		//revealOblivInt(ls->beta.value + i, b[i], 2);
 	}
 
 	ls->gates = yaoGateCount();
+
+
+	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
+		obig_free(&a[ii]);
+	}
+	for (size_t ii = 0; ii < d; ii++) {
+		obig_free(&b[ii]);
+	}
+	obig_free(&a_jk_kk);
+	obig_free(&otemp);
 	return;
 
 }

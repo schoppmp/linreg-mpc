@@ -1,8 +1,9 @@
 #pragma once
 #include "fixed.h"
+#include "obig.oh"
 
-obliv fixed32_t ofixed_add(obliv fixed32_t a, obliv fixed32_t b);
-obliv fixed32_t ofixed_sub(obliv fixed32_t a, obliv fixed32_t b);
-obliv fixed32_t ofixed_mul(obliv fixed32_t a, obliv fixed32_t b, int p);
-obliv fixed32_t ofixed_div(obliv fixed32_t a, obliv fixed32_t b, int p);
-obliv fixed32_t ofixed_sqrt(obliv fixed32_t a, int p);
+void ofixed_add(obig *out, obig a, obig b) obliv;
+void ofixed_sub(obig *out, obig a, obig b) obliv;
+void ofixed_mul(obig *out, obig a, obig b, size_t p) obliv;
+obliv bool ofixed_div(obig *out, obig a, obig b, size_t p) obliv;
+void ofixed_sqrt(obig *out, obig a, size_t p) obliv;

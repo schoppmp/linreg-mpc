@@ -2,5 +2,6 @@
 #include <obliv.oh>
 #include "error.h"
 #include "linear.h"
+#include "obig.oh"
 
-int read_symmetric_linear_system(linear_system_t *ls, obliv fixed32_t *a, obliv fixed32_t *b);
+int read_symmetric_linear_system(linear_system_t *ls, obig *a, obig *b);
