@@ -189,6 +189,10 @@ int main(int argc, char **argv) {
 			status = receive_value(&a2, socket[party - 1]);
 			check(status == 0, "Error receiving message from party %d", party % 2 + 1);
 
+			printf("a = %x\n", a);
+			printf("a2 = %x\n", a2);
+			printf("x = %x\n", x);
+			
 			fixed32_t share = -(x + a)*a2+x*a2;
 			printf("Party %d:: Share: %x\n", party, share);
 			status = send_value(share, socket[2]);
@@ -206,8 +210,12 @@ int main(int argc, char **argv) {
 
 		       printf("Party %d:: Value sent to party %d: %x\n", party, party % 2 + 1, a);
 
-		       fixed32_t share = a*a2;
-		       printf("Party %d:: Share: %x\n", party, x*a2);
+		       printf("a = %x\n", a);
+		       printf("a2 = %x\n", a2);
+		       printf("x = %x\n", x);
+		       
+		       fixed32_t share = a2*x;
+		       printf("Party %d:: Share: %x\n", party, share);
 		       // send share to TI
 		       status = send_value(share, socket[2]);
 		       check(status == 0, "Error sending message");
