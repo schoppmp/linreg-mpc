@@ -22,7 +22,7 @@
   This will not happen once messages are authenticated.
 */
 
-const int precision = 10;
+const int precision = 0;
 const char *endpoint[3] = {
 	"tcp://127.0.0.1:4567",
 	"tcp://127.0.0.1:4568",
@@ -142,19 +142,35 @@ int main(int argc, char **argv) {
 		check(gcry_check_version(GCRYPT_VERSION), "Unsupported gcrypt version");
 		gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
 		// generate random masks and send them to parties 1 and 2
-		fixed32_t mask[2];
+		fixed32_t mask[2] = {0, 0};
 		for(int i = 0; i < 2; i++) {
-			gcry_randomize(&mask[i], 4, GCRY_STRONG_RANDOM);
+		        gcry_randomize(&mask[i], 4, GCRY_STRONG_RANDOM);
 			printf("TI:: Sending message to party %d: %x\n", i+1, mask[i]);
 			status = send_value(mask[i], socket[i]);
 			check(status == 0, "Error sending message to party %d", i+1);
 		}
 
-		printf("Party %d:: Share: %x\n", party, mask[0]*mask[1]);
+		fixed32_t share = mask[0]*mask[1];
+		printf("Party %d:: Share: %x\n", party, share);
 
+		// receive first share
+		fixed32_t share_1;
+		status = receive_value(&share_1, socket[party - 1]);
+		check(status == 0, "Error receiving message");
+
+		// receive second share
+		fixed32_t share_2;
+		status = receive_value(&share_2, socket[party - 1]);
+		check(status == 0, "Error receiving message");
+
+		printf("Party %d:: Result: %f\n", party, fixed_to_double(share_1+share_2+share, precision));
+		printf("Party %d:: Result (fixed): %x\n", party, share_1+share_2+share);
+		
 	} else {
 		fixed32_t a;
 		fixed32_t x = double_to_fixed(input, precision);
+		printf("Party %d:: Input %f\n", party, input);
+		printf("Party %d:: Input (fixed) %u\n", party, x);
 		printf("Party %d:: Expecting value in socket %d\n", party, party-1);
 		status = receive_value(&a, socket[party-1]);
 		check(status == 0, "Error receiving message from TI");
@@ -173,7 +189,10 @@ int main(int argc, char **argv) {
 			status = receive_value(&a2, socket[party - 1]);
 			check(status == 0, "Error receiving message from party %d", party % 2 + 1);
 
-			printf("Party %d:: Share: %x\n", party, -(x + a)*a2+a*a2);
+			fixed32_t share = -(x + a)*a2+x*a2;
+			printf("Party %d:: Share: %x\n", party, share);
+			status = send_value(share, socket[2]);
+			check(status == 0, "Error sending message");
 
 		} else { // party == 2
 		       // receive value from party 1
@@ -187,7 +206,11 @@ int main(int argc, char **argv) {
 
 		       printf("Party %d:: Value sent to party %d: %x\n", party, party % 2 + 1, a);
 
-		       printf("Party %d:: Share: %x\n", party, a*a2);
+		       fixed32_t share = a*a2;
+		       printf("Party %d:: Share: %x\n", party, x*a2);
+		       // send share to TI
+		       status = send_value(share, socket[2]);
+		       check(status == 0, "Error sending message");
 		}
 		
 	}
