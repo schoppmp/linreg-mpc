@@ -22,7 +22,7 @@
   This will not happen once messages are authenticated.
 */
 
-const int precision = 0;
+const int precision = 10;
 const char *endpoint[3] = {
 	"tcp://127.0.0.1:4567",
 	"tcp://127.0.0.1:4568",
@@ -163,14 +163,35 @@ int main(int argc, char **argv) {
 		status = receive_value(&share_2, socket[party - 1]);
 		check(status == 0, "Error receiving message");
 
-		printf("Party %d:: Result: %f\n", party, fixed_to_double(share_1+share_2+share, precision));
-		printf("Party %d:: Result (fixed): %x\n", party, share_1+share_2+share);
+
+		fixed32_t share_1_ = share_1 /  (1 << precision);
+		fixed32_t share_2_ = share_2 / (1 << precision);
+		fixed32_t share_ = share / (1 << precision);
+		fixed32_t share_1_rem = share_1 & ((1 << precision) - 1);
+		fixed32_t share_2_rem = share_2 & ((1 << precision) - 1);
+		fixed32_t share_rem = share & ((1 << precision) - 1);
+		printf("Party %d:: Share 1: %d\n", party, share_1);
+		printf("Party %d:: Share 1: %d\n", party, share_1_);
+		printf("Party %d:: Share 1 remainder: %d\n", party, share_1_rem);
+		printf("Party %d:: Share 2: %d\n", party, share_2);
+		printf("Party %d:: Share 2: %d\n", party, share_2_);
+		printf("Party %d:: Share 2 remainder: %d\n", party, share_2_rem);
+		printf("Party %d:: Share 3: %d\n", party, share);
+		printf("Party %d:: Share 3: %d\n", party, share_);
+		printf("Party %d:: Share 3 remainder: %d\n", party, share_rem);
+		printf("Party %d:: Result: %f\n", party, fixed_to_double(share_1+share_2+share, 2*precision));
+		printf("Party %d:: Result: %f\n", party, fixed_to_double(share_1_+share_2_+share_, precision));
+		printf("Party %d:: Result: %f\n", party, fixed_to_double(share_1_+share_2_+share_, precision) + fixed_to_double(share_1_rem+share_2_rem+share_rem, 2*precision));
+		printf("Party %d:: Result (fixed): %d\n", party, share_1+share_2+share);
+		printf("Party %d:: Result (fixed): %d\n", party, share_1_+share_2_+share_);
+
 		
 	} else {
 		fixed32_t a;
 		fixed32_t x = double_to_fixed(input, precision);
 		printf("Party %d:: Input %f\n", party, input);
-		printf("Party %d:: Input (fixed) %u\n", party, x);
+		printf("Party %d:: Input (fixed) %d\n", party, x);
+		//printf("Party %d:: Input %f\n", party, fixed_to_double(x, precision));
 		printf("Party %d:: Expecting value in socket %d\n", party, party-1);
 		status = receive_value(&a, socket[party-1]);
 		check(status == 0, "Error receiving message from TI");
@@ -191,7 +212,7 @@ int main(int argc, char **argv) {
 
 			printf("a = %x\n", a);
 			printf("a2 = %x\n", a2);
-			printf("x = %x\n", x);
+			printf("x = %d\n", x);
 			
 			fixed32_t share = -(x + a)*a2+x*a2;
 			printf("Party %d:: Share: %x\n", party, share);
@@ -212,7 +233,7 @@ int main(int argc, char **argv) {
 
 		       printf("a = %x\n", a);
 		       printf("a2 = %x\n", a2);
-		       printf("x = %x\n", x);
+		       printf("x = %d\n", x);
 		       
 		       fixed32_t share = a2*x;
 		       printf("Party %d:: Share: %x\n", party, share);
