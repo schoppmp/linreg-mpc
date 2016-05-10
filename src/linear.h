@@ -24,6 +24,9 @@ typedef struct {
 // to an index into a one-dimensional array
 size_t idx(size_t i, size_t j);
 
+// inner product of two vectors of the same length
+fixed32_t inner_product(vector_t *, vector_t *);
+
 // functions to solve LSs
 void cholesky(void *);
 void ldlt(void *);

@@ -1,0 +1,6 @@
+package inner_product;
+
+message msg {
+	repeated int32 vector = 1 [packed=true];
+	required int32 value = 2;
+}

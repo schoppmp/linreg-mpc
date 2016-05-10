@@ -5,7 +5,7 @@ srcDir=src
 
 OBLIVCC=oblivcc
 REMOTE_HOST=localhost
-CFLAGS=-O3 -Werror -I $(srcDir) -std=c99
+CFLAGS=-O3 -Werror -I $(srcDir) -std=c99 -lrt -D_XOPEN_SOURCE
 OCFLAGS=$(CFLAGS) -DREMOTE_HOST=$(REMOTE_HOST)
 
 mkpath=mkdir -p $(@D)
@@ -18,7 +18,10 @@ native=$(objDir)/$(1)_c.o
 obliv=$(objDir)/$(1)_o.o
 both=$(call native,$(1)) $(call obliv,$(1))
 
-all: $(binDir)/test_multiplication $(binDir)/test_linear_system
+all: $(binDir)/test_multiplication $(binDir)/test_linear_system $(binDir)/test_inner_product
+
+$(binDir)/test_inner_product: $(objDir)/test/test_inner_product.pb-c.o $(objDir)/test/test_inner_product.o $(objDir)/fixed.o $(objDir)/linear.o
+	$(link) -lzmq -lprotobuf-c -lgcrypt
 
 $(binDir)/test_multiplication: $(objDir)/test/test_multiplication.pb-c.o $(objDir)/test/test_multiplication.o $(objDir)/fixed.o
 	$(link) -lzmq -lprotobuf-c -lgcrypt
