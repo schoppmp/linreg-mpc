@@ -4,6 +4,7 @@
 #include "linear.oh"
 #include "fixed.h"
 #include "fixed.oh"
+#include <alloca.h>
 
 
 // solves a symmetric, positive definite linear system using LDL^T decomposition
