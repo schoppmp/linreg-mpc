@@ -7,7 +7,7 @@ int read_symmetric_linear_system(linear_system_t *ls, obig *a, obig *b) {
 	// party 1 inputs matrix A and vector b, party 2 inputs the masks.
 	//obliv fixed32_t *mask_a, *mask_b;
 	obig mask;
-	obig_init(&mask, FIXED_BIT_SIZE);
+	obig_init(&mask, FIXED_BIT_SIZE/8);
 
 	size_t d;
 	// check inputs for validity
