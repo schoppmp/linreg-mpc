@@ -14,18 +14,18 @@ void ldlt(void *v) {
 	size_t d = ls->a.d[0];
 	obig *a = alloca(((d * (d+1)) / 2) * sizeof(obig));
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
-		obig_init(&a[ii], FIXED_BIT_SIZE/8+(ls->precision/8));
+		obig_init(&a[ii], FIXED_BIT_SIZE/8);
 	}
 
 	obig *b = alloca(d * sizeof(obig));
 	for (size_t ii = 0; ii < d; ii++) {
-		obig_init(&b[ii], FIXED_BIT_SIZE/8+(ls->precision/8));
+		obig_init(&b[ii], FIXED_BIT_SIZE/8);
 	}
 
 	obig a_jk_kk;
-	obig_init(&a_jk_kk, FIXED_BIT_SIZE/8+(ls->precision/8));
+	obig_init(&a_jk_kk, FIXED_BIT_SIZE/8);
 	obig otemp;
-	obig_init(&otemp, FIXED_BIT_SIZE/8+(ls->precision/8));
+	obig_init(&otemp, FIXED_BIT_SIZE/8);
 
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");

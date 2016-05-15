@@ -28,7 +28,7 @@ void cgd(void *v) {
 	
 	obig *a = alloca(((d * (d+1)) / 2) * sizeof(obig));
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
-		obig_init(&a[ii], FIXED_BIT_SIZE/8+(ls->precision/8));
+		obig_init(&a[ii], FIXED_BIT_SIZE / 8);
 	}
 
 	obig *b = alloca(d * sizeof(obig));
@@ -38,12 +38,12 @@ void cgd(void *v) {
 	obig *ap = alloca(d * sizeof(obig));
 	obig *m = alloca(d * sizeof(obig));
 	for (size_t ii = 0; ii < d; ii++) {
-		obig_init(&b[ii], FIXED_BIT_SIZE/8+(ls->precision/8));
-		obig_init(&g[ii], FIXED_BIT_SIZE/8+(ls->precision/8));
-		obig_init(&p[ii], FIXED_BIT_SIZE/8+(ls->precision/8));
-		obig_init(&beta[ii], FIXED_BIT_SIZE/8+(ls->precision/8));
-		obig_init(&ap[ii], FIXED_BIT_SIZE/8+(ls->precision/8));
-		obig_init(&m[ii], FIXED_BIT_SIZE/8+(ls->precision/8));
+		obig_init(&b[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&g[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&p[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&beta[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&ap[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&m[ii], FIXED_BIT_SIZE / 8);
 	}
 
 	if(read_symmetric_linear_system(ls, a, b)) {
@@ -62,15 +62,15 @@ void cgd(void *v) {
 	fixed32_t temp;
 	obliv fixed32_t otemp;
 	obig obigtemp;
-	obig_init(&obigtemp, FIXED_BIT_SIZE/8+(ls->precision/8));
+	obig_init(&obigtemp, FIXED_BIT_SIZE / 8);
 	obig obigtemp2;
-	obig_init(&obigtemp2, FIXED_BIT_SIZE/8+(ls->precision/8));
+	obig_init(&obigtemp2, FIXED_BIT_SIZE / 8);
 	obig eta;
-	obig_init(&eta, FIXED_BIT_SIZE/8+(ls->precision/8));
+	obig_init(&eta, FIXED_BIT_SIZE / 8);
 	obig gamma;
-	obig_init(&gamma, FIXED_BIT_SIZE/8+(ls->precision/8));
+	obig_init(&gamma, FIXED_BIT_SIZE / 8);
 	obig q;
-	obig_init(&q, FIXED_BIT_SIZE/8+(ls->precision/8));
+	obig_init(&q, FIXED_BIT_SIZE / 8);
 	
 	int prec = ls->precision;
 	if(ocCurrentParty() == 2) printf("m = ");
