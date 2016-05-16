@@ -18,10 +18,10 @@ native=$(objDir)/$(1)_c.o
 obliv=$(objDir)/$(1)_o.o
 both=$(call native,$(1)) $(call obliv,$(1))
 
-all: $(binDir)/test_multiplication $(binDir)/test_linear_system $(binDir)/test_inner_product $(binDir)/secure-multiplication
+all: $(binDir)/test_multiplication $(binDir)/test_linear_system $(binDir)/test_inner_product $(binDir)/secure_multiplication
 
-$(binDir)/secure-multiplication: $(objDir)/secure-multiplication/secure-multiplication.o $(objDir)/secure-multiplication/config.o $(objDir)/secure-multiplication/node.o 
-	$(link) -lczmq -lzmq
+$(binDir)/secure_multiplication: $(objDir)/secure_multiplication/secure_multiplication.pb-c.o $(objDir)/secure_multiplication/secure_multiplication.o $(objDir)/secure_multiplication/config.o $(objDir)/secure_multiplication/node.o 
+	$(link) -lczmq -lzmq -lsodium -lprotobuf-c
 
 $(binDir)/test_inner_product: $(objDir)/test/test_inner_product.pb-c.o $(objDir)/test/test_inner_product.o $(objDir)/fixed.o $(objDir)/linear.o
 	$(link) -lzmq -lprotobuf-c -lgcrypt

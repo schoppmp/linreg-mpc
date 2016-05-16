@@ -3,7 +3,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include "secure-multiplication/config.h"
+#include "config.h"
 #include "error.h"
 
 int config_new(config **conf, const char *filename) {

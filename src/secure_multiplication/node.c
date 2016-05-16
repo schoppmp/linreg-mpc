@@ -7,19 +7,13 @@
 #define ACTOR_ERROR 17
 #define ACTOR_OK 0
 
+// switches messages between outgoing socket and internal sockets.
 static void node_actor(zsock_t *pipe, void *nn) {
 	node *self = (node *) nn;
 	int status;
 	char *sender = NULL;
 	zmsg_t *msg = NULL;
 	zmq_pollitem_t *pollitems = NULL;
-
-	/*// create array with socket indices and self pointers
-	args = calloc(self->num_parties, sizeof(loop_args));
-	zloop_t *loop = zloop_new();
-	check(loop, "zloop_new: %s", zmq_strerror(errno));
-	status = zloop_reader(loop, self->socket, node_actor_socket_handler, 
-	*/
 
 	// listen for messages to send on each internal socket
 	pollitems = calloc(self->num_peers + 2, sizeof(zmq_pollitem_t));
@@ -135,11 +129,12 @@ int node_new(node **nn, config *conf) {
 	// create our own socket
 	char *port = strchr(conf->endpoint[conf->party], ':');
 	check(port++, "node_new: invalid endpoint: %s", conf->endpoint[conf->party]);
-	zsock_set_identity(self->socket, conf->endpoint[conf->party]);
+	zsock_set_identity(self->socket, self->endpoint[conf->party]);
 	status = zsock_bind(self->socket, "tcp://*:%s", port);
 	check(status >= 0, "zsock_bind: %s", zmq_strerror(errno));
 	// initiate connection to all peers that have a lower index
-	for(int i = 0; i < conf->party; i++) { 
+	for(int i = 0; i < conf->party; i++) {
+		if(i == conf->party) continue;
 		status = zsock_connect(self->socket, "tcp://%s", conf->endpoint[i]);
 		check(status != -1, "zsock_connect: %s; %s", zmq_strerror(errno), conf->endpoint[i]);
 	}
@@ -154,8 +149,6 @@ int node_new(node **nn, config *conf) {
 
 	self->actor = zactor_new(node_actor, self);
 	check(self->actor, "zactor_new: %s", zmq_strerror(errno));
-
-	printf("node for party %d created\n", conf->party);
 
 	return 0;
 
