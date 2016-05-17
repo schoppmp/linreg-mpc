@@ -19,6 +19,9 @@ $(binDir)/test_linear_system: $(call native,test/test_linear_system) $(call both
 $(binDir)/test_fixed: $(call both,test/test_fixed) $(call both,fixed) $(call native,util)
 	$(link)
 
+$(binDir)/test_input: $(call native,input) $(call obliv,test/test_input) $(call native,util)
+	$(link)
+
 $(objDir)/%_c.o: $(srcDir)/%.c
 	$(compile)
 

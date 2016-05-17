@@ -10,19 +10,25 @@ struct DualconS
 { ProtocolDesc pd1,pd2; 
   struct HonestOTExtRecver* r; 
 };
+static void flush(ProtocolDesc* pd)
+{
+  orecv(pd,0,NULL,0); // hack that causes two parties to flush
+}
 DualconS* dcsConnect(const char* csp_server,const char* csp_port,
                      const char* eval_server,const char* eval_port,
                      int party)
 {
-  DualconS* dcs = malloc(sizeof(dcs));
+  DualconS* dcs = malloc(sizeof(*dcs));
+  dhRandomInit();
   // Not setting party numbers: problem? check
   // Zeroes everywhere: Tcp2P ignores party numbers anyway
-  if(protocolConnectTcp2P(&dcs->pd1,csp_server,csp_port)<0) 
-    error(-1,0,"Could not connect to %s:%d\n",csp_server,csp_port);
+  if(protocolConnectTcp2P(&dcs->pd1,csp_server,csp_port)!=0)
+    error(-1,0,"Could not connect to %s:%s\n",csp_server,csp_port);
   osend(&dcs->pd1,0,&party,sizeof(party));
-  if(protocolConnectTcp2P(&dcs->pd2,eval_server,eval_port)<0)
-    error(-1,0,"Count not connect to %s:%d\n",eval_server,eval_port);
+  if(protocolConnectTcp2P(&dcs->pd2,eval_server,eval_port)!=0)
+    error(-1,0,"Could not connect to %s:%s\n",eval_server,eval_port);
   osend(&dcs->pd2,0,&party,sizeof(party));
+  flush(&dcs->pd2);
   dcs->r = honestOTExtRecverNew(&dcs->pd1,0);
   return dcs;
 }
@@ -57,13 +63,14 @@ bool meCsp() { return ocCurrentParty()==1; }
 DualconR* dcrConnect(const char* port,int pc)
 {
   int p;
+  flush(ocCurrentProto());
   DualconR* dcr = malloc(sizeof*dcr);
   dcr->pd = malloc(sizeof(ProtocolDesc)*pc);
   dcr->count = pc;
   dcr->party = malloc(sizeof(int)*pc);
   dcr->s = meCsp()?malloc(sizeof(struct HonestOTExtSender*)*pc):0;
   for(p=0;p<pc;++p)
-  { if(protocolAcceptTcp2P(dcr->pd+p,port)<0)
+  { if(protocolAcceptTcp2P(dcr->pd+p,port)!=0)
       error(-1,0,"TCP connection error\n");
     orecv(dcr->pd+p,0,dcr->party+p,sizeof(int));
     if(meCsp()) dcr->s[p] = honestOTExtSenderNew(dcr->pd+p,0);
@@ -82,7 +89,7 @@ void dcrClose(DualconR* dcr)
 }
 static int partyIndex(DualconR* dcr,int party)
 { int p;
-  for(p=0;p<dcr->count;++p) if(p==dcr->party[p]) return p;
+  for(p=0;p<dcr->count;++p) if(party==dcr->party[p]) return p;
   assert(false);
   return -1;
 }

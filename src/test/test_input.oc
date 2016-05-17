@@ -1,0 +1,42 @@
+#include<stdio.h>
+#include<input.h>
+#include<obliv.h>
+#include<obliv.oh>
+#include<util.h>
+
+const char port_csp[] = "1234", port_eval[] = "1235";
+void addem(void* arg)
+{
+  int* result = arg;
+  int p;
+  const char* port = (ocCurrentParty()==1?port_csp:port_eval);
+  DualconR* dcr = dcrConnect(port,3);
+  obliv int x,sum=0;
+  for(p=3;p<=5;++p) 
+  { dcrRecvIntArray(dcr,&x,1,p);
+    sum+=x;
+  }
+  dcrClose(dcr);
+  revealOblivInt(result,sum,0);
+}
+void sendem(int party)
+{
+  int x = party*3+2;
+  printf("Sending %d\n",x);
+  DualconS* dcs = dcsConnect("localhost",port_csp,"localhost",port_eval,party);
+  dcsSendIntArray(dcs,&x,1);
+  dcsClose(dcs);
+}
+int main(int argc,char* argv[])
+{
+  ProtocolDesc pd;
+  int me = (argv[1][0]-'0');
+  if(me>2) { sendem(me); return 0; }
+  int result=0;
+  ocTestUtilTcpOrDie(&pd, me==1, "4321");
+  setCurrentParty(&pd,me);
+  execYaoProtocol(&pd,addem,&result);
+  printf("Result = %d\n",result);
+  cleanupProtocol(&pd);
+  return 0;
+}
