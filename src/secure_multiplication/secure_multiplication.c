@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sodium.h>
+#include <math.h>
 
 #include "secure_multiplication.pb-c.h"
 #include "secure_multiplication.h"
@@ -11,7 +12,7 @@
 #include "error.h"
 #include "linear.h"
 
-const int precision = 24;
+const int precision = 14;
 
 // computes inner product in Z_{2^32}
 static uint32_t inner_prod_32(uint32_t *x, uint32_t *y, size_t n, size_t stride_x, size_t stride_y) {
@@ -38,8 +39,6 @@ error:
 // receives a message from peer, storing it in pmsg
 // the result should be freed by the caller after use
 static int recv_pmsg(SecureMultiplication__Msg **pmsg, zsock_t *peer) {
-	//static int count = 0;
-	//printf("received: %d\n", ++count);
 	zframe_t *zframe = NULL;
 	check(pmsg && peer, "recv_pmsg: Arguments may not be null");
 	*pmsg = NULL;
@@ -59,8 +58,6 @@ error:
 
 // sends the message pointed to by pmsg to peer
 static int send_pmsg(SecureMultiplication__Msg *pmsg, zsock_t *peer) {
-	//static int count = 0;
-	//printf("sent: %d\n", ++count);
 	zframe_t *zframe = NULL;
 	check(pmsg && peer, "send_pmsg: Arguments may not be null");
 
@@ -79,8 +76,8 @@ error:
 
 static int run_trusted_initializer(node *self, config *c) {
 	int status;
-	uint32_t *x = malloc(c->n * sizeof(uint32_t));
-	uint32_t *y = malloc(c->n * sizeof(uint32_t));
+	uint32_t *x = calloc(c->n , sizeof(uint32_t));
+	uint32_t *y = calloc(c->n , sizeof(uint32_t));
 	check(x && y, "malloc: %s", strerror(errno));
 	for(size_t i = 0; i <= c->d; i++) {
 		for(size_t j = 0; j <= i && j < c->d; j++) {
@@ -93,8 +90,11 @@ static int run_trusted_initializer(node *self, config *c) {
 			}
 
 			// generate random vectors x, y and value r
-			uint32_t r;
+			uint32_t r = 0;
 			randombytes_buf(x, c->n * sizeof(uint32_t));
+			for(size_t k = 0; k < c->n; k++) {
+				y[k] = 1;
+			}
 			randombytes_buf(y, c->n * sizeof(uint32_t));
 			randombytes_buf(&r, sizeof(uint32_t));
 			uint32_t xy = inner_prod_32(x, y, c->n, 1, 1);
@@ -109,14 +109,42 @@ static int run_trusted_initializer(node *self, config *c) {
 			pmsg_b.vector = y;
 			pmsg_b.n_vector = c->n;
 			pmsg_b.value = xy-r;
+			//assert(pmsg_b.value == 0);
 
-			printf("%d -> %d\n", c->party, party_a);
 			status = send_pmsg(&pmsg_a, self->peer[party_a]);
 			check(!status, "Could not send message to party A (%d)", party_a);
-			printf("%d -> %d\n", c->party, party_b);
 			status = send_pmsg(&pmsg_b, self->peer[party_b]);
 			check(!status, "Could not send message to party B (%d)", party_b);
 		}
+	}
+
+	// Receive and combine shares from peers for testing; TODO: remove
+	uint32_t *share_A = NULL, *share_b = NULL;
+	size_t d = c->d;
+	share_A = calloc(d * (d + 1) / 2, sizeof(uint32_t));
+	share_b = calloc(d, sizeof(uint32_t));
+
+	SecureMultiplication__Msg *pmsg_in;
+	for(int p = 1; p < c->num_parties; p++) {
+		status = recv_pmsg(&pmsg_in, self->peer[p]);
+		check(!status, "Could not receive result share_A from peer %d", p);
+		for(size_t i = 0; i < d * (d + 1) / 2; i++) {
+			share_A[i] += pmsg_in->vector[i];
+		}
+		secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
+		status = recv_pmsg(&pmsg_in, self->peer[p]);
+		check(!status, "Could not receive result share_b from peer %d", p);
+		for(size_t i = 0; i < d; i++) {
+			share_b[i] += pmsg_in->vector[i];
+		}
+		secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
+		
+	}
+	for(size_t i = 0; i < c->d; i++) {
+		for(size_t j = 0; j <= i; j++) {
+			printf("%f ", fixed_to_double((fixed32_t) share_A[idx(i, j)] >> precision, precision));
+		}
+		printf("\n");
 	}
 	free(x);
 	free(y);
@@ -179,30 +207,28 @@ static int run_party(node *self, config *c) {
 					c->n, stride, d);
 			} else {
 				// receive random values from TI
-				printf("%d <- %d\n", c->party, 0);
 				status = recv_pmsg(&pmsg_ti, self->peer[0]);
 				check(!status, "Could not receive message from TI; %d %d", i, j);
 
 				if(owner_i == c->party) { // if we own i but not j, we are party a
 					// set our own share r_A randomly
+					share = 0;
 					randombytes_buf(&share, sizeof(uint32_t));
 					// receive (b', _) from party b
 					int party_b = get_owner(j, c);
 
-					printf("%d <- %d\n", c->party, party_b);
 					status = recv_pmsg(&pmsg_in, self->peer[party_b]);
 					check(!status, "Could not receive message from party "
 						"B (%d)", party_b);
 
 					// Send (a + x, <a, b'> - r - r_A) to party b
 					pmsg_out.value = inner_prod_32(row_start, pmsg_in->vector,
-						c->n, stride, 1)
-						- pmsg_ti->value - share;
+						c->n, stride, 1);
+					pmsg_out.value -= (pmsg_ti->value + share);
 					for(size_t k = 0; k < c->n; k++) {
-						pmsg_out.vector[k] = pmsg_in->vector[k] 
+						pmsg_out.vector[k] = row_start[k*stride] 
 							+ pmsg_ti->vector[k];
 					}
-					printf("%d -> %d\n", c->party, party_b);
 					status = send_pmsg(&pmsg_out, self->peer[party_b]);
 					check(!status, "Could not send message to party B (%d)",
 						party_b);
@@ -212,24 +238,22 @@ static int run_party(node *self, config *c) {
 					// send (b - y, _) to party a
 					pmsg_out.value = 0;
 					for(size_t k = 0; k < c->n; k++) {
-						//printf("%x %zd %zd %zd\n", pmsg_ti, i, j, k);
-						pmsg_out.vector[k] = data.value[k * d + j] 
+						pmsg_out.vector[k] = ((uint32_t *) data.value)[k * d + j]
 							- pmsg_ti->vector[k];
+						//assert(pmsg_out.vector[k] == 1023);
 					}
 
-					printf("%d -> %d\n", c->party, party_a);
 					status = send_pmsg(&pmsg_out, self->peer[party_a]);
 					check(!status, "Could not send message to party A (%d)",
 						party_a);
 					
 					// receive (a', a'') from party a
-					printf("%d <- %d\n", c->party, party_a);
 					status = recv_pmsg(&pmsg_in, self->peer[party_a]);
 					check(!status, "Could not receive message from party A (%d)", party_a);
 
 					// set our share to <a', y> + a'' - z
-					share = inner_prod_32(pmsg_in->vector, pmsg_ti->vector, c-> n, 1, 1) 
-						+ pmsg_in->value - pmsg_ti->value;
+					share = inner_prod_32(pmsg_in->vector, pmsg_ti->vector, c->n, 1, 1);
+					share += pmsg_in->value - pmsg_ti->value;
 			
 				}
 				secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
@@ -245,10 +269,19 @@ static int run_party(node *self, config *c) {
 		}
 	}
 	
+	free(pmsg_out.vector);
+	// send results to TI for testing; TODO: remove
+	pmsg_out.vector = share_A;
+	pmsg_out.n_vector = d * (d + 1) / 2;
+	status = send_pmsg(&pmsg_out, self->peer[0]);
+	check(!status, "Could not send share_A to TI");
+	pmsg_out.vector = share_b;
+	pmsg_out.n_vector = d;
+	status = send_pmsg(&pmsg_out, self->peer[0]);
+	check(!status, "Could not send share_b to TI");
 
 	free(data.value);
 	free(target.value);
-	free(pmsg_out.vector);
 	free(share_A);
 	free(share_b);
 	return 0;
