@@ -65,6 +65,17 @@ def write_lr_instance(X, y, solution, filepath, num_parties=1):
         for i in range(d):
             f.write(str(solution[i]))
             f.write(' ')
+        f.write('\n')
+        f.write('// XX^T:\n')
+        cov = X.T.dot(X)
+        assert cov.shape[0] == d
+        assert cov.shape[1] == d
+        f.write('{0} {0}\n'.format(d))
+        for i in range(d):
+            for j in range(d):
+                f.write(str(cov[i][j]))
+                f.write(' ')
+            f.write('\n')
 
 
 def generate_sls_instance_from_regression_problem(
