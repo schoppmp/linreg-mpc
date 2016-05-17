@@ -5,7 +5,7 @@ srcDir=src
 
 OBLIVCC=oblivcc
 REMOTE_HOST=localhost
-CFLAGS=-O3 -Werror -I $(srcDir)
+CFLAGS=-O3 -g -Werror -I $(srcDir)
 OCFLAGS=$(CFLAGS) -DREMOTE_HOST=$(REMOTE_HOST)
 
 mkpath=mkdir -p $(@D)

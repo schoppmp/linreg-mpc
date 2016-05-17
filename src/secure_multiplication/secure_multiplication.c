@@ -38,6 +38,8 @@ error:
 // receives a message from peer, storing it in pmsg
 // the result should be freed by the caller after use
 static int recv_pmsg(SecureMultiplication__Msg **pmsg, zsock_t *peer) {
+	static int count = 0;
+	printf("received: %d\n", ++count);
 	zframe_t *zframe = NULL;
 	check(pmsg && peer, "recv_pmsg: Arguments may not be null");
 	*pmsg = NULL;
@@ -45,6 +47,8 @@ static int recv_pmsg(SecureMultiplication__Msg **pmsg, zsock_t *peer) {
 	zframe = zframe_recv(peer);
 	check(zframe, "zframe_recv: %s", zmq_strerror(errno));
 	*pmsg = secure_multiplication__msg__unpack(NULL, zframe_size(zframe), zframe_data(zframe));
+	check(pmsg, "msg__unpack: %s", strerror(errno));
+
 	zframe_destroy(&zframe);
 	return 0;
 error:
@@ -54,6 +58,8 @@ error:
 
 // sends the message pointed to by pmsg to peer
 static int send_pmsg(SecureMultiplication__Msg *pmsg, zsock_t *peer) {
+	static int count = 0;
+	printf("sent: %d\n", ++count);
 	zframe_t *zframe = NULL;
 	check(pmsg && peer, "send_pmsg: Arguments may not be null");
 
@@ -104,7 +110,6 @@ static int run_trusted_initializer(node *self, config *c) {
 			check(!status, "Could not send message to party A (%d)", party_a);
 			status = send_pmsg(&pmsg_b, self->peer[party_b]);
 			check(!status, "Could not send message to party B (%d)", party_b);
-
 		}
 	}
 	free(x);
@@ -127,6 +132,7 @@ static int run_party(node *self, config *c) {
 				  pmsg_out;
 	secure_multiplication__msg__init(&pmsg_out);
 	pmsg_out.vector = malloc(c->n * sizeof(uint32_t));
+	uint32_t *share_A = NULL, *share_b = NULL;
 	check(pmsg_out.vector, "malloc: %s", strerror(errno));
 
 	// read inputs and allocate result buffer
@@ -138,8 +144,8 @@ static int run_party(node *self, config *c) {
 	check(c->n == target.len && d == c->d && c->n == data.d[0],
 		"Input dimensions invalid: (%zd, %zd), %zd",
 		data.d[0], data.d[1], target.len);
-	uint32_t *share_A = calloc(d * (d + 1) / 2, sizeof(uint32_t));
-	uint32_t *share_b = calloc(d, sizeof(uint32_t));
+	share_A = calloc(d * (d + 1) / 2, sizeof(uint32_t));
+	share_b = calloc(d, sizeof(uint32_t));
 
 	for(int i = 0; i <= c->d; i++) {
 		uint32_t *row_start;
@@ -165,7 +171,7 @@ static int run_party(node *self, config *c) {
 			} else {
 				// receive random values from TI
 				status = recv_pmsg(&pmsg_ti, self->peer[0]);
-				check(!status, "Could not receive message from TI");
+				check(!status, "Could not receive message from TI; %d %d", i, j);
 
 				if(owner_i == c->party) { // if we own i but not j, we are party a
 					// set our own share r_A randomly
@@ -189,6 +195,7 @@ static int run_party(node *self, config *c) {
 					// send (b - y, _) to party a
 					pmsg_out.value = 0;
 					for(size_t k = 0; k < c->n; k++) {
+						//printf("%x %zd %zd %zd\n", pmsg_ti, i, j, k);
 						pmsg_out.vector[k] = data.value[k * d + j] - pmsg_ti->vector[k];
 					}
 					status = send_pmsg(&pmsg_out, self->peer[party_a]);
@@ -219,6 +226,8 @@ static int run_party(node *self, config *c) {
 
 error:
 	free(pmsg_out.vector);
+	free(share_A);
+	free(share_b);
 	if(pmsg_ti) secure_multiplication__msg__free_unpacked(pmsg_ti, NULL);
 	if(pmsg_in) secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
 	return 1;

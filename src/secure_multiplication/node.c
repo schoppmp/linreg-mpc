@@ -104,13 +104,13 @@ int node_new(node **nn, config *conf) {
 	self->peer_handler = calloc(self->num_peers, sizeof(zsock_t *));
 	check(self->peer_handler, "calloc: %s", strerror(errno));
 	for(int i = 0; i < self->num_peers; i++) {
-		zsock_t *peer = zsock_new(ZMQ_PAIR);
+		zsock_t *peer = zsock_new(ZMQ_STREAM); // TODO: use Pair?
 		check(peer, "zsock_new: %s", zmq_strerror(errno));
 		self->peer[i] = peer;
 		status = zsock_bind(peer, "inproc://%x", i);
 		check(status != -1, "zsock_bind: %s", zmq_strerror(errno));
 		// create corresponding internal socket
-		zsock_t *peer_handler = zsock_new(ZMQ_PAIR);
+		zsock_t *peer_handler = zsock_new(ZMQ_STREAM);
 		check(peer_handler, "zsock_new: %s", zmq_strerror(errno));
 		self->peer_handler[i] = peer_handler;
 		status = zsock_connect(peer_handler, "inproc://%x", i);
