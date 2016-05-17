@@ -120,9 +120,6 @@ static int run_trusted_initializer(node *self, config *c) {
 	}
 	free(x);
 	free(y);
-	printf("Peer %d finished\n", c->party);
-	//SecureMultiplication__Msg *pmsg_in;
-	//recv_pmsg(&pmsg_in, self->peer[c->party]);
 	return 0;
 
 error:
@@ -135,6 +132,7 @@ error:
 static int run_party(node *self, config *c) {
 	matrix_t data; // TODO: maybe use dedicated type for finite field matrices here
 	vector_t target;
+	data.value = target.value = NULL;
 	int status;
 	SecureMultiplication__Msg *pmsg_ti = NULL, 
 				  *pmsg_in = NULL,
@@ -246,14 +244,18 @@ static int run_party(node *self, config *c) {
 			}
 		}
 	}
-	printf("Peer %d finished\n", c->party);
-	//recv_pmsg(&pmsg_in, self->peer[c->party]);
+	
+
+	free(data.value);
+	free(target.value);
 	free(pmsg_out.vector);
 	free(share_A);
 	free(share_b);
 	return 0;
 
 error:
+	free(data.value);
+	free(target.value);
 	free(pmsg_out.vector);
 	free(share_A);
 	free(share_b);
@@ -290,6 +292,7 @@ int main(int argc, char **argv) {
 		status = run_party(self, c);
 		check(!status, "Error while running party %d", c->party);
 	}
+	printf("Peer %d finished\n", c->party);
 
 	// barrier: wait until everybody has finished
 	for(int i = 0; i < self->num_peers; i++) {
