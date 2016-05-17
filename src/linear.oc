@@ -1,6 +1,6 @@
 #include "linear.h"
 #include "linear.oh"
-#include "error.h"
+#include "errorgoto.h"
 
 
 int read_symmetric_linear_system(linear_system_t *ls, obliv fixed32_t *a, obliv fixed32_t *b) {

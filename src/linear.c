@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "fixed.h"
 #include "linear.h"
-#include "error.h"
+#include "errorgoto.h"
 
 size_t idx(size_t i, size_t j) {
 	if(j > i) {
