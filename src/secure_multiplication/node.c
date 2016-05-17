@@ -152,17 +152,17 @@ int node_new(node **nn, config *conf) {
 		self->socket_out[i] = zsock_new(ZMQ_DEALER);
 		check(self->socket_out[i], "zsock_new: %s", zmq_strerror(errno));
 		zsock_set_identity(self->socket_out[i], self->endpoint[conf->party]);
-		zsock_set_probe_router(self->socket_out[i], 1);
+		//zsock_set_probe_router(self->socket_out[i], 1);
 		status = zsock_connect(self->socket_out[i], "tcp://%s", conf->endpoint[i]);
 		check(status != -1, "zsock_connect: %s; %s", zmq_strerror(errno), conf->endpoint[i]);
 	}
 	// wait for probes from all parties
-	for(int i = 0; i < conf->num_parties; i++) {
+	/*for(int i = 0; i < conf->num_parties; i++) {
 		if(i == conf->party) continue;
 		zmsg_t *msg = zmsg_recv(self->socket);
 		check(msg, "zmsg_recv: %s", zmq_strerror(errno));
 		zmsg_destroy(&msg);
-	}
+	}*/
 
 
 	self->actor = zactor_new(node_actor, self);
