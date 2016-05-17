@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sodium.h>
-#include <math.h>
+#include <time.h>
 
 #include "secure_multiplication.pb-c.h"
 #include "secure_multiplication.h"
@@ -12,7 +12,7 @@
 #include "error.h"
 #include "linear.h"
 
-const int precision = 14;
+const int precision = 9;
 
 // computes inner product in Z_{2^32}
 static uint32_t inner_prod_32(uint32_t *x, uint32_t *y, size_t n, size_t stride_x, size_t stride_y) {
@@ -117,7 +117,7 @@ static int run_trusted_initializer(node *self, config *c) {
 			check(!status, "Could not send message to party B (%d)", party_b);
 		}
 	}
-
+/*
 	// Receive and combine shares from peers for testing; TODO: remove
 	uint32_t *share_A = NULL, *share_b = NULL;
 	size_t d = c->d;
@@ -146,6 +146,7 @@ static int run_trusted_initializer(node *self, config *c) {
 		}
 		printf("\n");
 	}
+*/
 	free(x);
 	free(y);
 	return 0;
@@ -270,7 +271,7 @@ static int run_party(node *self, config *c) {
 	}
 	
 	free(pmsg_out.vector);
-	// send results to TI for testing; TODO: remove
+/*	// send results to TI for testing; TODO: remove
 	pmsg_out.vector = share_A;
 	pmsg_out.n_vector = d * (d + 1) / 2;
 	status = send_pmsg(&pmsg_out, self->peer[0]);
@@ -279,7 +280,7 @@ static int run_party(node *self, config *c) {
 	pmsg_out.n_vector = d;
 	status = send_pmsg(&pmsg_out, self->peer[0]);
 	check(!status, "Could not send share_b to TI");
-
+*/
 	free(data.value);
 	free(target.value);
 	free(share_A);
@@ -315,6 +316,10 @@ int main(int argc, char **argv) {
 	check(!status, "Could not read config");
 	c->party = party;
 
+	if(party == 0) {
+		printf("%zd %zd %d\n", c->n, c->d, c->num_parties);
+	}
+
 	status = node_new(&self, c);
 	check(!status, "Could not create node");
 
@@ -325,7 +330,7 @@ int main(int argc, char **argv) {
 		status = run_party(self, c);
 		check(!status, "Error while running party %d", c->party);
 	}
-	printf("Peer %d finished\n", c->party);
+	printf("%d %f\n", c->party, (double) clock() / (double) CLOCKS_PER_SEC);
 
 	// barrier: wait until everybody has finished
 	for(int i = 0; i < self->num_peers; i++) {
