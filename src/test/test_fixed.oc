@@ -19,14 +19,26 @@ void test_fixed(void *v) {
 	} 
 	
 	// compute the square root of the dot product of a and b
-	obliv fixed32_t c;
+	obig c, x, y, t;
+	obig_init(&c, 4);
+	obig_init(&x, 4);
+	obig_init(&y, 4);
+	obig_init(&t, 4);
 	for(int i = 0; i < args->len; i++) {
 		// assuming sizeof(int) == sizeof(fixed32_t)
-		c += ofixed_mul(feedOblivInt(args->inputs[i], 1), 
-				feedOblivInt(args->inputs[i], 2), args->p);
+		obig_import_onative_signed(&x, feedOblivInt(args->inputs[i], 1));
+		obig_import_onative_signed(&y, feedOblivInt(args->inputs[i], 2));
+		ofixed_mul(&t, x, y, args->p);
+		ofixed_add(&c, c, t);
 	}
-	c = ofixed_sqrt(c, args->p);
+	ofixed_sqrt(&c, c, args->p);
 	
-	revealOblivInt(&(args->result), c, 0);
+	obliv uint32_t out = obig_export_onative_signed(c);
+	revealOblivInt(&(args->result), out, 0);
 	args->gates = yaoGateCount();
+
+	obig_free(&c);
+	obig_free(&x);
+	obig_free(&y);
+	obig_free(&t);
 }
