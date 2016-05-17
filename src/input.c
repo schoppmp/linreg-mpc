@@ -73,8 +73,9 @@ DualconR* dcrConnect(const char* port,int pc)
   { if(protocolAcceptTcp2P(dcr->pd+p,port)!=0)
       error(-1,0,"TCP connection error\n");
     orecv(dcr->pd+p,0,dcr->party+p,sizeof(int));
-    if(meCsp()) dcr->s[p] = honestOTExtSenderNew(dcr->pd+p,0);
   }
+  if(meCsp()) for(p=0;p<pc;++p)
+    dcr->s[p] = honestOTExtSenderNew(dcr->pd+p,0);
   return dcr;
 }
 
