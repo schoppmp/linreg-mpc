@@ -47,11 +47,22 @@ static void node_actor(zsock_t *pipe, void *nn) {
 				check(sender, "zmsg_popstr: %s", zmq_strerror(errno));
 				zsock_t *peer_handler = (zsock_t *) zhashx_lookup(self->peer_map, sender);
 				check(peer_handler, "zhashx_lookup: %s", zmq_strerror(errno));
+
+				/*int count = 0;
+				for(zframe_t *f = zmsg_first(msg); f != NULL; f = zmsg_next(msg)) {count++;}
+				printf("Party %d received message from %s, containing %d frames.\n", self->peer_id, sender, count );
+				zmsg_print(msg);*/
+
 				status = zmsg_send(&msg, peer_handler);
 				check(!status, "zmsg_send: %s", zmq_strerror(errno));
 				free(sender);
 				sender = NULL;
 			} else if(i < self->num_peers) { // message came from the inside
+				/*int count = 0;
+				for(zframe_t *f = zmsg_first(msg); f != NULL; f = zmsg_next(msg)) {count++;}
+				printf("Party %d sending message to %d, containing %d frames.\n", self->peer_id, i, count );
+				zmsg_print(msg);*/
+
 				status = zmsg_pushstr(msg, self->endpoint[i]);
 				check(!status, "zmsg_pushstr: %s", zmq_strerror(errno));
 				status = zmsg_send(&msg, self->socket);
@@ -92,6 +103,7 @@ int node_new(node **nn, config *conf) {
 	
 	self->endpoint = conf->endpoint;
 	self->num_peers = conf->num_parties;
+	self->peer_id = conf->party;
 
 	self->peer_map = zhashx_new();
 	check(self->peer_map, "zhashx_new: %s", zmq_strerror(errno));
@@ -104,13 +116,13 @@ int node_new(node **nn, config *conf) {
 	self->peer_handler = calloc(self->num_peers, sizeof(zsock_t *));
 	check(self->peer_handler, "calloc: %s", strerror(errno));
 	for(int i = 0; i < self->num_peers; i++) {
-		zsock_t *peer = zsock_new(ZMQ_STREAM); // TODO: use Pair?
+		zsock_t *peer = zsock_new(ZMQ_PAIR);
 		check(peer, "zsock_new: %s", zmq_strerror(errno));
 		self->peer[i] = peer;
 		status = zsock_bind(peer, "inproc://%x", i);
 		check(status != -1, "zsock_bind: %s", zmq_strerror(errno));
 		// create corresponding internal socket
-		zsock_t *peer_handler = zsock_new(ZMQ_STREAM);
+		zsock_t *peer_handler = zsock_new(ZMQ_PAIR);
 		check(peer_handler, "zsock_new: %s", zmq_strerror(errno));
 		self->peer_handler[i] = peer_handler;
 		status = zsock_connect(peer_handler, "inproc://%x", i);

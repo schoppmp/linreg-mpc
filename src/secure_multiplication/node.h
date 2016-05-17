@@ -6,6 +6,7 @@
 
 
 typedef struct node {
+	int peer_id;
 	int num_peers;
 	zsock_t **peer;
 

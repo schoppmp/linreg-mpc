@@ -38,16 +38,17 @@ error:
 // receives a message from peer, storing it in pmsg
 // the result should be freed by the caller after use
 static int recv_pmsg(SecureMultiplication__Msg **pmsg, zsock_t *peer) {
-	static int count = 0;
-	printf("received: %d\n", ++count);
+	//static int count = 0;
+	//printf("received: %d\n", ++count);
 	zframe_t *zframe = NULL;
 	check(pmsg && peer, "recv_pmsg: Arguments may not be null");
 	*pmsg = NULL;
 
 	zframe = zframe_recv(peer);
 	check(zframe, "zframe_recv: %s", zmq_strerror(errno));
+	//zframe_print(zframe, "recvd: ");
 	*pmsg = secure_multiplication__msg__unpack(NULL, zframe_size(zframe), zframe_data(zframe));
-	check(pmsg, "msg__unpack: %s", strerror(errno));
+	check(*pmsg && (*pmsg)->vector, "msg__unpack: %s", strerror(errno));
 
 	zframe_destroy(&zframe);
 	return 0;
@@ -58,8 +59,8 @@ error:
 
 // sends the message pointed to by pmsg to peer
 static int send_pmsg(SecureMultiplication__Msg *pmsg, zsock_t *peer) {
-	static int count = 0;
-	printf("sent: %d\n", ++count);
+	//static int count = 0;
+	//printf("sent: %d\n", ++count);
 	zframe_t *zframe = NULL;
 	check(pmsg && peer, "send_pmsg: Arguments may not be null");
 
@@ -67,6 +68,7 @@ static int send_pmsg(SecureMultiplication__Msg *pmsg, zsock_t *peer) {
 	check(zframe, "zframe_new: %s", zmq_strerror(errno));
 	// pack and send frames
 	secure_multiplication__msg__pack(pmsg, zframe_data(zframe));
+	//zframe_print(zframe, "sending: ");
 	check(zframe_send(&zframe, peer, 0) != -1, "zframe_send: %s", zmq_strerror(errno));
 	return 0;
 error:
@@ -102,12 +104,16 @@ static int run_trusted_initializer(node *self, config *c) {
 			secure_multiplication__msg__init(&pmsg_a);
 			secure_multiplication__msg__init(&pmsg_b);
 			pmsg_a.vector = x;
+			pmsg_a.n_vector = c->n;
 			pmsg_a.value = r;
 			pmsg_b.vector = y;
+			pmsg_b.n_vector = c->n;
 			pmsg_b.value = xy-r;
 
+			printf("%d -> %d\n", c->party, party_a);
 			status = send_pmsg(&pmsg_a, self->peer[party_a]);
 			check(!status, "Could not send message to party A (%d)", party_a);
+			printf("%d -> %d\n", c->party, party_b);
 			status = send_pmsg(&pmsg_b, self->peer[party_b]);
 			check(!status, "Could not send message to party B (%d)", party_b);
 		}
@@ -124,6 +130,7 @@ error:
 
 
 static int run_party(node *self, config *c) {
+//	sleep(1);
 	matrix_t data; // TODO: maybe use dedicated type for finite field matrices here
 	vector_t target;
 	int status;
@@ -131,6 +138,7 @@ static int run_party(node *self, config *c) {
 				  *pmsg_in = NULL,
 				  pmsg_out;
 	secure_multiplication__msg__init(&pmsg_out);
+	pmsg_out.n_vector = c->n;
 	pmsg_out.vector = malloc(c->n * sizeof(uint32_t));
 	uint32_t *share_A = NULL, *share_b = NULL;
 	check(pmsg_out.vector, "malloc: %s", strerror(errno));
@@ -170,6 +178,7 @@ static int run_party(node *self, config *c) {
 				share = inner_prod_32(row_start, (uint32_t *) data.value + j, c->n, stride, d);
 			} else {
 				// receive random values from TI
+				printf("%d <- %d\n", c->party, 0);
 				status = recv_pmsg(&pmsg_ti, self->peer[0]);
 				check(!status, "Could not receive message from TI; %d %d", i, j);
 
@@ -178,6 +187,8 @@ static int run_party(node *self, config *c) {
 					randombytes_buf(&share, sizeof(uint32_t));
 					// receive (b', _) from party b
 					int party_b = get_owner(j, c);
+
+					printf("%d <- %d\n", c->party, party_b);
 					status = recv_pmsg(&pmsg_in, self->peer[party_b]);
 					check(!status, "Could not receive message from party B (%d)", party_b);
 
@@ -187,6 +198,7 @@ static int run_party(node *self, config *c) {
 					for(size_t k = 0; k < c->n; k++) {
 						pmsg_out.vector[k] = pmsg_in->vector[k] + pmsg_ti->vector[k];
 					}
+					printf("%d -> %d\n", c->party, party_b);
 					status = send_pmsg(&pmsg_out, self->peer[party_b]);
 					check(!status, "Could not send message to party B (%d)", party_b);
 
@@ -198,10 +210,13 @@ static int run_party(node *self, config *c) {
 						//printf("%x %zd %zd %zd\n", pmsg_ti, i, j, k);
 						pmsg_out.vector[k] = data.value[k * d + j] - pmsg_ti->vector[k];
 					}
+
+					printf("%d -> %d\n", c->party, party_a);
 					status = send_pmsg(&pmsg_out, self->peer[party_a]);
 					check(!status, "Could not send message to party A (%d)", party_a);
 					
-					// receive (a', a'') from party b
+					// receive (a', a'') from party a
+					printf("%d <- %d\n", c->party, party_a);
 					status = recv_pmsg(&pmsg_in, self->peer[party_a]);
 					check(!status, "Could not receive message from party A (%d)", party_a);
 
