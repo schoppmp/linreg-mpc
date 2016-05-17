@@ -63,9 +63,9 @@ static void node_actor(zsock_t *pipe, void *nn) {
 				printf("Party %d sending message to %d, containing %d frames.\n", self->peer_id, i, count );
 				zmsg_print(msg);*/
 
-				status = zmsg_pushstr(msg, self->endpoint[i]);
-				check(!status, "zmsg_pushstr: %s", zmq_strerror(errno));
-				status = zmsg_send(&msg, self->socket);
+				//status = zmsg_pushstr(msg, self->endpoint[i]);
+				//check(!status, "zmsg_pushstr: %s", zmq_strerror(errno));
+				status = zmsg_send(&msg, self->socket_out[i]);
 				check(!status, "zmsg_send: %s", zmq_strerror(errno));
 			} else { // control socket -> exit
 				zmsg_destroy(&msg);
@@ -115,6 +115,8 @@ int node_new(node **nn, config *conf) {
 	check(self->peer, "calloc: %s", strerror(errno));
 	self->peer_handler = calloc(self->num_peers, sizeof(zsock_t *));
 	check(self->peer_handler, "calloc: %s", strerror(errno));
+	self->socket_out = calloc(self->num_peers, sizeof(zsock_t *));
+	check(self->socket_out, "calloc: %s", strerror(errno));
 	for(int i = 0; i < self->num_peers; i++) {
 		zsock_t *peer = zsock_new(ZMQ_PAIR);
 		check(peer, "zsock_new: %s", zmq_strerror(errno));
@@ -144,10 +146,14 @@ int node_new(node **nn, config *conf) {
 	zsock_set_identity(self->socket, self->endpoint[conf->party]);
 	status = zsock_bind(self->socket, "tcp://*:%s", port);
 	check(status >= 0, "zsock_bind: %s", zmq_strerror(errno));
-	// initiate connection to all peers that have a lower index
-	for(int i = 0; i < conf->party; i++) {
+	// initiate connection to all other peers using dealer sockets
+	for(int i = 0; i < conf->num_parties; i++) {
 		if(i == conf->party) continue;
-		status = zsock_connect(self->socket, "tcp://%s", conf->endpoint[i]);
+		self->socket_out[i] = zsock_new(ZMQ_DEALER);
+		check(self->socket_out[i], "zsock_new: %s", zmq_strerror(errno));
+		zsock_set_identity(self->socket_out[i], self->endpoint[conf->party]);
+		zsock_set_probe_router(self->socket_out[i], 1);
+		status = zsock_connect(self->socket_out[i], "tcp://%s", conf->endpoint[i]);
 		check(status != -1, "zsock_connect: %s; %s", zmq_strerror(errno), conf->endpoint[i]);
 	}
 	// wait for probes from all parties
@@ -183,6 +189,12 @@ void node_free(node **nn) {
 				if(self->peer[i]) zsock_destroy(self->peer + i);
 			}
 			free(self->peer);
+		}
+		if(self->socket_out) {
+			for(int i = 0; i < self->num_peers; i++) {
+				if(self->socket_out[i]) zsock_destroy(self->socket_out + i);
+			}
+			free(self->socket_out);
 		}
 		if(self->peer_handler) {
 			for(int i = 0; i < self->num_peers; i++) {

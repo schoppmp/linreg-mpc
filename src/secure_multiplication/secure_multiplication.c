@@ -120,6 +120,9 @@ static int run_trusted_initializer(node *self, config *c) {
 	}
 	free(x);
 	free(y);
+	printf("Peer %d finished\n", c->party);
+	//SecureMultiplication__Msg *pmsg_in;
+	//recv_pmsg(&pmsg_in, self->peer[c->party]);
 	return 0;
 
 error:
@@ -130,7 +133,6 @@ error:
 
 
 static int run_party(node *self, config *c) {
-//	sleep(1);
 	matrix_t data; // TODO: maybe use dedicated type for finite field matrices here
 	vector_t target;
 	int status;
@@ -175,7 +177,8 @@ static int run_party(node *self, config *c) {
 				continue;
 			// if we own both, compute locally
 			} else if(owner_i == c->party && owner_i == owner_j) {
-				share = inner_prod_32(row_start, (uint32_t *) data.value + j, c->n, stride, d);
+				share = inner_prod_32(row_start, (uint32_t *) data.value + j, 
+					c->n, stride, d);
 			} else {
 				// receive random values from TI
 				printf("%d <- %d\n", c->party, 0);
@@ -190,17 +193,21 @@ static int run_party(node *self, config *c) {
 
 					printf("%d <- %d\n", c->party, party_b);
 					status = recv_pmsg(&pmsg_in, self->peer[party_b]);
-					check(!status, "Could not receive message from party B (%d)", party_b);
+					check(!status, "Could not receive message from party "
+						"B (%d)", party_b);
 
 					// Send (a + x, <a, b'> - r - r_A) to party b
-					pmsg_out.value = inner_prod_32(row_start, pmsg_in->vector, c->n, stride, 1)
+					pmsg_out.value = inner_prod_32(row_start, pmsg_in->vector,
+						c->n, stride, 1)
 						- pmsg_ti->value - share;
 					for(size_t k = 0; k < c->n; k++) {
-						pmsg_out.vector[k] = pmsg_in->vector[k] + pmsg_ti->vector[k];
+						pmsg_out.vector[k] = pmsg_in->vector[k] 
+							+ pmsg_ti->vector[k];
 					}
 					printf("%d -> %d\n", c->party, party_b);
 					status = send_pmsg(&pmsg_out, self->peer[party_b]);
-					check(!status, "Could not send message to party B (%d)", party_b);
+					check(!status, "Could not send message to party B (%d)",
+						party_b);
 
 				} else { // if we own j but not i, we are party b
 					int party_a = get_owner(i, c);
@@ -208,12 +215,14 @@ static int run_party(node *self, config *c) {
 					pmsg_out.value = 0;
 					for(size_t k = 0; k < c->n; k++) {
 						//printf("%x %zd %zd %zd\n", pmsg_ti, i, j, k);
-						pmsg_out.vector[k] = data.value[k * d + j] - pmsg_ti->vector[k];
+						pmsg_out.vector[k] = data.value[k * d + j] 
+							- pmsg_ti->vector[k];
 					}
 
 					printf("%d -> %d\n", c->party, party_a);
 					status = send_pmsg(&pmsg_out, self->peer[party_a]);
-					check(!status, "Could not send message to party A (%d)", party_a);
+					check(!status, "Could not send message to party A (%d)",
+						party_a);
 					
 					// receive (a', a'') from party a
 					printf("%d <- %d\n", c->party, party_a);
@@ -237,6 +246,11 @@ static int run_party(node *self, config *c) {
 			}
 		}
 	}
+	printf("Peer %d finished\n", c->party);
+	//recv_pmsg(&pmsg_in, self->peer[c->party]);
+	free(pmsg_out.vector);
+	free(share_A);
+	free(share_b);
 	return 0;
 
 error:
@@ -275,6 +289,18 @@ int main(int argc, char **argv) {
 	} else {
 		status = run_party(self, c);
 		check(!status, "Error while running party %d", c->party);
+	}
+
+	// barrier: wait until everybody has finished
+	for(int i = 0; i < self->num_peers; i++) {
+		if(i == c->party) continue;
+		status = zsock_signal(self->peer[i], 0);
+		check(!status, "zsock_signal: %s\n", zmq_strerror(errno));
+	}
+	for(int i = 0; i < self->num_peers; i++) {
+		if(i == c->party) continue;
+		status = zsock_wait(self->peer[i]);
+		check(!status, "zsock_signal: %s\n", zmq_strerror(errno));
 	}
 
 	node_free(&self);

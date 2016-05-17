@@ -12,7 +12,8 @@ typedef struct node {
 
 	// internal fields, not to be used by the application
 	zactor_t *actor; // switches messages
-	zsock_t *socket; // outgoing socket
+	zsock_t *socket; // incoming router socket
+	zsock_t **socket_out; // outgoing dealer socket for each peer
 	char **endpoint;
 	zsock_t **peer_handler; // internal socket
 	zhashx_t *peer_map; // maps endpoints to peer_handlers
