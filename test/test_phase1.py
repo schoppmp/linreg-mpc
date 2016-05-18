@@ -4,6 +4,7 @@ from generate_tests import (generate_lin_regression, write_lr_instance)
 import paramiko
 
 REMOTE_USER = 'ubuntu'
+FORCE_RERUN = True
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Runs phase 1 experiments')
@@ -53,7 +54,8 @@ if __name__ == "__main__":
         for ip in public_ips:
             update_and_compile(ip)
 
-    def run_remotely(dest_folder, input_filepath, input_filename, ip, exec_cmd):
+    sys.exit()
+    def run_remotely(dest_folder, input_filepath, input_filename, output_filename, ip, exec_cmd):
         key = paramiko.RSAKey.from_private_key_file('/home/agascon/Desktop/experiments1.pem')
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -64,13 +66,34 @@ if __name__ == "__main__":
         except IOError:
             sftp.mkdir(dest_folder)  # Create remote_path
             sftp.chdir(dest_folder)
-        sftp.put(input_filepath, input_filename)
-        print ip, cmd
-        stdin, stdout, stderr = client.exec_command(cmd)#+'; sleep 1;'+killall secure_multiplication')
-        for line in stdout:
-            print '... ' + line.strip('\n')
-        for line in stderr:
-            print '... ' + line.strip('\n')
+        try:
+            sftp.stat(input_filename)
+            print '{0} exists in {1}. No need to upload.'.format(input_filename, ip)
+        except IOError, e:
+            if e[0] == 2:
+                print '{0} does not exist in {1}. Uploading.'.format(input_filename, ip)
+                sftp.put(input_filepath, input_filename)
+            else:
+                print 'Unexpected error in stat'
+
+        rerun = False
+        try:
+            sftp.stat(output_filename)
+            print '{0} exists in {1}. No need to rerun.'.format(output_filename, ip)
+        except IOError, e:
+            if e[0] == 2 and not FORCE_RERUN:
+                print '{0} does not exist in {1}. reruning.'.format(output_filename, ip)
+                rerun = True
+            else:
+                print 'Unexpected error in stat'
+
+        if rerun or FORCE_RERUN:
+            print ip, cmd
+            stdin, stdout, stderr = client.exec_command(cmd)#+'; sleep 1;'+killall secure_multiplication')
+            for line in stdout:
+                print '... ' + line.strip('\n')
+            for line in stderr:
+                print '... ' + line.strip('\n')
 
         client.close()
 
@@ -83,7 +106,7 @@ if __name__ == "__main__":
             sftp = client.open_sftp()
             sftp.get(f, f)
 
-    for n, p in [(2000, 20), (10000, 100), (50000, 500)]:
+    for n, d in [(2000, 20), (10000, 100), (50000, 500)]:
         for p in [2, 3, 5]:  # p is number of data providers (not TI)
             if p > d:
                 continue
@@ -104,7 +127,7 @@ if __name__ == "__main__":
                     party_out_files.append(filepath_lr_out)
                     cmd = '{0} {1} {2} > {3} {4}'.format(args.exec_file, filepath_lr_in, party, filepath_lr_out, '&' if party < p else '')
                     if args.ips_file:
-                        run_remotely(args.dest_folder, filepath_lr_in, filename_lr_in, public_ips[party], cmd)
+                        run_remotely(args.dest_folder, filepath_lr_in, filename_lr_in, filename_lr_out, public_ips[party], cmd)
                     else:
                         #print cmd
                         os.system(cmd)
