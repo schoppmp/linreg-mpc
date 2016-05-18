@@ -1,14 +1,26 @@
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "fixed.h"
 #include "linear.h"
 #include "check_error.h"
+
 
 size_t idx(size_t i, size_t j) {
 	if(j > i) {
 		i^=j; j^=i; i^=j;
 	}
 	return (i * (i + 1)) / 2 + j;
+}
+
+fixed32_t inner_product(vector_t *vector_1, vector_t *vector_2){
+	fixed32_t res = 0;
+	for(size_t i = 0; i < vector_1->len; i++) {
+		res += vector_1->value[i]*vector_2->value[i];
+	}
+	return res;
 }
 
 
@@ -21,7 +33,6 @@ int read_matrix(FILE *file, matrix_t *matrix, int precision) {
 	check(res == 1, "fscanf: %s.", strerror(errno));
 	res = fscanf(file, "%d", &m);
 	check(res == 1, "fscanf: %s.", strerror(errno));
-
 
 	matrix->d[0] = n;
 	matrix->d[1] = m;

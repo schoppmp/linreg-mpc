@@ -1,0 +1,5 @@
+package test;
+
+message Fixed {
+	required int32 value = 1;
+}

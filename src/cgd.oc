@@ -1,11 +1,13 @@
 #include <obliv.oh>
 #include <stdio.h>
+#include <alloca.h>
 #include "linear.h"
 #include "linear.oh"
 #include "fixed.h"
 #include "fixed.oh"
 #include <signal.h>
 //#include "util.h"
+
 
 int flag = 0;
 void sig_handler(int signo) {
