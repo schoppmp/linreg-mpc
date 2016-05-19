@@ -26,13 +26,13 @@ int read_symmetric_linear_system(linear_system_t *ls, obig *a, obig *b) {
 	// since A is symmetric, we only need to read half the matrix!
 	for(size_t i = 0; i < d; i++) {
 		for(size_t j = 0; j <= i; j++) {
-			obig_import_onative(&mask, feedOblivInt(ls->a.value[i*d+j], 2));
-			obig_import_onative_signed(&a[idx(i, j)], feedOblivInt(ls->a.value[i*d+j], 1));
+			obig_import_onative(&mask, feedOblivLLong(ls->a.value[i*d+j], 2));
+			obig_import_onative_signed(&a[idx(i, j)], feedOblivLLong(ls->a.value[i*d+j], 1));
 
 			obig_add(&a[idx(i,j)], a[idx(i,j)], mask);
 		}
-		obig_import_onative(&mask, feedOblivInt(ls->b.value[i], 2));
-		obig_import_onative_signed(&b[i], feedOblivInt(ls->b.value[i], 1));
+		obig_import_onative(&mask, feedOblivLLong(ls->b.value[i], 2));
+		obig_import_onative_signed(&b[i], feedOblivLLong(ls->b.value[i], 1));
 		obig_add(&b[i], b[i], mask);
 	}
 

@@ -25,7 +25,7 @@ int read_matrix(FILE *file, matrix_t *matrix, int precision) {
 
 	matrix->d[0] = n;
 	matrix->d[1] = m;
-	matrix->value = malloc(n*m*sizeof(fixed32_t));
+	matrix->value = malloc(n*m*sizeof(fixed64_t));
 
 //	printf("A = \n");
 	for(size_t i = 0; i < n; i++) {
@@ -58,7 +58,7 @@ int read_vector(FILE *file, vector_t *vector, int precision) {
 	check(res == 1, "fscanf: %s.", strerror(errno));
 
 	vector->len = l;
-	vector->value = malloc(l * sizeof(fixed32_t));
+	vector->value = malloc(l * sizeof(fixed64_t));
 
 //	printf("l = %d, b = \n", l);
 	for(size_t i = 0; i < l; i++) {

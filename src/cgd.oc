@@ -55,12 +55,12 @@ void cgd(void *v) {
 	// allocate output vector if not already done and we are party 2
 	if(!(ls->beta.value) && ocCurrentParty() == 2) {
 		ls->beta.len = d;
-		ls->beta.value = malloc(d * sizeof(fixed32_t));
+		ls->beta.value = malloc(d * sizeof(fixed64_t));
 	}
 
 	// loop for a fixed number of iterations
-	fixed32_t temp;
-	obliv fixed32_t otemp;
+	fixed64_t temp;
+	obliv fixed64_t otemp;
 	obig obigtemp;
 	obig_init(&obigtemp, FIXED_BIT_SIZE / 8);
 	obig obigtemp2;
@@ -92,7 +92,7 @@ void cgd(void *v) {
 		}
 		ofixed_sqrt(&m[i], m[i], prec);
 		otemp = obig_export_onative_signed(m[i]);
-		revealOblivInt(&temp, otemp, 2);
+		revealOblivLLong(&temp, otemp, 2);
 		//m[i] = ofixed_sqrt(m[i], prec);
 		//revealOblivInt(&temp, m[i], 2);
 		if(ocCurrentParty() == 2) printf("%20.15f ", fixed_to_double(temp, prec));
@@ -171,7 +171,7 @@ void cgd(void *v) {
 			ofixed_mul(&obigtemp, gamma, p[i], prec);
 			ofixed_add(&p[i], obigtemp, g[i]);
 			otemp = obig_export_onative_signed(beta[i]);
-			revealOblivInt(&temp, otemp, 2);
+			revealOblivLLong(&temp, otemp, 2);
 			//p[i] = g[i] + ofixed_mul(gamma, p[i], prec);
 			//revealOblivInt(&temp, beta[i], 2);
 			if(ocCurrentParty() == 2) printf("%20.15f ", fixed_to_double(temp, prec));
@@ -192,7 +192,7 @@ void cgd(void *v) {
 	// return the result
 	for(size_t i = 0; i < d; i++) {
 		otemp = obig_export_onative_signed(beta[i]);
-		revealOblivInt(ls->beta.value + i, otemp, 2); // <- is this right, or should it be &ls->beta.value[i]?
+		revealOblivLLong(ls->beta.value + i, otemp, 2); // <- is this right, or should it be &ls->beta.value[i]?
 		//revealOblivInt(ls->beta.value + i, beta[i], 2);
 	}
 

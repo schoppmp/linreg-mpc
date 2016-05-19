@@ -38,7 +38,7 @@ void cholesky(void *v) {
 	// allocate output vector if not already done and we are party 2
 	if(!(ls->beta.value) && ocCurrentParty() == 2) {
 		ls->beta.len = d;
-		ls->beta.value = malloc(d * sizeof(fixed32_t));
+		ls->beta.value = malloc(d * sizeof(fixed64_t));
 	}
 
 	// decompose a into L^T L
@@ -79,7 +79,7 @@ void cholesky(void *v) {
 		ofixed_div(&beta[i], y[i], a[idx(i,i)], ls->precision);
 		//beta[i] = ofixed_div(y[i], a[idx(i,i)], ls->precision);
 		obliv int32_t temp = obig_export_onative_signed(beta[i]);
-		revealOblivInt(ls->beta.value + i, temp, 2);
+		revealOblivLLong(ls->beta.value + i, temp, 2);
 	}
 
 	ls->gates = yaoGateCount();

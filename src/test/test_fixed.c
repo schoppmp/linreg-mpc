@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 	// read inputs
 	io.p = precision;
 	io.len = argc - 3;
-	io.inputs = alloca(io.len * sizeof(fixed32_t));
+	io.inputs = alloca(io.len * sizeof(fixed64_t));
 	for(int i = 0; i < io.len; i++) {
 		double d;
 		check(sscanf(argv[i+3], "%lf", &d) == 1, "Error scanning argument number %d.", i+3);

@@ -4,12 +4,12 @@
 
 typedef struct {
 	size_t d[2];
-	fixed32_t *value;
+	fixed64_t *value;
 } matrix_t;
 
 typedef struct {
 	size_t len;
-	fixed32_t *value;
+	fixed64_t *value;
 } vector_t;
 
 typedef struct {

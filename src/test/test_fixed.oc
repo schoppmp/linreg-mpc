@@ -26,15 +26,15 @@ void test_fixed(void *v) {
 	obig_init(&t, 4);
 	for(int i = 0; i < args->len; i++) {
 		// assuming sizeof(int) == sizeof(fixed32_t)
-		obig_import_onative_signed(&x, feedOblivInt(args->inputs[i], 1));
-		obig_import_onative_signed(&y, feedOblivInt(args->inputs[i], 2));
+		obig_import_onative_signed(&x, feedOblivLLong(args->inputs[i], 1));
+		obig_import_onative_signed(&y, feedOblivLLong(args->inputs[i], 2));
 		ofixed_mul(&t, x, y, args->p);
 		ofixed_add(&c, c, t);
 	}
 	ofixed_sqrt(&c, c, args->p);
 	
-	obliv uint32_t out = obig_export_onative_signed(c);
-	revealOblivInt(&(args->result), out, 0);
+	obliv fixed64_t out = obig_export_onative_signed(c);
+	revealOblivLLong(&(args->result), out, 0);
 	args->gates = yaoGateCount();
 
 	obig_free(&c);
