@@ -110,7 +110,7 @@ def generate_sls_instance_from_regression_problem(
 
 def generate_lin_system(n, d, filepath=None):
     X = random.randn(n, d)
-    A = 1. / n * X.T.dot(X)
+    A = 1. /(d * n) * X.T.dot(X)
     y = random.uniform(low=-1, high=1, size=d)
     b = A.dot(y)
     # -10 and 10 are an arbitrary choice here
@@ -121,17 +121,19 @@ def generate_lin_system(n, d, filepath=None):
     return (A, mask_A, b, mask_b, y)
 
 
-def generate_lin_system_from_regression_problem(n, d, lambda_, filepath=None):
-    (X, y, beta, e) = generate_lin_regression(n, d)
-    A = 1. / n * X.T.dot(X) + numpy.inner(numpy.identity(d), lambda_)
-    b = 1. / n * X.T.dot(y)
+def generate_lin_system_from_regression_problem(n, d, sigma, filepath=None):
+    (X, y, beta, e) = generate_lin_regression(n, d, sigma)
+    #lambda_ = 6. * sigma**2. / n
+    lambda_ = sigma**2. / (n * numpy.linalg.norm(beta) ** 2)
+    A = 1. / (d*n) * X.T.dot(X) + numpy.identity(d) * lambda_
+    b = 1. / (d*n) * X.T.dot(y)
     x = linalg.solve(A, b)
     if filepath:
-        write_system(A, b, x)
+        write_system(A, b, x, filepath)
     return (A, b, x)
 
 
-def generate_lin_regression(n, d, filepath=None, parties=1):
+def generate_lin_regression_nikolaenko(n, d):
     """
     Generates a synthetic linear regression instance as in
     "Privacy-Preserving Ridge Regression on Hundreds of Millions of Records"
@@ -142,3 +144,18 @@ def generate_lin_regression(n, d, filepath=None, parties=1):
     e = numpy.array(random.normal(mu, sigma, n))
     y = X.dot(beta) + e.T
     return (X, y, beta, e)
+
+
+
+def generate_lin_regression(n, d, sigma):
+    """
+    See cgd.pdf
+    """
+    X = random.randn(n, d)
+    for i in xrange(d):
+	X[:,i] /= numpy.max(numpy.abs(X[:,i]))
+    beta = random.uniform(low=0, high=1, size=d)
+    e = numpy.array(random.normal(0, sigma, n))
+    y = X.dot(beta) + e.T
+    return (X, y, beta, e)
+
