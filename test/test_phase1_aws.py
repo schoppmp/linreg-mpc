@@ -41,7 +41,7 @@ if __name__ == "__main__":
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
 
-        cmd_cd = 'cd secure-distributed-linear-regression; pwd; git stash; git checkout phase1; git pull; make OBLIVCC=../obliv-c/bin/oblivcc; killall secure_multiplication'
+        cmd_cd = 'cd secure-distributed-linear-regression; pwd; git stash; git checkout phase1; git pull; make bin/secure_multiplication; killall secure_multiplication'
         stdin, stdout, stderr = client.exec_command(cmd_cd)
         for line in stdout:
             print '... ' + line.strip('\n')
