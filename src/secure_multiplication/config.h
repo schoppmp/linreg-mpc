@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 typedef struct _config {
+	char *endpoint_evaluator; // Evaluator is an additional party not counted in num_parties and with party=-1
 	char **endpoint;
 	ssize_t *index_owned;
 	size_t n;

@@ -30,8 +30,8 @@ static int barrier(node *self) {
 	error: return 1;
 }
 
-
 int main(int argc, char **argv) {
+	uint32_t *share_A, *share_b; 
 	config *c = NULL;
 	node *self = NULL;
 	int status;
@@ -53,45 +53,64 @@ int main(int argc, char **argv) {
 	// read config
 	status = config_new(&c, argv[1]);
 	check(!status, "Could not read config");
-	c->party = party;
+	if(party == 1){
+		c->party = party - 1;
+	} else if(party == 2){
+		c->party = -1;
+	} else {
+		c->party = party - 2;
+	}
 
-	if(party == 0) {
+	if(party == 1) {
 		printf("{\"n\":\"%zd\", \"d\":\"%zd\" \"p\":\"%d\"}\n", c->n, c->d, c->num_parties - 1);
 	}
 
 	status = node_new(&self, c);
 	check(!status, "Could not create node");
-	
-	// wait until everybody has started up
-	check(!barrier(self), "Error while waiting for other peers to start");
-	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &cputime_start);
-	clock_gettime(CLOCK_MONOTONIC, &realtime_start);
+
 
 	if(c->party == 0) {
 		status = run_trusted_initializer(self, c);
 		check(!status, "Error while running trusted initializer");
-	} else {
-		status = run_party(self, c, precision, &wait_total, NULL, NULL);
+	} else if(c->party != -1){
+		status = run_party(self, c, precision, &wait_total, &share_A, &share_b);
 		check(!status, "Error while running party %d", c->party);
 	}
-
-
-	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &cputime_end);
-	clock_gettime(CLOCK_MONOTONIC, &realtime_end);
-	
-	double bill = 1000000000L;
-	printf("{\"party\":\"%d\", \"cputime\":\"%f\", \"wait_time\":%f, \"realtime\":\"%f\"}\n", c->party, 
-		(cputime_end.tv_sec - cputime_start.tv_sec) +
-		(double) (cputime_end.tv_nsec - cputime_start.tv_nsec) / bill,
-		(wait_total.tv_sec) +
-		(double) (wait_total.tv_nsec) / bill,
-		(realtime_end.tv_sec - realtime_start.tv_sec) +
-		(double) (realtime_end.tv_nsec - realtime_start.tv_nsec) / bill);
 	
 	// wait until everybody has finished
 	check(!barrier(self), "Error while waiting for other peers to finish");
+	node_free(&self); // free the endpoints from 0MQ to be ued by Oblivc
 
-	node_free(&self);
+	// At this point:
+	// if party = 1 then I am the CSP and c->party = 0
+	// if party = 2 then I am the Evaluator and c->party = -1
+	// if party > 2 then 
+	//   - I am a data provider and c->party = party - 2
+    //   - share_A and share_b are my shares of the equation
+
+	// Here phase 2 starts
+	// We first setup the protocol description for CSP and Evaluator
+	ProtocolDesc pd;
+	char* csp_port = strchr(conf->endpoint[0], ':') + 1;
+	*(csp_port - 1) = '\0'; // Removing whatever is after :
+	char* csp_server = c->endpoints[0];
+	char* eval_port = strchr(conf->endpoint_evaluator, ':') + 1;
+	*(eval_port - 1) = '\0'; // Removing whatever is after :
+	char* eval_server = c->endpoint_evaluator;
+	if(party < 3){  // CSP and Evaluator
+		ocTestUtilTcpOrDie(&pd, party==1, party==1 ? csp_port : eval_port);
+		setCurrentParty(&pd, party);
+		// Run garbled circuit
+		// We'll modify linear.oc so that the inputs are read from a ls if the provided one is not NULL
+		// else we'l use dcrRcvdIntArray...
+
+	} else {
+		DualconS* conn = dcsConnect(csp_server, csp_port, eval_server, eval_port, party);
+		dcsSendIntArray(conn, share_A, d*(d + 1)/2);
+		dcsSendIntArray(conn, share_b, d);
+		dcsClose(conn);
+	}
+	
 	config_free(&c);
 	return 0;
 error:

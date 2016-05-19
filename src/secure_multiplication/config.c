@@ -23,7 +23,7 @@ int config_new(config **conf, const char *filename) {
 	// read configuration from input file and allocate memory
 	status = fscanf(c->input, "%zd %zd %d", &c->n, &c->d, &c->num_parties);
 	check(status == 3, "fscanf: %s", errno? strerror(errno) : "Invalid input");
-	c->num_parties += 1; // include the TI
+	c->num_parties += 1; // include the TI but not the Evaluator TODO: make this nicer
 	c->endpoint = calloc(c->num_parties, sizeof(char *));
 	check(c->endpoint, "out of memory");
 	c->index_owned = calloc(c->num_parties, sizeof(ssize_t));
@@ -35,6 +35,9 @@ int config_new(config **conf, const char *filename) {
 		check(status == 1, "fscanf: %s", errno? strerror(errno) : "Invalid input");
 		if(i == 0) {
 			c->index_owned[0] = -1;
+			// Read in Evaluator info right after reading CSP's info
+			status = fscanf(c->input, "%ms", &c->endpoint_evaluator);
+			check(status == 1, "fscanf: %s", errno? strerror(errno) : "Invalid input");
 		} else {
 			status = fscanf(c->input, "%zd", c->index_owned + i);
 			check(status == 1, "fscanf: %s", errno? strerror(errno) : "Invalid input");
