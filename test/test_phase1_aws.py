@@ -36,10 +36,9 @@ if __name__ == "__main__":
         private_endpoints = None
 
     def update_and_compile(ip):
-        key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
+        client.connect(hostname=ip, username=REMOTE_USER, key_filename=KEY_FILE)
 
         cmd_cd = 'cd secure-distributed-linear-regression; pwd; git stash; git checkout phase1; git pull; make OBLIVCC=../obliv-c/bin/oblivcc; killall secure_multiplication'
         stdin, stdout, stderr = client.exec_command(cmd_cd)
@@ -55,10 +54,10 @@ if __name__ == "__main__":
             update_and_compile(ip)
 
     def run_remotely(dest_folder, input_filepath, input_filename, ip, exec_cmd):
-        key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
+        client.connect(hostname=ip, username=REMOTE_USER, key_filename=KEY_FILE)
+
         sftp = client.open_sftp()
         try:
             sftp.chdir(dest_folder)  # Test if remote_path exists
@@ -77,10 +76,9 @@ if __name__ == "__main__":
 
     def retrieve_out_files(party_out_files):
         for f in party_out_files:
-            key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect(hostname = ip, username=REMOTE_USER, pkey=key)
+            client.connect(hostname=ip, username=REMOTE_USER, key_filename=KEY_FILE)
             sftp = client.open_sftp()
             sftp.get(f, f)
 
