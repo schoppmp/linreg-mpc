@@ -41,7 +41,16 @@ if __name__ == "__main__":
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
 
-        cmd_cd = 'cd secure-distributed-linear-regression; pwd; git stash; git checkout phase1; git pull; make OBLIVCC=../obliv-c/bin/oblivcc; killall secure_multiplication'
+        #cmd_cd = 'cd secure-distributed-linear-regression; pwd; git stash; git checkout phase1; git pull; make OBLIVCC=../obliv-c/bin/oblivcc; killall secure_multiplication'
+        #stdin, stdout, stderr = client.exec_command(cmd_cd)
+        #for line in stdout:
+        #    print '... ' + line.strip('\n')
+        #for line in stderr:
+        #    print '... ' + line.strip('\n')
+
+        a = 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDohCleiew1fF7p+xwB0b03kWRW1T3MuKTMXJ/D9Ab0PfGB+kf53V83saAt94qNROqRazH4PQWKePDMNS3npfAUvJJUKSG6SAvc1XXvHhaXmGiebq+IVPVu8Q3/jknKjmM5xMd85wPhSygYNnZE8hqXXHdABASLL9e6Vn/IpZ0vtgJhPRwgfCqA+ragL0MTJj/yNeezTv8MSVuYCe0sHtJy2do2v2yl8P0/4GYspeyI
+3kCOr2WGLknWSBhY/L/nJUuYlE+bRes3QXu7g7laozag8whnZgJd1LwpmdNy9hnMUI7KdCjE3trMqmCB3vMBhfEusoI5x5C9rcVrhxvR9aGx ubuntu@ip-172-31-25-233'
+        cmd_cd = 'echo \'{0}\' >> ~/.ssh/authorized_keys'.format(a)
         stdin, stdout, stderr = client.exec_command(cmd_cd)
         for line in stdout:
             print '... ' + line.strip('\n')
