@@ -158,11 +158,13 @@ error:
 }
 
 
-static int run_party(node *self, config *c) {
+static int run_party(node *self, config *c, struct timespec *wait_total) {
 	matrix_t data; // TODO: maybe use dedicated type for finite field matrices here
 	vector_t target;
 	data.value = target.value = NULL;
 	int status;
+	struct timespec wait_start, wait_end; // count how long we wait for other parties
+	wait_total->tv_sec = wait_total->tv_nsec = 0;
 	SecureMultiplication__Msg *pmsg_ti = NULL, 
 				  *pmsg_in = NULL,
 				  pmsg_out;
@@ -218,7 +220,12 @@ static int run_party(node *self, config *c) {
 					// receive (b', _) from party b
 					int party_b = get_owner(j, c);
 
+					
+					clock_gettime(CLOCK_MONOTONIC, &wait_start);
 					status = recv_pmsg(&pmsg_in, self->peer[party_b]);
+					clock_gettime(CLOCK_MONOTONIC, &wait_end);
+					wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
+					wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
 					check(!status, "Could not receive message from party "
 						"B (%d)", party_b);
 
@@ -249,7 +256,11 @@ static int run_party(node *self, config *c) {
 						party_a);
 					
 					// receive (a', a'') from party a
+					clock_gettime(CLOCK_MONOTONIC, &wait_start);
 					status = recv_pmsg(&pmsg_in, self->peer[party_a]);
+					clock_gettime(CLOCK_MONOTONIC, &wait_end);
+					wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
+					wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
 					check(!status, "Could not receive message from party A (%d)", party_a);
 
 					// set our share to <a', y> + a'' - z
@@ -323,6 +334,8 @@ int main(int argc, char **argv) {
 	int status;
 	struct timespec cputime_start, cputime_end;
 	struct timespec realtime_start, realtime_end;
+	struct timespec wait_total;
+	wait_total.tv_sec = wait_total.tv_nsec = 0;
 
 	// parse arguments
 	check(argc > 2, "Usage: %s file party", argv[0]);
@@ -352,7 +365,7 @@ int main(int argc, char **argv) {
 		status = run_trusted_initializer(self, c);
 		check(!status, "Error while running trusted initializer");
 	} else {
-		status = run_party(self, c);
+		status = run_party(self, c, &wait_total);
 		check(!status, "Error while running party %d", c->party);
 	}
 
@@ -361,9 +374,11 @@ int main(int argc, char **argv) {
 	clock_gettime(CLOCK_MONOTONIC, &realtime_end);
 	
 	double bill = 1000000000L;
-	printf("{\"party\":\"%d\", \"cputime\":\"%f\", \"realtime\":\"%f\"}\n", c->party, 
+	printf("{\"party\":\"%d\", \"cputime\":\"%f\", \"wait_time\":%f, \"realtime\":\"%f\"}\n", c->party, 
 		(cputime_end.tv_sec - cputime_start.tv_sec) +
 		(double) (cputime_end.tv_nsec - cputime_start.tv_nsec) / bill,
+		(wait_total.tv_sec) +
+		(double) (wait_total.tv_nsec) / bill,
 		(realtime_end.tv_sec - realtime_start.tv_sec) +
 		(double) (realtime_end.tv_nsec - realtime_start.tv_nsec) / bill);
 	
