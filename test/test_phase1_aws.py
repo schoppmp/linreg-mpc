@@ -4,6 +4,7 @@ from generate_tests import (generate_lin_regression, write_lr_instance)
 import paramiko
 
 REMOTE_USER = 'ubuntu'
+KEY_FILE = '~/.ssh/id_ed25519'
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Runs phase 1 experiments')
@@ -35,7 +36,7 @@ if __name__ == "__main__":
         private_endpoints = None
 
     def update_and_compile(ip):
-        key = paramiko.RSAKey.from_private_key_file('~/.ssh/id_ed25519')
+        key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
@@ -54,7 +55,7 @@ if __name__ == "__main__":
             update_and_compile(ip)
 
     def run_remotely(dest_folder, input_filepath, input_filename, ip, exec_cmd):
-        key = paramiko.RSAKey.from_private_key_file('/home/agascon/Desktop/experiments1.pem')
+        key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
@@ -76,7 +77,7 @@ if __name__ == "__main__":
 
     def retrieve_out_files(party_out_files):
         for f in party_out_files:
-            key = paramiko.RSAKey.from_private_key_file('/home/agascon/Desktop/experiments1.pem')
+            key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             client.connect(hostname = ip, username=REMOTE_USER, pkey=key)
