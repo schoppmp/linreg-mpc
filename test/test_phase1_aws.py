@@ -4,7 +4,7 @@ from generate_tests import (generate_lin_regression, write_lr_instance)
 import paramiko
 
 REMOTE_USER = 'ubuntu'
-FORCE_RERUN = True
+KEY_FILE = '/home/ubuntu/.ssh/id_rsa'
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Runs phase 1 experiments')
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--verbose', '-v', action='store_true', help='Run in verbose mode')
     parser.add_argument(
-        '--ips_file', help='public/private config file', required=False)
+    	'--ips_file', help='public/private config file', required=False)
 
     args = parser.parse_args()
     VERBOSE = args.verbose
@@ -36,21 +36,12 @@ if __name__ == "__main__":
         private_endpoints = None
 
     def update_and_compile(ip):
-        key = paramiko.RSAKey.from_private_key_file('/home/agascon/Desktop/experiments1.pem')
+        key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
 
-        #cmd_cd = 'cd secure-distributed-linear-regression; pwd; git stash; git checkout phase1; git pull; make OBLIVCC=../obliv-c/bin/oblivcc; killall secure_multiplication'
-        #stdin, stdout, stderr = client.exec_command(cmd_cd)
-        #for line in stdout:
-        #    print '... ' + line.strip('\n')
-        #for line in stderr:
-        #    print '... ' + line.strip('\n')
-
-        a = 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDohCleiew1fF7p+xwB0b03kWRW1T3MuKTMXJ/D9Ab0PfGB+kf53V83saAt94qNROqRazH4PQWKePDMNS3npfAUvJJUKSG6SAvc1XXvHhaXmGiebq+IVPVu8Q3/jknKjmM5xMd85wPhSygYNnZE8hqXXHdABASLL9e6Vn/IpZ0vtgJhPRwgfCqA+ragL0MTJj/yNeezTv8MSVuYCe0sHtJy2do2v2yl8P0/4GYspeyI
-3kCOr2WGLknWSBhY/L/nJUuYlE+bRes3QXu7g7laozag8whnZgJd1LwpmdNy9hnMUI7KdCjE3trMqmCB3vMBhfEusoI5x5C9rcVrhxvR9aGx ubuntu@ip-172-31-25-233'
-        cmd_cd = 'echo \'{0}\' >> ~/.ssh/authorized_keys'.format(a)
+        cmd_cd = 'cd secure-distributed-linear-regression; pwd; git stash; git checkout phase1; git pull; make OBLIVCC=../obliv-c/bin/oblivcc; killall secure_multiplication'
         stdin, stdout, stderr = client.exec_command(cmd_cd)
         for line in stdout:
             print '... ' + line.strip('\n')
@@ -63,9 +54,8 @@ if __name__ == "__main__":
         for ip in public_ips:
             update_and_compile(ip)
 
-    sys.exit()
-    def run_remotely(dest_folder, input_filepath, input_filename, output_filename, ip, exec_cmd):
-        key = paramiko.RSAKey.from_private_key_file('/home/agascon/Desktop/experiments1.pem')
+    def run_remotely(dest_folder, input_filepath, input_filename, ip, exec_cmd):
+        key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
@@ -75,48 +65,27 @@ if __name__ == "__main__":
         except IOError:
             sftp.mkdir(dest_folder)  # Create remote_path
             sftp.chdir(dest_folder)
-        try:
-            sftp.stat(input_filename)
-            print '{0} exists in {1}. No need to upload.'.format(input_filename, ip)
-        except IOError, e:
-            if e[0] == 2:
-                print '{0} does not exist in {1}. Uploading.'.format(input_filename, ip)
-                sftp.put(input_filepath, input_filename)
-            else:
-                print 'Unexpected error in stat'
-
-        rerun = False
-        try:
-            sftp.stat(output_filename)
-            print '{0} exists in {1}. No need to rerun.'.format(output_filename, ip)
-        except IOError, e:
-            if e[0] == 2 and not FORCE_RERUN:
-                print '{0} does not exist in {1}. reruning.'.format(output_filename, ip)
-                rerun = True
-            else:
-                print 'Unexpected error in stat'
-
-        if rerun or FORCE_RERUN:
-            print ip, cmd
-            stdin, stdout, stderr = client.exec_command(cmd)#+'; sleep 1;'+killall secure_multiplication')
-            for line in stdout:
-                print '... ' + line.strip('\n')
-            for line in stderr:
-                print '... ' + line.strip('\n')
+        sftp.put(input_filepath, input_filename)
+        print ip, cmd
+        stdin, stdout, stderr = client.exec_command(cmd)#+'; sleep 1;'+killall secure_multiplication')
+        for line in stdout:
+            print '... ' + line.strip('\n')
+        for line in stderr:
+            print '... ' + line.strip('\n')
 
         client.close()
 
     def retrieve_out_files(party_out_files):
         for f in party_out_files:
-            key = paramiko.RSAKey.from_private_key_file('/home/agascon/Desktop/experiments1.pem')
+            key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             client.connect(hostname = ip, username=REMOTE_USER, pkey=key)
             sftp = client.open_sftp()
             sftp.get(f, f)
 
-    for n, d in [(2000, 20), (10000, 100), (50000, 500)]:
-        for p in [2, 3, 5]:  # p is number of data providers (not TI)
+    for n, p in [(2000, 20), (10000, 100), (50000, 500)]:
+        for p in [2, 3, 4]:  # p is number of data providers (not TI)
             if p > d:
                 continue
             print n,d,p
@@ -136,7 +105,7 @@ if __name__ == "__main__":
                     party_out_files.append(filepath_lr_out)
                     cmd = '{0} {1} {2} > {3} {4}'.format(args.exec_file, filepath_lr_in, party, filepath_lr_out, '&' if party < p else '')
                     if args.ips_file:
-                        run_remotely(args.dest_folder, filepath_lr_in, filename_lr_in, filename_lr_out, public_ips[party], cmd)
+                        run_remotely(args.dest_folder, filepath_lr_in, filename_lr_in, public_ips[party], cmd)
                     else:
                         #print cmd
                         os.system(cmd)
