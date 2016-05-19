@@ -4,7 +4,7 @@ from generate_tests import (generate_lin_regression, write_lr_instance)
 import paramiko
 
 REMOTE_USER = 'ubuntu'
-KEY_FILE = '~/.ssh/id_ed25519'
+KEY_FILE = '/home/ubuntu/.ssh/id_rsa'
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Runs phase 1 experiments')
@@ -36,9 +36,10 @@ if __name__ == "__main__":
         private_endpoints = None
 
     def update_and_compile(ip):
+        key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname=ip, username=REMOTE_USER, key_filename=KEY_FILE)
+        client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
 
         cmd_cd = 'cd secure-distributed-linear-regression; pwd; git stash; git checkout phase1; git pull; make OBLIVCC=../obliv-c/bin/oblivcc; killall secure_multiplication'
         stdin, stdout, stderr = client.exec_command(cmd_cd)
@@ -54,10 +55,10 @@ if __name__ == "__main__":
             update_and_compile(ip)
 
     def run_remotely(dest_folder, input_filepath, input_filename, ip, exec_cmd):
+        key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname=ip, username=REMOTE_USER, key_filename=KEY_FILE)
-
+        client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
         sftp = client.open_sftp()
         try:
             sftp.chdir(dest_folder)  # Test if remote_path exists
@@ -76,9 +77,10 @@ if __name__ == "__main__":
 
     def retrieve_out_files(party_out_files):
         for f in party_out_files:
+            key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect(hostname=ip, username=REMOTE_USER, key_filename=KEY_FILE)
+            client.connect(hostname = ip, username=REMOTE_USER, pkey=key)
             sftp = client.open_sftp()
             sftp.get(f, f)
 
