@@ -20,7 +20,7 @@ both=$(call native,$(1)) $(call obliv,$(1))
 
 all: $(binDir)/test_multiplication $(binDir)/test_linear_system $(binDir)/test_inner_product $(binDir)/secure_multiplication
 
-$(binDir)/secure_multiplication: $(objDir)/secure_multiplication/secure_multiplication.pb-c.o $(objDir)/secure_multiplication/secure_multiplication.o $(objDir)/secure_multiplication/config.o $(objDir)/secure_multiplication/node.o $(objDir)/linear.o $(objDir)/fixed.o
+$(binDir)/secure_multiplication: $(objDir)/secure_multiplication/secure_multiplication.pb-c.o $(objDir)/secure_multiplication/secure_multiplication.o $(objDir)/secure_multiplication/config.o $(objDir)/secure_multiplication/node.o $(objDir)/linear.o $(objDir)/fixed.o $(objDir)/secure_multiplication/phase1.o
 	$(link) -lczmq -lzmq -lsodium -lprotobuf-c
 
 $(binDir)/test_inner_product: $(objDir)/test/test_inner_product.pb-c.o $(objDir)/test/test_inner_product.o $(objDir)/fixed.o $(objDir)/linear.o
