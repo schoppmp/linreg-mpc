@@ -1,4 +1,4 @@
-from generate_tests import (generate_lin_system)
+from generate_tests import (generate_lin_system_from_regression_problem)
 import os
 import argparse
 
@@ -7,6 +7,7 @@ if __name__ == "__main__":
         description='A generator for pseudorandom positive definitive matrices')
     parser.add_argument('n', help='Number of rows', type=int)
     parser.add_argument('d', help='Number of columns', type=int)
+    parser.add_argument('sigma', help='Standard deviation for noise', type=float)
     parser.add_argument('dest_folder', help='Destination folder')
     parser.add_argument('num_matrices', help='Number of matrices to be generated', type=int)
     parser.add_argument('--verbose', '-v', action='store_true', help='Run in verbose mode')
@@ -19,7 +20,9 @@ if __name__ == "__main__":
     for i in range(args.num_matrices):
         filename_ls = 'test_LS_{0}x{1}_{2}.test'.format(args.n, args.d, i)
         filepath_ls = os.path.join(args.dest_folder, filename_ls)
-        A, mask_A, b, mask_b, solution = generate_lin_system(
-            args.n, args.d, filepath_ls)
+#        A, mask_A, b, mask_b, solution = generate_lin_system(
+ #           args.n, args.d, filepath_ls)
+	generate_lin_system_from_regression_problem(
+        	args.n, args.d, args.sigma, filepath_ls)
         if VERBOSE:
             print('Wrote linear system in file {0}'.format(filepath_ls))
