@@ -29,7 +29,7 @@ if __name__ == "__main__":
         private_endpoints = []
         with open(args.ips_file, 'r') as f:
             for i, line in enumerate(f.readlines()):
-                public_ips.append(line.split()[0])
+                public_ips.append(line.split()[1])
                 private_endpoints.append(line.split()[1] + ':{0}'.format(1234 + i))
     else:
         public_ips = None
@@ -84,7 +84,7 @@ if __name__ == "__main__":
             sftp = client.open_sftp()
             sftp.get(f, f)
 
-    for n, p in [(2000, 20), (10000, 100), (50000, 500)]:
+    for n, d in [(2000, 20), (10000, 100), (50000, 500)]:
         for p in [2, 3, 4]:  # p is number of data providers (not TI)
             if p > d:
                 continue
