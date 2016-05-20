@@ -1,6 +1,6 @@
 #include <czmq.h>
 #include "node.h"
-#include "error.h"
+#include "check_error.h"
 
 #define ACTOR_START 11
 #define ACTOR_STOP 13

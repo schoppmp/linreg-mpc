@@ -29,11 +29,14 @@ $(binDir)/test_inner_product: $(objDir)/test/test_inner_product.pb-c.o $(objDir)
 $(binDir)/test_multiplication: $(objDir)/test/test_multiplication.pb-c.o $(objDir)/test/test_multiplication.o $(objDir)/fixed.o
 	$(link) -lzmq -lprotobuf-c -lgcrypt
 
-$(binDir)/test_linear_system: $(call native,test/test_linear_system) $(call both,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd)
+$(binDir)/test_linear_system: $(call native,test/test_linear_system) $(call both,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd) $(call native,input)
 	$(link_obliv)
 
 $(binDir)/test_fixed: $(call both,test/test_fixed) $(call both,fixed) $(call native,util)
 	$(link_obliv)
+
+$(binDir)/test_input: $(call native,input) $(call obliv,test/test_input) $(call native,util)
+	$(link)
 
 $(objDir)/%_c.o: $(srcDir)/%.c
 	$(compile_obliv)

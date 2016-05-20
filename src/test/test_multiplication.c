@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <zmq.h>
 
-#include "error.h"
+#include "check_error.h"
 #include "fixed.h"
 #include "test/test_multiplication.pb-c.h"
 

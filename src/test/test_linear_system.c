@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "linear.h"
 #include "util.h"
-#include "error.h"
+#include "check_error.h"
 
 const int precision = 24;
 

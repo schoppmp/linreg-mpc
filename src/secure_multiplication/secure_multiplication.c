@@ -9,7 +9,7 @@
 #include "secure_multiplication.h"
 #include "node.h"
 #include "config.h"
-#include "error.h"
+#include "check_error.h"
 #include "linear.h"
 
 const int precision = 9;

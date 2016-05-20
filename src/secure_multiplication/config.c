@@ -5,7 +5,7 @@
 #include <sys/types.h>
 
 #include "config.h"
-#include "error.h"
+#include "check_error.h"
 
 int config_new(config **conf, const char *filename) {
 	int status;

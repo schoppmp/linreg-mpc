@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "test/test_fixed.h"
 #include "util.h"
-#include "error.h"
+#include "check_error.h"
 
 
 const int precision = 16;

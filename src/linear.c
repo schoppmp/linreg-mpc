@@ -5,7 +5,7 @@
 
 #include "fixed.h"
 #include "linear.h"
-#include "error.h"
+#include "check_error.h"
 
 
 size_t idx(size_t i, size_t j) {

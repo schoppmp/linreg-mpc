@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <zmq.h>
 
-#include "error.h"
+#include "check_error.h"
 #include "fixed.h"
 #include "linear.h"
 #include "test/test_inner_product.pb-c.h"
