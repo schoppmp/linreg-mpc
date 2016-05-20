@@ -350,7 +350,7 @@ int main(int argc, char **argv) {
 	c->party = party;
 
 	if(party == 0) {
-		printf("{\"n\":\"%zd\", \"d\":\"%zd\" \"p\":\"%d\"}\n", c->n, c->d, c->num_parties - 1);
+		printf("{\"n\":\"%zd\", \"d\":\"%zd\", \"p\":\"%d\"}\n", c->n, c->d, c->num_parties - 1);
 	}
 
 	status = node_new(&self, c);
