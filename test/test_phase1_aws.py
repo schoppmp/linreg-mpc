@@ -84,8 +84,9 @@ if __name__ == "__main__":
             sftp = client.open_sftp()
             sftp.get(f, f)
 
-    for n, d in [(2000, 20), (10000, 100), (50000, 500)]:
-        for p in [2, 3, 4]:  # p is number of data providers (not TI)
+    #for n, d in [(2000, 20), (10000, 100), (50000, 500)]:
+    for n, d in [(50000, 500)]:
+        for p in [3, 4, 2]:  # p is number of data providers (not TI)
             if p > d:
                 continue
             print n,d,p
