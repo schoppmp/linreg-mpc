@@ -1,9 +1,33 @@
 #include "linear.h"
 #include "linear.oh"
 #include "check_error.h"
+#include "config.h"
 
+int read_symmetric_linear_system_from_config(config *c, obliv fixed32_t *a, obliv fixed32_t *b) {
+	// This function must only be executed by the parties that run the GC protocol: CSP and Evaluator,
+	// with is'd 1 and 2 and c->party = 0 and 1, respectively.
+	int num_data_providers = c->num_parties - 1;
+	char* port = strchr(conf->endpoint[c->party], ':') + 1;
+	*(port - 1) = '\0'; // Removing whatever is after :
+	DualconR* conn = dcrConnect(port, num_data_providers);
+	if(c->party == 0){  // CSP
+		// CSP does not receive input from data providers, just does the garbling for them
+	} else {  // Evaluator
+		for(int k = 0; k < num_data_providers; k++) {
+			// since A is symmetric, we only need to read half the matrix!
+			for(size_t i = 0; i < d; i++) {
+				for(size_t j = 0; j <= i; j++) {
+					dcrRecvIntArray(conn, a, d*(d + 1)/2, k)
+					a[idx(i,j)] = ((obliv uint32_t) a[idx(i,j)] + share);
+				}
+				dcrRecvIntArray(conn, b, d, k)
+				b[i] = (obliv uint32_t) b[i] + share;
+			}
+		}
+	}
+}
 
-int read_symmetric_linear_system(linear_system_t *ls, obliv fixed32_t *a, obliv fixed32_t *b) {
+int read_symmetric_linear_system_from_ls(linear_system_t *ls, obliv fixed32_t *a, obliv fixed32_t *b) {
 	// party 1 inputs matrix A and vector b, party 2 inputs the masks.
 	obliv fixed32_t *mask_a, *mask_b;
 
@@ -38,4 +62,13 @@ int read_symmetric_linear_system(linear_system_t *ls, obliv fixed32_t *a, obliv 
 
 error:
 	return -1;
+}
+
+int read_symmetric_linear_system(linear_system_t *ls, config *c, obliv fixed32_t *a, obliv fixed32_t *b) {
+	// This distinction is to maintain compatibility to our tests of phase 2 only
+	if(ls == NULL){
+		return read_symmetric_linear_system_from_ls(ls, a, b);
+	} else {
+		return read_symmetric_linear_system_from_config(ls, a, b);
+	}
 }
