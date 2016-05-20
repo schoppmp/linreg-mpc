@@ -5,13 +5,14 @@
 #include <sodium.h>
 #include <time.h>
 
-#include "secure_multiplication.pb-c.h"
-#include "secure_multiplication.h"
-#include "node.h"
-#include "config.h"
+#include "secure_multiplication/secure_multiplication.pb-c.h"
+#include "secure_multiplication/secure_multiplication.h"
+#include "secure_multiplication/node.h"
+#include "secure_multiplication/config.h"
 #include "check_error.h"
 #include "linear.h"
-#include "phase1.h"
+#include "secure_multiplication/phase1.h"
+#include "input.h"
 
 static int barrier(node *self) {
 	// wait until everybody is here

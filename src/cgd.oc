@@ -30,7 +30,7 @@ void cgd(void *v) {
 	obliv fixed32_t *a = alloca(((d * (d+1)) / 2) * sizeof(obliv fixed32_t));
 	obliv fixed32_t *b = alloca(d * sizeof(obliv fixed32_t));
 
-	if(read_symmetric_linear_system(ls, a, b)) {
+	if(read_symmetric_linear_system(ls, NULL, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
 		ls->beta.len = -1;
 		return;
