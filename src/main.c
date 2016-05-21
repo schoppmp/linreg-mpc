@@ -5,6 +5,8 @@
 #include <sodium.h>
 #include <time.h>
 
+#include <obliv.h>
+
 #include "secure_multiplication/secure_multiplication.pb-c.h"
 #include "secure_multiplication/secure_multiplication.h"
 #include "secure_multiplication/node.h"
@@ -13,6 +15,8 @@
 #include "linear.h"
 #include "secure_multiplication/phase1.h"
 #include "input.h"
+#include "util.h"
+#include "secure_multiplication/node.h"
 
 static int barrier(node *self) {
 	// wait until everybody is here
@@ -42,7 +46,7 @@ int main(int argc, char **argv) {
 	wait_total.tv_sec = wait_total.tv_nsec = 0;
 
 	// parse arguments
-	check(argc > 3, "Usage: %s file precision party", argv[0]);
+	check(argc > 5, "Usage: %s [Input_file] [Precision] [Party] [Algorithm] [Num. iterations CGD]", argv[0]);
 	char *end;
 	int precision = (int) strtol(argv[2], &end, 10);
 	check(!errno, "strtol: %s", strerror(errno));
@@ -50,6 +54,18 @@ int main(int argc, char **argv) {
 	int party = (int) strtol(argv[3], &end, 10);
 	check(!errno, "strtol: %s", strerror(errno));
 	check(!*end, "Party must be a number");
+	char *algorithm = argv[4];
+	check(!strcmp(algorithm, "cholesky") || !strcmp(algorithm, "ldlt")  || !strcmp(algorithm, "cgd"), 
+	      "Algorithm must be cholesky, ldlt, or cgd.");
+	check(strcmp(algorithm, "cgd") || argc == 6, "Number of iterations for CGD must be provided");
+
+	// read ls, we only need number of iterations
+	linear_system_t ls;
+	if(!strcmp(algorithm, "cgd")){
+	       ls.num_iterations = atoi(argv[5]);
+	} else {
+	       ls.num_iterations = 0;
+	}
 
 	// read config
 	status = config_new(&c, argv[1]);
@@ -92,10 +108,10 @@ int main(int argc, char **argv) {
 	// Here phase 2 starts
 	// We first setup the protocol description for CSP and Evaluator
 	ProtocolDesc pd;
-	char* csp_port = strchr(conf->endpoint[0], ':') + 1;
+	char* csp_port = strchr(c->endpoint[0], ':') + 1;
 	*(csp_port - 1) = '\0'; // Removing whatever is after :
-	char* csp_server = c->endpoints[0];
-	char* eval_port = strchr(conf->endpoint_evaluator, ':') + 1;
+	char* csp_server = c->endpoint[0];
+	char* eval_port = strchr(c->endpoint_evaluator, ':') + 1;
 	*(eval_port - 1) = '\0'; // Removing whatever is after :
 	char* eval_server = c->endpoint_evaluator;
 	if(party < 3){  // CSP and Evaluator
@@ -104,14 +120,42 @@ int main(int argc, char **argv) {
 		// Run garbled circuit
 		// We'll modify linear.oc so that the inputs are read from a ls if the provided one is not NULL
 		// else we'l use dcrRcvdIntArray...
+		double time = wallClock();
+		if(party == 2) {
+		      printf("\n");
+		      printf("Algorithm: %s\n", algorithm);
+		}
+		void (*algorithms[])(void *) = {cholesky, ldlt, cgd};
+		int alg_index;
+		if(!strcmp(algorithm, "cholesky")) {
+	              alg_index = 0;
+		} else if (!strcmp(algorithm, "ldlt")) {
+	              alg_index = 1;
+		} else {
+		      alg_index = 2;
+		}
+		
+		execYaoProtocol(&pd, algorithms[alg_index], &ls);
+		
+		if(party == 2) { 
+		  //check(ls.beta.len == d, "Computation error.");
+		  printf("Time elapsed: %f\n", wallClock() - time);
+		  printf("Number of gates: %d\n", ls.gates);
+		  printf("Result: ");
+		  for(size_t i = 0; i < ls.beta.len; i++) {
+		    printf("%20.15f ", fixed_to_double(ls.beta.value[i], precision));
+		  }
+		  printf("\n");
+		}
+
+		cleanupProtocol(&pd);
 
 	} else {
 		DualconS* conn = dcsConnect(csp_server, csp_port, eval_server, eval_port, party);
-		dcsSendIntArray(conn, share_A, d*(d + 1)/2);
-		dcsSendIntArray(conn, share_b, d);
+		dcsSendIntArray(conn, share_A, c->d*(c->d + 1)/2);
+		dcsSendIntArray(conn, share_b, c->d);
 		dcsClose(conn);
 	}
-	
 	config_free(&c);
 	return 0;
 error:
