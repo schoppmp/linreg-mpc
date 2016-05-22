@@ -67,12 +67,16 @@ if __name__ == "__main__":
             sftp.chdir(dest_folder)
         sftp.put(input_filepath, input_filename)
         print ip, cmd
-        stdin, stdout, stderr = client.exec_command(cmd)#+'; sleep 1;'+killall secure_multiplication')
+        stdin, stdout, stderr = client.exec_command(cmd)
         for line in stdout:
             print '... ' + line.strip('\n')
         for line in stderr:
             print '... ' + line.strip('\n')
-
+        stdin, stdout, stderr = client.exec_command('rm {0}'.format(input_filename))
+        for line in stdout:
+            print '... ' + line.strip('\n')
+        for line in stderr:
+            print '... ' + line.strip('\n')
         client.close()
 
     def retrieve_out_files(party_out_files):
@@ -110,6 +114,7 @@ if __name__ == "__main__":
                         #print cmd
                         os.system(cmd)
                 data_parties_times = []
+
                 if args.ips_file:
                     continue#retrieve_out_files(party_out_files)
                 for party in range(p+1):
