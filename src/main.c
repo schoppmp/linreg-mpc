@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <sodium.h>
 #include <time.h>
+#include <czmq.h>
 
 #include <obliv.h>
 
@@ -32,7 +33,8 @@ static int barrier(node *self) {
 	}
 	return 0;
 
-	error: return 1;
+	error:
+	return 1;
 }
 
 int main(int argc, char **argv) {

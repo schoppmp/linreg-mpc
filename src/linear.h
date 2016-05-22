@@ -1,6 +1,7 @@
 #pragma once
 #include "fixed.h"
 #include <stdio.h>
+#include "secure_multiplication/config.h"
 
 typedef struct {
 	size_t d[2];
@@ -19,6 +20,7 @@ typedef struct {
 	int precision;
 	int gates;
 	int num_iterations; // for cgd
+	config *conf; // phase 1 config. TODO: find a nicer way to do this
 } linear_system_t;
 
 // helper function that maps indices into a symmetric matrix

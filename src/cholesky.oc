@@ -17,7 +17,7 @@ void cholesky(void *v) {
 	obliv fixed32_t *y = alloca(d * sizeof(obliv fixed32_t));
 	obliv fixed32_t *beta = alloca(d * sizeof(obliv fixed32_t));
 
-	if(read_symmetric_linear_system(ls, NULL, a, b)) {
+	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
 		ls->beta.len = -1;
 		return;

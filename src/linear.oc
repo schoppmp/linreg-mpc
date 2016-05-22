@@ -69,11 +69,11 @@ error:
 	return -1;
 }
 
-int read_symmetric_linear_system(linear_system_t *ls, config *c, obliv fixed32_t *a, obliv fixed32_t *b) {
+int read_symmetric_linear_system(linear_system_t *ls, obliv fixed32_t *a, obliv fixed32_t *b) {
 	// This distinction is to maintain compatibility to our tests of phase 2 only
-	if(ls == NULL){
+	if(!ls->conf){
 		return read_symmetric_linear_system_from_ls(ls, a, b);
 	} else {
-		return read_symmetric_linear_system_from_config(ls, a, b);
+		return read_symmetric_linear_system_from_config(ls->conf, a, b);
 	}
 }

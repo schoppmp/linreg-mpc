@@ -46,6 +46,7 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 
 	// Construct instance ls
 	ls->precision = precision;
+	ls->conf = NULL;
 	if(party != 1) {
 		ls->a = A;
 		ls->b = b;

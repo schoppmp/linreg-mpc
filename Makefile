@@ -5,7 +5,7 @@ srcDir=src
 
 OBLIVCC=oblivcc
 REMOTE_HOST=localhost
-CFLAGS=-O3 -g -Werror -I $(srcDir) -std=c99 -D_POSIX_C_SOURCE=201605L
+CFLAGS=-O3 -g -Werror -I $(srcDir) -I $(OBLIVC_PATH)/src/ext/oblivc -std=c99 -D_POSIX_C_SOURCE=201605L
 OCFLAGS=$(CFLAGS) -DREMOTE_HOST=$(REMOTE_HOST)
 
 mkpath=mkdir -p $(@D)
@@ -13,7 +13,6 @@ compile=$(mkpath) && $(CC) $(CFLAGS) -c $< -o $@
 link=$(mkpath) && $(CC) $(LFLAGS) $^ -o $@
 compile_obliv=$(mkpath) && $(OBLIVCC) $(OCFLAGS) -c $< -o $@
 link_obliv=$(mkpath) && $(OBLIVCC) $(OLFLAGS) $^ -o $@
-link_all=$(mkpath) && $(OBLIVCC) $(OLFLAGS) $^ -o $@
 
 native=$(objDir)/$(1)_c.o
 obliv=$(objDir)/$(1)_o.o
@@ -21,8 +20,8 @@ both=$(call native,$(1)) $(call obliv,$(1))
 
 all: $(binDir)/test_multiplication $(binDir)/test_linear_system $(binDir)/test_inner_product $(binDir)/secure_multiplication $(binDir)/main
 
-$(binDir)/main:	$(objDir)/main_c.o $(call native, main) $(call both,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd) $(call native,input)
-	$(link_obliv) 
+$(binDir)/main: $(objDir)/main.o $(objDir)/secure_multiplication/node.o $(objDir)/secure_multiplication/config.o $(objDir)/secure_multiplication/phase1.o $(objDir)/secure_multiplication/secure_multiplication.pb-c.o $(call both,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd) $(call native,input)
+	$(link_obliv) -lczmq -lzmq -lsodium -lprotobuf-c
 
 $(binDir)/secure_multiplication:$(objDir)/secure_multiplication/secure_multiplication.pb-c.o $(objDir)/secure_multiplication/secure_multiplication.o $(objDir)/secure_multiplication/config.o $(objDir)/secure_multiplication/node.o $(objDir)/linear.o $(objDir)/fixed.o $(objDir)/secure_multiplication/phase1.o
 	$(link) -lczmq -lzmq -lsodium -lprotobuf-c
