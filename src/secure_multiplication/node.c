@@ -38,7 +38,6 @@ static void node_actor(zsock_t *pipe, void *nn) {
 		// wait until at least one message is ready
 		status = zmq_poll(pollitems, self->num_peers + 2, -1);
 		check(status != -1, "Error in poll: %s", strerror(errno));	
-		//printf("%d\n", status);
 		for(int i = 0; i < self->num_peers + 2; i++) {
 			if(pollitems[i].revents != ZMQ_POLLIN) continue; // only receive available messages
 			msg = zmsg_recv(pollitems[i].socket);
@@ -50,13 +49,9 @@ static void node_actor(zsock_t *pipe, void *nn) {
 				zsock_t *peer_handler = (zsock_t *) zhashx_lookup(self->peer_map, sender);
 				check(peer_handler, "zhashx_lookup: %s", zmq_strerror(errno));
 
-				int count = 0;
-				for(zframe_t *f = zmsg_first(msg); f != NULL; f = zmsg_next(msg)) {count++;}
-				printf("Party %d received message from %s, containing %d frames.\n", self->peer_id, sender, count );
-				if(count > 1){
-					printf("COUNT > 1\n");
-					exit(1);
-				}
+				//int count = 0;
+				//for(zframe_t *f = zmsg_first(msg); f != NULL; f = zmsg_next(msg)) {count++;}
+				//printf("Party %d received message from %s, containing %d frames.\n", self->peer_id, sender, count );
 				//zmsg_print(msg);
 
 				status = zmsg_send(&msg, peer_handler);
@@ -64,9 +59,9 @@ static void node_actor(zsock_t *pipe, void *nn) {
 				free(sender);
 				sender = NULL;
 			} else if(i < self->num_peers) { // message came from the inside
-				int count = 0;
-				for(zframe_t *f = zmsg_first(msg); f != NULL; f = zmsg_next(msg)) {count++;}
-				printf("Party %d sending message to %d, containing %d frames.\n", self->peer_id, i, count );
+				//int count = 0;
+				//for(zframe_t *f = zmsg_first(msg); f != NULL; f = zmsg_next(msg)) {count++;}
+				//printf("Party %d sending message to %d, containing %d frames.\n", self->peer_id, i, count );
 				//zmsg_print(msg);
 
 				//status = zmsg_pushstr(msg, self->endpoint[i]);
