@@ -72,11 +72,7 @@ if __name__ == "__main__":
             print '... ' + line.strip('\n')
         for line in stderr:
             print '... ' + line.strip('\n')
-        stdin, stdout, stderr = client.exec_command('rm {0}'.format(input_filename))
-        for line in stdout:
-            print '... ' + line.strip('\n')
-        for line in stderr:
-            print '... ' + line.strip('\n')
+        sftp.remove(input_filename)
         client.close()
 
     def retrieve_out_files(party_out_files):
