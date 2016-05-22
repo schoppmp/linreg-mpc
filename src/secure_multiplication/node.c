@@ -36,7 +36,9 @@ static void node_actor(zsock_t *pipe, void *nn) {
 
 	for(;;) { // receive messages forever
 		// wait until at least one message is ready
-		status = zmq_poll(pollitems, self->num_peers + 2, 1000);
+		status = zmq_poll(pollitems, self->num_peers + 2, -1);
+		check(status != -1, "Error in poll: %s", strerror(errno));	
+		//printf("%d\n", status);
 		for(int i = 0; i < self->num_peers + 2; i++) {
 			if(pollitems[i].revents != ZMQ_POLLIN) continue; // only receive available messages
 			msg = zmsg_recv(pollitems[i].socket);
@@ -48,20 +50,24 @@ static void node_actor(zsock_t *pipe, void *nn) {
 				zsock_t *peer_handler = (zsock_t *) zhashx_lookup(self->peer_map, sender);
 				check(peer_handler, "zhashx_lookup: %s", zmq_strerror(errno));
 
-				/*int count = 0;
+				int count = 0;
 				for(zframe_t *f = zmsg_first(msg); f != NULL; f = zmsg_next(msg)) {count++;}
 				printf("Party %d received message from %s, containing %d frames.\n", self->peer_id, sender, count );
-				zmsg_print(msg);*/
+				if(count > 1){
+					printf("COUNT > 1\n");
+					exit(1);
+				}
+				//zmsg_print(msg);
 
 				status = zmsg_send(&msg, peer_handler);
 				check(!status, "zmsg_send: %s", zmq_strerror(errno));
 				free(sender);
 				sender = NULL;
 			} else if(i < self->num_peers) { // message came from the inside
-				/*int count = 0;
+				int count = 0;
 				for(zframe_t *f = zmsg_first(msg); f != NULL; f = zmsg_next(msg)) {count++;}
 				printf("Party %d sending message to %d, containing %d frames.\n", self->peer_id, i, count );
-				zmsg_print(msg);*/
+				//zmsg_print(msg);
 
 				//status = zmsg_pushstr(msg, self->endpoint[i]);
 				//check(!status, "zmsg_pushstr: %s", zmq_strerror(errno));
@@ -94,6 +100,7 @@ void node_destroy_socket(void **arg) {
 
 int node_new(node **nn, config *conf) {
 	int status;
+	int value, rc;
 	check(nn && conf, "new_node: Arguments may not be null");
 
 	// create objects
@@ -119,12 +126,16 @@ int node_new(node **nn, config *conf) {
 	check(self->socket_out, "calloc: %s", strerror(errno));
 	for(int i = 0; i < self->num_peers; i++) {
 		zsock_t *peer = zsock_new(ZMQ_PAIR);
+		zsock_set_sndhwm(peer, 0);
+		zsock_set_rcvhwm(peer, 0);
 		check(peer, "zsock_new: %s", zmq_strerror(errno));
 		self->peer[i] = peer;
 		status = zsock_bind(peer, "inproc://%x", i);
 		check(status != -1, "zsock_bind: %s", zmq_strerror(errno));
 		// create corresponding internal socket
 		zsock_t *peer_handler = zsock_new(ZMQ_PAIR);
+		zsock_set_sndhwm(peer_handler, 0);
+		zsock_set_rcvhwm(peer_handler, 0);
 		check(peer_handler, "zsock_new: %s", zmq_strerror(errno));
 		self->peer_handler[i] = peer_handler;
 		status = zsock_connect(peer_handler, "inproc://%x", i);
@@ -135,6 +146,8 @@ int node_new(node **nn, config *conf) {
 	}
 
 	self->socket = zsock_new(ZMQ_ROUTER);
+	zsock_set_sndhwm(self->socket, 0);
+	zsock_set_rcvhwm(self->socket, 0);
 	check(self->socket, "zsock_new: %s", zmq_strerror(errno));
 	// report errors when trying to sent messages without address
 	zsock_set_router_mandatory(self->socket, 1);
@@ -150,6 +163,8 @@ int node_new(node **nn, config *conf) {
 	for(int i = 0; i < conf->num_parties; i++) {
 		if(i == conf->party) continue;
 		self->socket_out[i] = zsock_new(ZMQ_DEALER);
+		zsock_set_sndhwm(self->socket_out[i], 0);
+		zsock_set_rcvhwm(self->socket_out[i], 0);
 		check(self->socket_out[i], "zsock_new: %s", zmq_strerror(errno));
 		zsock_set_identity(self->socket_out[i], self->endpoint[conf->party]);
 		//zsock_set_probe_router(self->socket_out[i], 1);

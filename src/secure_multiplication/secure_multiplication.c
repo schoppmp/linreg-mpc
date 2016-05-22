@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sodium.h>
 #include <time.h>
 
 #include "secure_multiplication.pb-c.h"
@@ -11,6 +10,7 @@
 #include "config.h"
 #include "check_error.h"
 #include "linear.h"
+#include "bcrandom.h"
 
 const int precision = 9;
 
@@ -65,8 +65,9 @@ static int send_pmsg(SecureMultiplication__Msg *pmsg, zsock_t *peer) {
 	check(zframe, "zframe_new: %s", zmq_strerror(errno));
 	// pack and send frames
 	secure_multiplication__msg__pack(pmsg, zframe_data(zframe));
-	//zframe_print(zframe, "sending: ");
+	zframe_print(zframe, "sending: ");
 	check(zframe_send(&zframe, peer, 0) != -1, "zframe_send: %s", zmq_strerror(errno));
+	printf("sent\n");
 	return 0;
 error:
 	if(zframe) zframe_destroy(&zframe);
@@ -75,6 +76,7 @@ error:
 
 
 static int run_trusted_initializer(node *self, config *c) {
+	BCipherRandomGen *gen = newBCipherRandomGen();
 	int status;
 	uint32_t *x = calloc(c->n , sizeof(uint32_t));
 	uint32_t *y = calloc(c->n , sizeof(uint32_t));
@@ -88,15 +90,16 @@ static int run_trusted_initializer(node *self, config *c) {
 			if(party_a == party_b) {
 				continue;
 			}
-
+			printf("%zu, %zu\n", i, j);
 			// generate random vectors x, y and value r
 			uint32_t r = 0;
-			randombytes_buf(x, c->n * sizeof(uint32_t));
 			for(size_t k = 0; k < c->n; k++) {
 				y[k] = 1;
+				x[k] = 1;
 			}
-			randombytes_buf(y, c->n * sizeof(uint32_t));
-			randombytes_buf(&r, sizeof(uint32_t));
+			randomizeBuffer(gen, (char *)x, c->n * sizeof(uint32_t));
+			randomizeBuffer(gen, (char *)y, c->n * sizeof(uint32_t));
+			randomizeBuffer(gen, (char *)&r, sizeof(uint32_t));
 			uint32_t xy = inner_prod_32(x, y, c->n, 1, 1);
 
 			// create protobuf message
@@ -117,6 +120,7 @@ static int run_trusted_initializer(node *self, config *c) {
 			check(!status, "Could not send message to party B (%d)", party_b);
 		}
 	}
+	printf("Done\n");
 /*
 	// Receive and combine shares from peers for testing; TODO: remove
 	uint32_t *share_A = NULL, *share_b = NULL;
@@ -149,16 +153,19 @@ static int run_trusted_initializer(node *self, config *c) {
 */
 	free(x);
 	free(y);
+	releaseBCipherRandomGen(gen);
 	return 0;
 
 error:
 	free(x);
 	free(y);
+	releaseBCipherRandomGen(gen);
 	return 1;
 }
 
 
 static int run_party(node *self, config *c) {
+	BCipherRandomGen *gen = newBCipherRandomGen();
 	matrix_t data; // TODO: maybe use dedicated type for finite field matrices here
 	vector_t target;
 	data.value = target.value = NULL;
@@ -197,7 +204,6 @@ static int run_party(node *self, config *c) {
 		for(int j = 0; j <= i && j < c->d; j++) {
 			int owner_i = get_owner(i, c);
 			int owner_j = get_owner(j, c);
-
 			uint32_t share;
 			// if we own neither i or j, skip.
 			if(owner_i != c->party && owner_j != c->party) { 
@@ -207,17 +213,19 @@ static int run_party(node *self, config *c) {
 				share = inner_prod_32(row_start, (uint32_t *) data.value + j, 
 					c->n, stride, d);
 			} else {
+				printf("%d, %d: %d, %d\n", i, j, owner_i, owner_j);
 				// receive random values from TI
+				printf("receiving from TI\n");
 				status = recv_pmsg(&pmsg_ti, self->peer[0]);
 				check(!status, "Could not receive message from TI; %d %d", i, j);
 
 				if(owner_i == c->party) { // if we own i but not j, we are party a
 					// set our own share r_A randomly
 					share = 0;
-					randombytes_buf(&share, sizeof(uint32_t));
+					randomizeBuffer(gen, (char *)&share, sizeof(uint32_t));
 					// receive (b', _) from party b
 					int party_b = get_owner(j, c);
-
+					printf("Party a: Receiving from b\n");
 					status = recv_pmsg(&pmsg_in, self->peer[party_b]);
 					check(!status, "Could not receive message from party "
 						"B (%d)", party_b);
@@ -230,6 +238,7 @@ static int run_party(node *self, config *c) {
 						pmsg_out.vector[k] = row_start[k*stride] 
 							+ pmsg_ti->vector[k];
 					}
+					printf("Party a: Sending to b\n");
 					status = send_pmsg(&pmsg_out, self->peer[party_b]);
 					check(!status, "Could not send message to party B (%d)",
 						party_b);
@@ -243,12 +252,13 @@ static int run_party(node *self, config *c) {
 							- pmsg_ti->vector[k];
 						//assert(pmsg_out.vector[k] == 1023);
 					}
-
+					printf("Party b: Sending to a\n");
 					status = send_pmsg(&pmsg_out, self->peer[party_a]);
 					check(!status, "Could not send message to party A (%d)",
 						party_a);
 					
 					// receive (a', a'') from party a
+					printf("Party b: Receiving from a\n");
 					status = recv_pmsg(&pmsg_in, self->peer[party_a]);
 					check(!status, "Could not receive message from party A (%d)", party_a);
 
@@ -285,6 +295,7 @@ static int run_party(node *self, config *c) {
 	free(target.value);
 	free(share_A);
 	free(share_b);
+	releaseBCipherRandomGen(gen);
 	return 0;
 
 error:
@@ -293,6 +304,7 @@ error:
 	free(pmsg_out.vector);
 	free(share_A);
 	free(share_b);
+	releaseBCipherRandomGen(gen);
 	if(pmsg_ti) secure_multiplication__msg__free_unpacked(pmsg_ti, NULL);
 	if(pmsg_in) secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
 	return 1;
