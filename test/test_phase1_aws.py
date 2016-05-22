@@ -41,7 +41,7 @@ if __name__ == "__main__":
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
 
-        cmd_cd = 'cd secure-distributed-linear-regression; pwd; git stash; git checkout phase1; git pull; make bin/secure_multiplication; killall -9 secure_multiplication'
+        cmd_cd = 'cd secure-distributed-linear-regression; pwd; git stash; git checkout master; git pull; make bin/secure_multiplication; killall -9 secure_multiplication'
         stdin, stdout, stderr = client.exec_command(cmd_cd)
         for line in stdout:
             print '... ' + line.strip('\n')
@@ -84,9 +84,8 @@ if __name__ == "__main__":
             sftp = client.open_sftp()
             sftp.get(f, f)
 
-    #for n, d in [(2000, 20), (10000, 100), (50000, 500)]:
-    for n, d in [(50000, 500)]:
-        for p in [3, 4, 2]:  # p is number of data providers (not TI)
+    for n, d in [(50000, 500), (2000, 20), (10000, 100)]:
+        for p in [2, 3, 4, 5]:  # p is number of data providers (not TI)
             if p > d:
                 continue
             print n,d,p
