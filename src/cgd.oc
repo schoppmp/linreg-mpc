@@ -27,8 +27,8 @@ void cgd(void *v) {
 	// allocate space for obliv values and read inputs
 	// we can do most computations in-place in this case
 	size_t d = ls->a.d[0];
-	obliv fixed32_t *a = alloca(((d * (d+1)) / 2) * sizeof(obliv fixed32_t));
-	obliv fixed32_t *b = alloca(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *a = malloc(((d * (d+1)) / 2) * sizeof(obliv fixed32_t));
+	obliv fixed32_t *b = malloc(d * sizeof(obliv fixed32_t));
 
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
