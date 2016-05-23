@@ -107,9 +107,9 @@ int main(int argc, char **argv) {
 	struct timespec sleeptime;
 	sleeptime.tv_sec = sleeptime.tv_nsec = 0;
 	if(party == 2) {
-		sleeptime.tv_sec = 2;
+		sleeptime.tv_sec = 20;
 	} else if(party != 1) {
-		sleeptime.tv_sec = 2 + party;
+		sleeptime.tv_sec = 5 + party;
 		//sleeptime.tv_nsec = party * 100 * 1000000l;
 	} 
 	nanosleep(&sleeptime, NULL);

@@ -1,6 +1,8 @@
 #include "phase1.h"
+#include <math.h>
 
 const int precision = 24;
+
 
 // computes inner product in Z_{2^32}
 static uint32_t inner_prod_32(uint32_t *x, uint32_t *y, size_t n, size_t stride_x, size_t stride_y) {
@@ -106,7 +108,7 @@ int run_trusted_initializer(node *self, config *c) {
 		}
 	}
 
-	// Receive and combine shares from peers for testing; TODO: remove
+/*	// Receive and combine shares from peers for testing; TODO: remove
 	uint32_t *share_A = NULL, *share_b = NULL;
 	size_t d = c->d;
 	share_A = calloc(d * (d + 1) / 2, sizeof(uint32_t));
@@ -134,7 +136,7 @@ int run_trusted_initializer(node *self, config *c) {
 		}
 		printf("\n");
 	}
-
+*/
 	free(x);
 	free(y);
 	return 0;
@@ -176,7 +178,16 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	share_A = calloc(d * (d + 1) / 2, sizeof(uint32_t));
 	share_b = calloc(d, sizeof(uint32_t));
 
-	for(int i = 0; i <= c->d; i++) {
+	
+	for(size_t i = 0; i < c->n; i++) {
+		for(size_t j = 0; j < c->d; j++) {
+			// rescale in advance 
+			data.value[i*c->d+j] = (fixed32_t) round(data.value[i*c->d+j] / (sqrt((1<<precision) * c->d * c->n)));
+		}
+		target.value[i] = (fixed32_t) round(target.value[i] / (sqrt((1<<precision) * c->d * c->n)));
+	}
+
+	for(size_t i = 0; i <= c->d; i++) {
 		uint32_t *row_start;
 		size_t stride;
 		if(i < c->d) { // row of input matrix
@@ -186,7 +197,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 			row_start = (uint32_t *) target.value;
 			stride = 1;
 		}
-		for(int j = 0; j <= i && j < c->d; j++) {
+		for(size_t j = 0; j <= i && j < c->d; j++) {
 			int owner_i = get_owner(i, c);
 			int owner_j = get_owner(j, c);
 
@@ -287,7 +298,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	}
 	
 	free(pmsg_out.vector);
-	// send results to TI for testing; TODO: remove
+/*	// send results to TI for testing; TODO: remove
 	pmsg_out.vector = share_A;
 	pmsg_out.n_vector = d * (d + 1) / 2;
 	status = send_pmsg(&pmsg_out, self->peer[0]);
@@ -296,7 +307,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	pmsg_out.n_vector = d;
 	status = send_pmsg(&pmsg_out, self->peer[0]);
 	check(!status, "Could not send share_b to TI");
-
+*/
 	free(data.value);
 	free(target.value);
 	return 0;

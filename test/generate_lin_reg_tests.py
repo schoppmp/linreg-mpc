@@ -1,6 +1,7 @@
 import os
 import argparse
-from generate_tests import (generate_lin_regression, write_lr_instance)
+from generate_tests import (generate_lin_regression, generate_lin_regression_nikolaenko, write_lr_instance)
+from scipy import linalg
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -24,7 +25,7 @@ if __name__ == "__main__":
         filename_lr = 'test_LR_{0}x{1}_{2}_{3}.test'.format(
             args.n, args.d, args.p, i)
         filepath_lr = os.path.join(args.dest_folder, filename_lr)
-        (X, y, beta, e) = generate_lin_regression(args.n, args.d)
-        write_lr_instance(X, y, beta, filepath_lr, args.p)
+        (X, y, beta, e) = generate_lin_regression_nikolaenko(args.n, args.d)
+        write_lr_instance(X, y, linalg.solve(X.T.dot(X), X.T.dot(y)), filepath_lr, args.p)
         if VERBOSE:
             print('Wrote instance in file {0}'.format(filepath_lr))

@@ -4,6 +4,7 @@
 #include "secure_multiplication/config.h"
 #include "input.h"
 #include "util.h"
+#include <time.h>
 
 int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obliv fixed32_t *a, obliv fixed32_t *b) {
 	// This function must only be executed by the parties that run the GC protocol: CSP and Evaluator,
@@ -23,6 +24,9 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obliv 
 	}
 	obliv uint32_t *share_a = malloc((d*(d + 1)/2) * sizeof(obliv uint32_t));
 	obliv uint32_t *share_b = malloc(d * sizeof(obliv uint32_t));
+
+	struct timespec time_start, time_end;
+	clock_gettime(CLOCK_MONOTONIC, &time_start);
 	for(int k = 3; k < num_data_providers+3; k++) {
 		printf("%s receiving A from party %d\n", ocCurrentParty()==1?"CSP":"Evaluator",k);
 		dcrRecvIntArray(conn, share_a, d*(d + 1)/2, k);
@@ -37,7 +41,10 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obliv 
 			sum_b[i] += share_b[i];
 		}
 	}
+	clock_gettime(CLOCK_MONOTONIC, &time_end);
+	if(ocCurrentParty() == 2) printf("Time taken for OT: %f\n", (time_end.tv_sec-time_start.tv_sec)+1e-9*(time_end.tv_nsec-time_start.tv_nsec));
 
+/*
 	// DEBUG
 	if(ocCurrentParty()==2) printf("Printing A:\n");
 	for(int i = 0; i < d; i++) {
@@ -52,6 +59,15 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obliv 
 			printf("\n");
 		}
 	}
+	for(int i = 0; i < d; i++) {
+		fixed32_t x;
+		revealOblivInt(&x, b[i], 2);
+		if(ocCurrentParty() == 2) {
+			printf("%f ", fixed_to_double(x, ls->precision));
+		}
+	}
+*/	
+
 	
 	free(share_a);
 	free(share_b);
