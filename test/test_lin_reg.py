@@ -1,7 +1,7 @@
 VERBOSE = False
 
 from scipy import random, linalg, spatial
-from generate_tests import generate_lin_system
+from generate_tests import generate_lin_system_from_regression_problem
 import argparse
 import numpy
 import os
@@ -25,9 +25,9 @@ def parse_output(n, d, alg, solution, s, filepath_ls_out, filepath_ls_exec):
             m = re.match('((\s*[\d\.-]+)+)', line)
             if m:
                 scaled_solution = map(float, m.group(1).split())
-                rescaled_solution = [
-                    scaled_solution[i]/scaling[i]
-                    for i in range(len(scaling))]
+                rescaled_solution = scaled_solution #[
+                    #scaled_solution[i]/scaling[i]
+                    #for i in range(len(scaling))]
                 cgd_iter_solutions.append(rescaled_solution)
             m = re.match('\s*Yao\'s\s+gates\s+count:\s+(.+)$', line)
             if m:
@@ -73,12 +73,13 @@ def parse_output(n, d, alg, solution, s, filepath_ls_out, filepath_ls_exec):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='Tests our linear regression implementations. '
-        'Only testing PD linear system solving at the moment')
+        description='Tests our linear regression implementations. ')
+       # 'Only testing PD linear system solving at the moment')
     parser.add_argument('exec_path', help='Path to our executable.')
     parser.add_argument('algorithm', help='Must be cgd, cholesky, ldlt, or all.')
     parser.add_argument('n', help='Number of rows', type=int)
     parser.add_argument('d', help='Number of columns', type=int)
+    parser.add_argument('sigma', help='Standard deviation for noise', type=numpy.float64)
     parser.add_argument('num_iters_cgd', help='Number of iterations for cgd', type=int)
     parser.add_argument('dest_folder', help='Destination folder for the results')
     parser.add_argument('num_examples', help='Number of instances to be ran',
@@ -97,8 +98,10 @@ if __name__ == "__main__":
         filename_ls = 'test_LS_{0}x{1}_{2}.test'.format(
             args.n, args.d, example)
         filepath_ls = os.path.join(args.dest_folder, filename_ls)
-        (A, mask_A, b, mask_b, solution) = generate_lin_system(
-            args.n, args.d, filepath_ls)
+        #(A, mask_A, b, mask_b, solution) = generate_lin_system(
+        #    args.n, args.d, filepath_ls)
+	_,_,solution = generate_lin_system_from_regression_problem(
+		args.n, args.d, args.sigma, filepath_ls)
         if VERBOSE:
             print 'Generated example {0}'.format(filename_ls)
         for alg in algorithms:

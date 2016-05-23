@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sodium.h>
 #include <time.h>
 
 #include "secure_multiplication.pb-c.h"
@@ -11,6 +10,7 @@
 #include "config.h"
 #include "check_error.h"
 #include "linear.h"
+#include "bcrandom.h"
 
 const int precision = 9;
 
@@ -65,7 +65,6 @@ static int send_pmsg(SecureMultiplication__Msg *pmsg, zsock_t *peer) {
 	check(zframe, "zframe_new: %s", zmq_strerror(errno));
 	// pack and send frames
 	secure_multiplication__msg__pack(pmsg, zframe_data(zframe));
-	//zframe_print(zframe, "sending: ");
 	check(zframe_send(&zframe, peer, 0) != -1, "zframe_send: %s", zmq_strerror(errno));
 	return 0;
 error:
@@ -75,6 +74,7 @@ error:
 
 
 static int run_trusted_initializer(node *self, config *c) {
+	BCipherRandomGen *gen = newBCipherRandomGen();
 	int status;
 	uint32_t *x = calloc(c->n , sizeof(uint32_t));
 	uint32_t *y = calloc(c->n , sizeof(uint32_t));
@@ -88,15 +88,16 @@ static int run_trusted_initializer(node *self, config *c) {
 			if(party_a == party_b) {
 				continue;
 			}
-
+			// printf("%zu, %zu\n", i, j);
 			// generate random vectors x, y and value r
 			uint32_t r = 0;
-			randombytes_buf(x, c->n * sizeof(uint32_t));
 			for(size_t k = 0; k < c->n; k++) {
 				y[k] = 1;
+				x[k] = 1;
 			}
-			randombytes_buf(y, c->n * sizeof(uint32_t));
-			randombytes_buf(&r, sizeof(uint32_t));
+			randomizeBuffer(gen, (char *)x, c->n * sizeof(uint32_t));
+			randomizeBuffer(gen, (char *)y, c->n * sizeof(uint32_t));
+			randomizeBuffer(gen, (char *)&r, sizeof(uint32_t));
 			uint32_t xy = inner_prod_32(x, y, c->n, 1, 1);
 
 			// create protobuf message
@@ -149,20 +150,24 @@ static int run_trusted_initializer(node *self, config *c) {
 */
 	free(x);
 	free(y);
+	releaseBCipherRandomGen(gen);
 	return 0;
 
 error:
 	free(x);
 	free(y);
+	releaseBCipherRandomGen(gen);
 	return 1;
 }
 
-
-static int run_party(node *self, config *c) {
+static int run_party(node *self, config *c, struct timespec *wait_total) {
+	BCipherRandomGen *gen = newBCipherRandomGen();
 	matrix_t data; // TODO: maybe use dedicated type for finite field matrices here
 	vector_t target;
 	data.value = target.value = NULL;
 	int status;
+	struct timespec wait_start, wait_end; // count how long we wait for other parties
+	wait_total->tv_sec = wait_total->tv_nsec = 0;
 	SecureMultiplication__Msg *pmsg_ti = NULL, 
 				  *pmsg_in = NULL,
 				  pmsg_out;
@@ -197,7 +202,6 @@ static int run_party(node *self, config *c) {
 		for(int j = 0; j <= i && j < c->d; j++) {
 			int owner_i = get_owner(i, c);
 			int owner_j = get_owner(j, c);
-
 			uint32_t share;
 			// if we own neither i or j, skip.
 			if(owner_i != c->party && owner_j != c->party) { 
@@ -207,18 +211,24 @@ static int run_party(node *self, config *c) {
 				share = inner_prod_32(row_start, (uint32_t *) data.value + j, 
 					c->n, stride, d);
 			} else {
+				//printf("%d, %d: %d, %d\n", i, j, owner_i, owner_j);
 				// receive random values from TI
+				//printf("receiving from TI\n");
 				status = recv_pmsg(&pmsg_ti, self->peer[0]);
 				check(!status, "Could not receive message from TI; %d %d", i, j);
 
 				if(owner_i == c->party) { // if we own i but not j, we are party a
 					// set our own share r_A randomly
 					share = 0;
-					randombytes_buf(&share, sizeof(uint32_t));
+					randomizeBuffer(gen, (char *)&share, sizeof(uint32_t));
 					// receive (b', _) from party b
 					int party_b = get_owner(j, c);
-
+					//printf("Party a: Receiving from b\n");
+					clock_gettime(CLOCK_MONOTONIC, &wait_start);
 					status = recv_pmsg(&pmsg_in, self->peer[party_b]);
+					clock_gettime(CLOCK_MONOTONIC, &wait_end);
+					wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
+					wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
 					check(!status, "Could not receive message from party "
 						"B (%d)", party_b);
 
@@ -230,6 +240,7 @@ static int run_party(node *self, config *c) {
 						pmsg_out.vector[k] = row_start[k*stride] 
 							+ pmsg_ti->vector[k];
 					}
+					//printf("Party a: Sending to b\n");
 					status = send_pmsg(&pmsg_out, self->peer[party_b]);
 					check(!status, "Could not send message to party B (%d)",
 						party_b);
@@ -243,13 +254,18 @@ static int run_party(node *self, config *c) {
 							- pmsg_ti->vector[k];
 						//assert(pmsg_out.vector[k] == 1023);
 					}
-
+					//printf("Party b: Sending to a\n");
 					status = send_pmsg(&pmsg_out, self->peer[party_a]);
 					check(!status, "Could not send message to party A (%d)",
 						party_a);
 					
 					// receive (a', a'') from party a
+					//printf("Party b: Receiving from a\n");
+					clock_gettime(CLOCK_MONOTONIC, &wait_start);
 					status = recv_pmsg(&pmsg_in, self->peer[party_a]);
+					clock_gettime(CLOCK_MONOTONIC, &wait_end);
+					wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
+					wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
 					check(!status, "Could not receive message from party A (%d)", party_a);
 
 					// set our share to <a', y> + a'' - z
@@ -285,6 +301,7 @@ static int run_party(node *self, config *c) {
 	free(target.value);
 	free(share_A);
 	free(share_b);
+	releaseBCipherRandomGen(gen);
 	return 0;
 
 error:
@@ -293,6 +310,7 @@ error:
 	free(pmsg_out.vector);
 	free(share_A);
 	free(share_b);
+	releaseBCipherRandomGen(gen);
 	if(pmsg_ti) secure_multiplication__msg__free_unpacked(pmsg_ti, NULL);
 	if(pmsg_in) secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
 	return 1;
@@ -323,6 +341,8 @@ int main(int argc, char **argv) {
 	int status;
 	struct timespec cputime_start, cputime_end;
 	struct timespec realtime_start, realtime_end;
+	struct timespec wait_total;
+	wait_total.tv_sec = wait_total.tv_nsec = 0;
 
 	// parse arguments
 	check(argc > 2, "Usage: %s file party", argv[0]);
@@ -337,7 +357,7 @@ int main(int argc, char **argv) {
 	c->party = party;
 
 	if(party == 0) {
-		printf("{\"n\":\"%zd\", \"d\":\"%zd\" \"p\":\"%d\"}\n", c->n, c->d, c->num_parties - 1);
+		printf("{\"n\":\"%zd\", \"d\":\"%zd\", \"p\":\"%d\"}\n", c->n, c->d, c->num_parties - 1);
 	}
 
 	status = node_new(&self, c);
@@ -352,7 +372,7 @@ int main(int argc, char **argv) {
 		status = run_trusted_initializer(self, c);
 		check(!status, "Error while running trusted initializer");
 	} else {
-		status = run_party(self, c);
+		status = run_party(self, c, &wait_total);
 		check(!status, "Error while running party %d", c->party);
 	}
 
@@ -361,9 +381,11 @@ int main(int argc, char **argv) {
 	clock_gettime(CLOCK_MONOTONIC, &realtime_end);
 	
 	double bill = 1000000000L;
-	printf("{\"party\":\"%d\", \"cputime\":\"%f\", \"realtime\":\"%f\"}\n", c->party, 
+	printf("{\"party\":\"%d\", \"cputime\":\"%f\", \"wait_time\":%f, \"realtime\":\"%f\"}\n", c->party, 
 		(cputime_end.tv_sec - cputime_start.tv_sec) +
 		(double) (cputime_end.tv_nsec - cputime_start.tv_nsec) / bill,
+		(wait_total.tv_sec) +
+		(double) (wait_total.tv_nsec) / bill,
 		(realtime_end.tv_sec - realtime_start.tv_sec) +
 		(double) (realtime_end.tv_nsec - realtime_start.tv_nsec) / bill);
 	
