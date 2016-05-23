@@ -5,27 +5,27 @@
 #include "input.h"
 #include "util.h"
 
-int read_symmetric_linear_system_from_config(config *c, obliv fixed32_t *a, obliv fixed32_t *b) {
+int read_symmetric_linear_system_from_config(linear_system_t *ls, obliv fixed32_t *a, obliv fixed32_t *b) {
 	// This function must only be executed by the parties that run the GC protocol: CSP and Evaluator,
 	// with is'd 1 and 2 and c->party = 0 and 1, respectively.
-	int num_data_providers = c->num_parties - 1;
-	char* port = strchr(c->endpoint[c->party], ':') + 1;
-	*(port - 1) = '\0'; // Removing whatever is after :
-	DualconR* conn = dcrConnect(port, num_data_providers);
+	int num_data_providers = ls->num_data_providers;
+	DualconR* conn = dcrConnect(ls->port, num_data_providers);
+	size_t d = ls->a.d[0];
 
 	obliv uint32_t *share_a;
 	obliv uint32_t *share_b;
 	for(int k = 0; k < num_data_providers; k++) {
 	    // since A is symmetric, we only need to read half the matrix!
-		for(size_t i = 0; i < c->d; i++) {
+		for(size_t i = 0; i < d; i++) {
 			for(size_t j = 0; j <= i; j++) {
-				dcrRecvIntArray(conn, share_a, c->d*(c->d + 1)/2, k);
-				a[idx(i,j)] += (obliv uint32_t) share_a[i*c->d+j];
+				dcrRecvIntArray(conn, share_a, d*(d + 1)/2, k);
+				a[idx(i,j)] += (obliv uint32_t) share_a[idx(i,j)];
 			}
-			dcrRecvIntArray(conn, share_b, c->d, k);
+			dcrRecvIntArray(conn, share_b, d, k);
 			b[i] = (obliv uint32_t) b[i] + share_b[i];
 		}
 	}
+	dcrClose(conn);
 	return 0;
 
 error:
@@ -71,9 +71,9 @@ error:
 
 int read_symmetric_linear_system(linear_system_t *ls, obliv fixed32_t *a, obliv fixed32_t *b) {
 	// This distinction is to maintain compatibility to our tests of phase 2 only
-	if(!ls->conf){
+	if(!ls->port){
 		return read_symmetric_linear_system_from_ls(ls, a, b);
 	} else {
-		return read_symmetric_linear_system_from_config(ls->conf, a, b);
+		return read_symmetric_linear_system_from_config(ls, a, b);
 	}
 }

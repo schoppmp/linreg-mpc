@@ -39,7 +39,7 @@ $(binDir)/test_fixed: $(call both,test/test_fixed) $(call both,fixed) $(call nat
 	$(link_obliv)
 
 $(binDir)/test_input: $(call native,input) $(call obliv,test/test_input) $(call native,util)
-	$(link)
+	$(link_obliv)
 
 $(objDir)/%_c.o: $(srcDir)/%.c
 	$(compile_obliv)

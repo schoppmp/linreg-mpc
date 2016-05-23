@@ -20,7 +20,8 @@ typedef struct {
 	int precision;
 	int gates;
 	int num_iterations; // for cgd
-	config *conf; // phase 1 config. TODO: find a nicer way to do this
+	char *port; // from phase 1 config. TODO: find a nicer way to do this
+	int num_data_providers;
 } linear_system_t;
 
 // helper function that maps indices into a symmetric matrix

@@ -3,6 +3,7 @@
 #include<stdlib.h>
 #include<time.h>
 #include"util.h"
+#include <errno.h>
 
 #ifndef REMOTE_HOST
 #define REMOTE_HOST localhost
@@ -25,13 +26,13 @@ void ocTestUtilTcpOrDie(ProtocolDesc* pd,bool isServer,const char* port)
 {
   if(isServer)
   { if(protocolAcceptTcp2P(pd,port)!=0)
-    { fprintf(stderr,"TCP accept failed\n");
+    { fprintf(stderr,"TCP accept failed: %s\n", strerror(errno));
       exit(1);
     }
   }
   else 
     if(protocolConnectTcp2P(pd,remote_host,port)!=0) 
-    { fprintf(stderr,"TCP connect failed\n");
+    { fprintf(stderr,"TCP connect failed: %s\n", strerror(errno));
       exit(1);
     }
 }

@@ -150,7 +150,9 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	data.value = target.value = NULL;
 	int status;
 	struct timespec wait_start, wait_end; // count how long we wait for other parties
-	wait_total->tv_sec = wait_total->tv_nsec = 0;
+	if(wait_total) {
+		wait_total->tv_sec = wait_total->tv_nsec = 0;
+	}
 	SecureMultiplication__Msg *pmsg_ti = NULL, 
 				  *pmsg_in = NULL,
 				  pmsg_out;
@@ -210,8 +212,10 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 					clock_gettime(CLOCK_MONOTONIC, &wait_start);
 					status = recv_pmsg(&pmsg_in, self->peer[party_b]);
 					clock_gettime(CLOCK_MONOTONIC, &wait_end);
-					wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
-					wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
+					if(wait_total) {
+						wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
+						wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
+					}
 					check(!status, "Could not receive message from party "
 						"B (%d)", party_b);
 
@@ -245,8 +249,10 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 					clock_gettime(CLOCK_MONOTONIC, &wait_start);
 					status = recv_pmsg(&pmsg_in, self->peer[party_a]);
 					clock_gettime(CLOCK_MONOTONIC, &wait_end);
-					wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
-					wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
+					if(wait_total) {
+						wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
+						wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
+					}
 					check(!status, "Could not receive message from party A (%d)", party_a);
 
 					// set our share to <a', y> + a'' - z

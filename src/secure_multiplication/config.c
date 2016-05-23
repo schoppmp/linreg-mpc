@@ -65,6 +65,7 @@ void config_free(config **conf) {
 			}
 			free(c->endpoint);
 		}
+		free(c->endpoint_evaluator);
 		free(c->index_owned);
 		free(c);
 		*conf = NULL;

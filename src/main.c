@@ -5,7 +5,6 @@
 #include <sodium.h>
 #include <time.h>
 #include <czmq.h>
-
 #include <obliv.h>
 
 #include "secure_multiplication/secure_multiplication.pb-c.h"
@@ -20,6 +19,7 @@
 #include "secure_multiplication/node.h"
 
 static int barrier(node *self) {
+	if(!self) return 0; // the evaluator doesn't need to wait
 	// wait until everybody is here
 	for(int i = 0; i < self->num_peers; i++) {
 		if(i == self->peer_id) continue;
@@ -38,14 +38,10 @@ static int barrier(node *self) {
 }
 
 int main(int argc, char **argv) {
-	uint32_t *share_A, *share_b; 
+	uint32_t *share_A = NULL, *share_b = NULL; 
 	config *c = NULL;
 	node *self = NULL;
 	int status;
-	struct timespec cputime_start, cputime_end;
-	struct timespec realtime_start, realtime_end;
-	struct timespec wait_total;
-	wait_total.tv_sec = wait_total.tv_nsec = 0;
 
 	// parse arguments
 	check(argc > 5, "Usage: %s [Input_file] [Precision] [Party] [Algorithm] [Num. iterations CGD]", argv[0]);
@@ -84,21 +80,40 @@ int main(int argc, char **argv) {
 		printf("{\"n\":\"%zd\", \"d\":\"%zd\" \"p\":\"%d\"}\n", c->n, c->d, c->num_parties - 1);
 	}
 
-	status = node_new(&self, c);
-	check(!status, "Could not create node");
+	if(c->party != -1) {
+		status = node_new(&self, c);
+		check(!status, "Could not create node");
+	}
 
 
 	if(c->party == 0) {
+		//printf("Party %d running as TI\n", party);
 		status = run_trusted_initializer(self, c);
 		check(!status, "Error while running trusted initializer");
 	} else if(c->party != -1){
-		status = run_party(self, c, precision, &wait_total, &share_A, &share_b);
+		//printf("Party %d running as DP\n", party);
+		status = run_party(self, c, precision, NULL, &share_A, &share_b);
 		check(!status, "Error while running party %d", c->party);
 	}
 	
 	// wait until everybody has finished
 	check(!barrier(self), "Error while waiting for other peers to finish");
 	node_free(&self); // free the endpoints from 0MQ to be ued by Oblivc
+
+	printf("Party %d finished phase 1\n", party);
+
+	// dirtiest of hacks: sleep based on party to mitigate plain tcp race conditions
+	// TODO (!!): use zeromq instead of plain tcp
+	struct timespec sleeptime;
+	sleeptime.tv_sec = sleeptime.tv_nsec = 0;
+	if(party == 2) {
+		sleeptime.tv_sec = 2;
+	} else if(party != 1) {
+		sleeptime.tv_sec = 5;
+		sleeptime.tv_nsec = party * 100 * 1000000l;
+	} 
+	nanosleep(&sleeptime, NULL);
+
 
 	// At this point:
 	// if party = 1 then I am the CSP and c->party = 0
@@ -110,15 +125,25 @@ int main(int argc, char **argv) {
 	// Here phase 2 starts
 	// We first setup the protocol description for CSP and Evaluator
 	ProtocolDesc pd;
-	char* csp_port = strchr(c->endpoint[0], ':') + 1;
-	*(csp_port - 1) = '\0'; // Removing whatever is after :
+	char* csp_port = strchr(c->endpoint[0], ':');
+	*(csp_port++) = '\0'; // split endpoint at ':'
+	csp_port = "22222"; //TODO: why does the original port not work?
 	char* csp_server = c->endpoint[0];
-	char* eval_port = strchr(c->endpoint_evaluator, ':') + 1;
-	*(eval_port - 1) = '\0'; // Removing whatever is after :
+	char* eval_port = strchr(c->endpoint_evaluator, ':');
+	*(eval_port++) = '\0'; // split endpoint at ':'
 	char* eval_server = c->endpoint_evaluator;
 	if(party < 3){  // CSP and Evaluator
-		ocTestUtilTcpOrDie(&pd, party==1, party==1 ? csp_port : eval_port);
+		if(party == 1) {
+			ls.port = csp_port;
+			check(!protocolAcceptTcp2P(&pd, csp_port), 
+				"TCP accept at %s:%s failed: %s", csp_server, csp_port, strerror(errno));
+		} else {
+			ls.port = eval_port;
+			check(!protocolConnectTcp2P(&pd, csp_server, csp_port),
+				"TCP connect to %s:%s failed: %s", csp_server, csp_port, strerror(errno));
+		}
 		setCurrentParty(&pd, party);
+		ls.num_data_providers = c->num_parties - 1;
 		// Run garbled circuit
 		// We'll modify linear.oc so that the inputs are read from a ls if the provided one is not NULL
 		// else we'l use dcrRcvdIntArray...
@@ -159,9 +184,13 @@ int main(int argc, char **argv) {
 		dcsClose(conn);
 	}
 	config_free(&c);
+	free(share_A);
+	free(share_b);
 	return 0;
 error:
 	config_free(&c);	
 	node_free(&self);
+	free(share_A);
+	free(share_b);
 	return 1;
 }

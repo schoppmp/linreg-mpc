@@ -33,7 +33,7 @@ int main(int argc,char* argv[])
   int me = (argv[1][0]-'0');
   if(me>2) { sendem(me); return 0; }
   int result=0;
-  ocTestUtilTcpOrDie(&pd, me==1, "4321");
+  ocTestUtilTcpOrDie(&pd, me==1, port_csp);
   setCurrentParty(&pd,me);
   execYaoProtocol(&pd,addem,&result);
   printf("Result = %d\n",result);
