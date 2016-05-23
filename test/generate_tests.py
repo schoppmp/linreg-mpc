@@ -77,7 +77,9 @@ def write_lr_instance(X, y, solution, filepath, num_parties=1, endpoints=None):
             f.write(' ')
         f.write('\n')
         #f.write('// XX^T:\n')
-        cov = X.T.dot(X)
+        cov = 1./(d*n)*X.T.dot(X)
+	b = 1./(d*n)*X.T.dot(y)
+	assert b.shape[0] == d
         assert cov.shape[0] == d
         assert cov.shape[1] == d
         f.write('{0} {0}\n'.format(d))
@@ -86,6 +88,10 @@ def write_lr_instance(X, y, solution, filepath, num_parties=1, endpoints=None):
                 f.write(str(cov[i][j]))
                 f.write(' ')
             f.write('\n')
+	f.write('{0}\n'.format(d))
+	for i in range(d):
+		f.write(str(b[i]))
+		f.write(' ')
 
 
 def generate_sls_instance_from_regression_problem(
