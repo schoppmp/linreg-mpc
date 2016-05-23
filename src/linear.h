@@ -17,8 +17,8 @@ typedef struct {
 	vector_t b;
 	vector_t beta;
 	int precision;
-	int gates;
 	int num_iterations; // for cgd
+	int64_t gates;
 } linear_system_t;
 
 // helper function that maps indices into a symmetric matrix

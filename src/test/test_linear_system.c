@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
 	if(party == 2) { 
 	  //check(ls.beta.len == d, "Computation error.");
 	  printf("Time elapsed: %f\n", wallClock() - time);
-	  printf("Number of gates: %d\n", ls.gates);
+	  printf("Number of gates: %lld\n", ls.gates);
 	  printf("Result: ");
 	  for(size_t i = 0; i < ls.beta.len; i++) {
 	    printf("%20.15f ", fixed_to_double(ls.beta.value[i], precision));

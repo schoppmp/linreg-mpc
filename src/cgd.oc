@@ -27,12 +27,14 @@ void cgd(void *v) {
 	// allocate space for obliv values and read inputs
 	// we can do most computations in-place in this case
 	size_t d = ls->a.d[0];
-	obliv fixed32_t *a = alloca(((d * (d+1)) / 2) * sizeof(obliv fixed32_t));
-	obliv fixed32_t *b = alloca(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *a = malloc(((d * (d+1)) / 2) * sizeof(obliv fixed32_t));
+	obliv fixed32_t *b = malloc(d * sizeof(obliv fixed32_t));
 
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
 		ls->beta.len = -1;
+		free(a);
+		free(b);
 		return;
 	}
 
@@ -45,11 +47,11 @@ void cgd(void *v) {
 
 	// loop for a fixed number of iterations
 	
-	obliv fixed32_t *g = alloca(d * sizeof(obliv fixed32_t));
-	obliv fixed32_t *p = alloca(d * sizeof(obliv fixed32_t));
-	obliv fixed32_t *beta = alloca(d * sizeof(obliv fixed32_t));
-	obliv fixed32_t *ap = alloca(d * sizeof(obliv fixed32_t));
-	obliv fixed32_t *m = alloca(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *g = malloc(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *p = malloc(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *beta = malloc(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *ap = malloc(d * sizeof(obliv fixed32_t));
+	obliv fixed32_t *m = malloc(d * sizeof(obliv fixed32_t));
 	fixed32_t temp;
 	
 	int prec = ls->precision;
@@ -137,6 +139,13 @@ void cgd(void *v) {
 	}
 
 	ls->gates = yaoGateCount();
+	free(a);
+	free(b);
+	free(g);
+	free(m);
+	free(p);
+	free(beta);
+	free(ap);
 	return;
 
 }
