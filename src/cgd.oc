@@ -26,7 +26,7 @@ void cgd(void *v) {
 	// we can do most computations in-place in this case
 	size_t d = ls->a.d[0];
 	
-	obig *a = alloca(((d * (d+1)) / 2) * sizeof(obig));
+	obig *a = malloc(((d * (d+1)) / 2) * sizeof(obig));
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
 		obig_init(&a[ii], FIXED_BIT_SIZE / 8);
 	}
@@ -34,15 +34,19 @@ void cgd(void *v) {
 	obig *b = alloca(d * sizeof(obig));
 	obig *g = alloca(d * sizeof(obig));
 	obig *p = alloca(d * sizeof(obig));
+	obig *p_tilde = alloca(d * sizeof(obig));
+	obig *ap_tilde = alloca(d * sizeof(obig));
 	obig *beta = alloca(d * sizeof(obig));
-	obig *ap = alloca(d * sizeof(obig));
+	obig *abeta = alloca(d * sizeof(obig));
 	obig *m = alloca(d * sizeof(obig));
 	for (size_t ii = 0; ii < d; ii++) {
 		obig_init(&b[ii], FIXED_BIT_SIZE / 8);
 		obig_init(&g[ii], FIXED_BIT_SIZE / 8);
 		obig_init(&p[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&p_tilde[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&ap_tilde[ii], FIXED_BIT_SIZE / 8);
 		obig_init(&beta[ii], FIXED_BIT_SIZE / 8);
-		obig_init(&ap[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&abeta[ii], FIXED_BIT_SIZE / 8);
 		obig_init(&m[ii], FIXED_BIT_SIZE / 8);
 	}
 
@@ -73,7 +77,7 @@ void cgd(void *v) {
 	obig_init(&q, FIXED_BIT_SIZE / 8);
 	
 	int prec = ls->precision;
-	if(ocCurrentParty() == 2) printf("m = ");
+/*	if(ocCurrentParty() == 2) printf("m = ");
 	for(size_t i = 0; i < d; i++) {
 		// scaling diagonal matrix
 		obig_zero(&m[i]);
@@ -110,16 +114,22 @@ void cgd(void *v) {
 		ofixed_div(&b[i], b[i], m[i], prec);
 		//b[i] = ofixed_div(b[i], m[i], prec);
 	}
-
+*/
 
 	// initialise
 	for(size_t i = 0; i < d; i++) {
-		obig_zero(&beta[i]);
-		obig_copy_signed(&g[i], b[i]);
+		ofixed_sub(&g[i], g[i], b[i]);
 		obig_copy_signed(&p[i], g[i]);
 		//beta[i] = 0;
 		//g[i] = b[i];
 		//p[i] = g[i];
+	}
+
+	obig n;
+	obig_init(&n, FIXED_BIT_SIZE / 8);
+	for(size_t i = 0; i < d; i++) {
+		ofixed_mul(&obigtemp, g[i], g[i], prec);
+		ofixed_add(&n, n, obigtemp);
 	}
 
 	if(ocCurrentParty() == 2) {printf("Starting iterations.\n");}
@@ -130,41 +140,43 @@ void cgd(void *v) {
 		obig_zero(&q);
 		//obliv fixed32_t eta = 0, gamma = 0, q = 0;
 		for(size_t i = 0; i < d; i++) {
-			obig_zero(&ap[i]);
-			//ap[i] = 0;
+			obig_import_onative(&obigtemp, d);
+			ofixed_mul(&p_tilde[i], p[i], obigtemp, prec);
+		}
+		for(size_t i = 0; i < d; i++) {
+			obig_zero(&ap_tilde[i]);
 			for(size_t j = 0; j < d; j++) {
-				ofixed_mul(&obigtemp, a[idx(i,j)], p[j], prec);
-				ofixed_add(&ap[i], ap[i], obigtemp);
+				ofixed_mul(&obigtemp, a[idx(i,j)], p_tilde[j], prec);
+				ofixed_add(&ap_tilde[i], ap_tilde[i], obigtemp);
 				//ap[i] += ofixed_mul(a[idx(i,j)], p[j], prec);
 			}
-			ofixed_mul(&obigtemp, p[i], ap[i], prec);
+			ofixed_mul(&obigtemp, p[i], ap_tilde[i], prec);
 			ofixed_add(&q, q, obigtemp);
 			//q += ofixed_mul(p[i], ap[i], prec);
 		}
 
-		for(size_t i = 0; i < d; i++) {
-			ofixed_div(&obigtemp, g[i], q, prec);
-			ofixed_mul(&obigtemp, obigtemp, g[i], prec);
-			ofixed_add(&eta, eta, obigtemp);
-			//eta += ofixed_mul(ofixed_div(g[i], q, prec), g[i], prec);
-		}
+		ofixed_div(&eta, n, q, prec);
 
 		for(size_t i = 0; i < d; i++) {
-			ofixed_mul(&obigtemp, eta, p[i], prec);
-			ofixed_add(&beta[i], beta[i], obigtemp);
+			ofixed_mul(&obigtemp, eta, p_tilde[i], prec);
+			ofixed_sub(&beta[i], beta[i], obigtemp);
 			//beta[i] += ofixed_mul(eta, p[i], prec);
 		}
 
+		obig n_old;
+		obig_init(&n_old, FIXED_BIT_SIZE/8);
+		obig_copy_signed(&n_old, n);
 		for(size_t i = 0; i < d; i++) {
-			ofixed_mul(&obigtemp, eta, ap[i], prec);
-			ofixed_sub(&g[i], g[i], obigtemp);
-			ofixed_div(&obigtemp, g[i], eta, prec);
-			ofixed_div(&obigtemp2, g[i], q, prec);
-			ofixed_mul(&obigtemp, obigtemp, obigtemp2, prec);
-			ofixed_add(&gamma, gamma, obigtemp);
-			//g[i] -= ofixed_mul(eta, ap[i], prec);
-			//gamma += ofixed_mul(ofixed_div(g[i], eta, prec), ofixed_div(g[i], q, prec), prec);
+			obig_zero(&abeta[i]);
+			for(size_t j = 0; j < d; j++) {
+				ofixed_mul(&obigtemp, a[idx(i,j)], beta[i], prec);
+				ofixed_add(&abeta[i], abeta[i], obigtemp);
+			}
+			ofixed_sub(&g[i], abeta[i], b[i]);
+			ofixed_mul(&obigtemp, g[i], g[i], prec);
+			ofixed_add(&n, obigtemp, n);
 		}
+		ofixed_div(&gamma, n, n_old, prec);
 		
 		if(ocCurrentParty() == 2) printf("Iteration %d:\n", t);
 		for(size_t i = 0; i < d; i++) {
@@ -182,13 +194,13 @@ void cgd(void *v) {
 
 		flag = ocBroadcastBool(flag, 1) || ocBroadcastBool(flag, 2);
 	}
-
+/*
 	// re-scale beta
 	for(size_t i = 0; i < d; i++) {
 		ofixed_div(&beta[i], beta[i], m[i], prec);
 		//beta[i] = ofixed_div(beta[i], m[i], prec);
 	}
-
+*/
 	// return the result
 	for(size_t i = 0; i < d; i++) {
 		otemp = obig_export_onative_signed(beta[i]);
@@ -197,7 +209,6 @@ void cgd(void *v) {
 	}
 
 	ls->gates = yaoGateCount();
-
 	obig_free(&obigtemp);
 	obig_free(&obigtemp2);
 	obig_free(&eta);
@@ -206,12 +217,15 @@ void cgd(void *v) {
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
 		obig_free(&a[ii]);
 	}
+	free(a);
 	for (size_t ii = 0; ii < d; ii++) {
 		obig_free(&b[ii]);
 		obig_free(&g[ii]);
 		obig_free(&p[ii]);
+		obig_free(&p_tilde[ii]);
+		obig_free(&ap_tilde[ii]);
 		obig_free(&beta[ii]);
-		obig_free(&ap[ii]);
+		obig_free(&abeta[ii]);
 		obig_free(&m[ii]);
 	}
 	return;

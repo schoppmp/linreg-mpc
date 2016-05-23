@@ -10,7 +10,7 @@ ackLibDir=$(libDir)/absentminded-crypto-kit/build/lib
 ackLib=$(ackLibDir)/liback.a
 ackIncDir=$(libDir)/absentminded-crypto-kit/src/
 LFLAGS += -L$(ackLibDir) -lack
-CFLAGS += -DREMOTE_HOST=$(REMOTE_HOST) -O3 -Werror -I$(ackIncDir)
+CFLAGS += -g -DREMOTE_HOST=$(REMOTE_HOST) -O3 -Werror -I$(ackIncDir)
 
 compile=mkdir -p $(@D) && $(OBLIVCC) $(CFLAGS) -c -I $(srcDir) $^ -o $@
 link=mkdir -p $(@D) && $(OBLIVCC) $(LFLAGS) $^ -o $@
