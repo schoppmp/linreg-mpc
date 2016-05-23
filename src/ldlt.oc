@@ -65,7 +65,7 @@ void ldlt(void *v) {
 
 	ls->gates = yaoGateCount();
 	free(a);
-	free(a);
+	free(b);
 	return;
 
 }
