@@ -1,5 +1,7 @@
 #include "phase1.h"
 
+const int precision = 24;
+
 // computes inner product in Z_{2^32}
 static uint32_t inner_prod_32(uint32_t *x, uint32_t *y, size_t n, size_t stride_x, size_t stride_y) {
 	uint32_t xy = 0;
@@ -103,7 +105,7 @@ int run_trusted_initializer(node *self, config *c) {
 			check(!status, "Could not send message to party B (%d)", party_b);
 		}
 	}
-/*
+
 	// Receive and combine shares from peers for testing; TODO: remove
 	uint32_t *share_A = NULL, *share_b = NULL;
 	size_t d = c->d;
@@ -128,11 +130,11 @@ int run_trusted_initializer(node *self, config *c) {
 	}
 	for(size_t i = 0; i < c->d; i++) {
 		for(size_t j = 0; j <= i; j++) {
-			printf("%f ", fixed_to_double((fixed32_t) share_A[idx(i, j)] >> precision, precision));
+			printf("%f ", fixed_to_double((fixed32_t) share_A[idx(i, j)], precision));
 		}
 		printf("\n");
 	}
-*/
+
 	free(x);
 	free(y);
 	return 0;
@@ -285,7 +287,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	}
 	
 	free(pmsg_out.vector);
-/*	// send results to TI for testing; TODO: remove
+	// send results to TI for testing; TODO: remove
 	pmsg_out.vector = share_A;
 	pmsg_out.n_vector = d * (d + 1) / 2;
 	status = send_pmsg(&pmsg_out, self->peer[0]);
@@ -294,7 +296,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	pmsg_out.n_vector = d;
 	status = send_pmsg(&pmsg_out, self->peer[0]);
 	check(!status, "Could not send share_b to TI");
-*/
+
 	free(data.value);
 	free(target.value);
 	return 0;

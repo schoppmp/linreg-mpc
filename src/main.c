@@ -145,6 +145,9 @@ int main(int argc, char **argv) {
 		}
 		setCurrentParty(&pd, party);
 		ls.num_data_providers = c->num_parties - 1;
+		ls.a.d[0] = ls.a.d[1] = ls.b.len = c->d;
+		ls.precision = precision;
+		ls.beta.value = ls.a.value = ls.b.value = NULL;
 		// Run garbled circuit
 		// We'll modify linear.oc so that the inputs are read from a ls if the provided one is not NULL
 		// else we'l use dcrRcvdIntArray...
@@ -165,7 +168,7 @@ int main(int argc, char **argv) {
 		
 		execYaoProtocol(&pd, algorithms[alg_index], &ls);
 		
-		if(party == 2) { 
+		if(party == 2) {
 		  //check(ls.beta.len == d, "Computation error.");
 		  printf("Time elapsed: %f\n", wallClock() - time);
 		  printf("Number of gates: %d\n", ls.gates);
@@ -177,6 +180,8 @@ int main(int argc, char **argv) {
 		}
 
 		cleanupProtocol(&pd);
+
+		if(party == 2) free(ls.beta.value);
 
 	} else {
 		printf("party %d connecting to csp %s:%s and evaluator %s:%s\n", party, csp_server, csp_port2, eval_server, eval_port);
