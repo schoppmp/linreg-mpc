@@ -91,7 +91,13 @@ void dcrClose(DualconR* dcr)
 }
 static int partyIndex(DualconR* dcr,int party)
 { int p;
-  for(p=0;p<dcr->count;++p) if(party==dcr->party[p]) return p;
+  for(p=0;p<dcr->count;++p) {
+	printf("Party: %d, Socket: %d\n", party, dcr->party[p]);
+	if(party==dcr->party[p]) {
+		return p;
+	}
+  }
+  printf("Failed lookup for party %d\n", p);
   assert(false);
   return -1;
 }

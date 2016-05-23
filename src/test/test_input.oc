@@ -11,20 +11,20 @@ void addem(void* arg)
   int p;
   const char* port = (ocCurrentParty()==1?port_csp:port_eval);
   DualconR* dcr = dcrConnect(port,3);
-  obliv int x,sum=0;
+  obliv int x[2],sum=0;
   for(p=3;p<=5;++p) 
-  { dcrRecvIntArray(dcr,&x,1,p);
-    sum+=x;
+  { dcrRecvIntArray(dcr,&x,2,p);
+    sum+=x[0];
   }
   dcrClose(dcr);
   revealOblivInt(result,sum,0);
 }
 void sendem(int party)
 {
-  int x = party*3+2;
-  printf("Sending %d\n",x);
+  int x[2] = {party*3+2, 1};
+  printf("Sending %d\n",x[0]);
   DualconS* dcs = dcsConnect("localhost",port_csp,"localhost",port_eval,party);
-  dcsSendIntArray(dcs,&x,1);
+  dcsSendIntArray(dcs,x,2);
   dcsClose(dcs);
 }
 int main(int argc,char* argv[])
@@ -33,7 +33,7 @@ int main(int argc,char* argv[])
   int me = (argv[1][0]-'0');
   if(me>2) { sendem(me); return 0; }
   int result=0;
-  ocTestUtilTcpOrDie(&pd, me==1, port_csp);
+  ocTestUtilTcpOrDie(&pd, me==1, "4321");
   setCurrentParty(&pd,me);
   execYaoProtocol(&pd,addem,&result);
   printf("Result = %d\n",result);

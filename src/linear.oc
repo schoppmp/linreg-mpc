@@ -5,31 +5,32 @@
 #include "input.h"
 #include "util.h"
 
-int read_symmetric_linear_system_from_config(linear_system_t *ls, obliv fixed32_t *a, obliv fixed32_t *b) {
+int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obliv fixed32_t *a, obliv fixed32_t *b) {
 	// This function must only be executed by the parties that run the GC protocol: CSP and Evaluator,
 	// with is'd 1 and 2 and c->party = 0 and 1, respectively.
 	int num_data_providers = ls->num_data_providers;
+	printf("party %d listening for %d inputs on port %s\n", ocCurrentParty(), num_data_providers, ls->port);
 	DualconR* conn = dcrConnect(ls->port, num_data_providers);
 	size_t d = ls->a.d[0];
 
-	obliv uint32_t *share_a;
-	obliv uint32_t *share_b;
+	obliv uint32_t *sum_a = (obliv uint32_t *) a; // sum using unsigned arithmetic
+	obliv uint32_t *sum_b = (obliv uint32_t *) b;
+	obliv uint32_t *share_a = malloc((d*(d + 1)/2) * sizeof(obliv uint32_t));
+	obliv uint32_t *share_b = malloc(d * sizeof(obliv uint32_t));
 	for(int k = 0; k < num_data_providers; k++) {
-	    // since A is symmetric, we only need to read half the matrix!
-		for(size_t i = 0; i < d; i++) {
-			for(size_t j = 0; j <= i; j++) {
-				dcrRecvIntArray(conn, share_a, d*(d + 1)/2, k);
-				a[idx(i,j)] += (obliv uint32_t) share_a[idx(i,j)];
-			}
-			dcrRecvIntArray(conn, share_b, d, k);
-			b[i] = (obliv uint32_t) b[i] + share_b[i];
+		dcrRecvIntArray(conn, share_a, d*(d + 1)/2, k+3);
+		for(int ij = 0; ij < d * (d+1) / 2; ij++) {
+			sum_a[ij] += share_a[ij];
+		}
+		dcrRecvIntArray(conn, share_b, d, k+3);
+		for(int i = 0; i < d; i++) {
+			sum_b[i] += share_b[i];
 		}
 	}
+	free(share_a);
+	free(share_b);
 	dcrClose(conn);
 	return 0;
-
-error:
-	return -1;
 }
 
 int read_symmetric_linear_system_from_ls(linear_system_t *ls, obliv fixed32_t *a, obliv fixed32_t *b) {
@@ -74,6 +75,6 @@ int read_symmetric_linear_system(linear_system_t *ls, obliv fixed32_t *a, obliv 
 	if(!ls->port){
 		return read_symmetric_linear_system_from_ls(ls, a, b);
 	} else {
-		return read_symmetric_linear_system_from_config(ls, a, b);
+		return read_symmetric_linear_system_from_data_providers(ls, a, b);
 	}
 }

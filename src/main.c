@@ -109,8 +109,8 @@ int main(int argc, char **argv) {
 	if(party == 2) {
 		sleeptime.tv_sec = 2;
 	} else if(party != 1) {
-		sleeptime.tv_sec = 5;
-		sleeptime.tv_nsec = party * 100 * 1000000l;
+		sleeptime.tv_sec = 2 + party;
+		//sleeptime.tv_nsec = party * 100 * 1000000l;
 	} 
 	nanosleep(&sleeptime, NULL);
 
@@ -127,14 +127,15 @@ int main(int argc, char **argv) {
 	ProtocolDesc pd;
 	char* csp_port = strchr(c->endpoint[0], ':');
 	*(csp_port++) = '\0'; // split endpoint at ':'
-	csp_port = "22222"; //TODO: why does the original port not work?
+	char *csp_port2 = "22222"; //TODO: why does the original port not work?
+	csp_port = "22221";
 	char* csp_server = c->endpoint[0];
 	char* eval_port = strchr(c->endpoint_evaluator, ':');
 	*(eval_port++) = '\0'; // split endpoint at ':'
 	char* eval_server = c->endpoint_evaluator;
 	if(party < 3){  // CSP and Evaluator
 		if(party == 1) {
-			ls.port = csp_port;
+			ls.port = csp_port2;
 			check(!protocolAcceptTcp2P(&pd, csp_port), 
 				"TCP accept at %s:%s failed: %s", csp_server, csp_port, strerror(errno));
 		} else {
@@ -178,7 +179,9 @@ int main(int argc, char **argv) {
 		cleanupProtocol(&pd);
 
 	} else {
-		DualconS* conn = dcsConnect(csp_server, csp_port, eval_server, eval_port, party);
+		printf("party %d connecting to csp %s:%s and evaluator %s:%s\n", party, csp_server, csp_port2, eval_server, eval_port);
+		DualconS* conn = dcsConnect(csp_server, csp_port2, eval_server, eval_port, party);
+		printf("party %d connected successfully to CSP and Evaluator\n", party);
 		dcsSendIntArray(conn, share_A, c->d*(c->d + 1)/2);
 		dcsSendIntArray(conn, share_b, c->d);
 		dcsClose(conn);
