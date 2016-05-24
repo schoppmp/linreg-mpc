@@ -78,7 +78,7 @@ void cholesky(void *v) {
 		}
 		ofixed_div(&beta[i], y[i], a[idx(i,i)], ls->precision);
 		//beta[i] = ofixed_div(y[i], a[idx(i,i)], ls->precision);
-		obliv int32_t temp = obig_export_onative_signed(beta[i]);
+		obliv fixed64_t temp = obig_export_onative_signed(beta[i]);
 		revealOblivLLong(ls->beta.value + i, temp, 2);
 	}
 
