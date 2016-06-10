@@ -17,7 +17,7 @@ typedef struct {
 	vector_t b;
 	vector_t beta;
 	int precision;
-	int gates;
+	long long gates;
 	int num_iterations; // for cgd
 } linear_system_t;
 

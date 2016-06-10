@@ -5,7 +5,7 @@
 #include "util.h"
 #include "error.h"
 
-const int precision = 40;
+const int precision = 56;
 
 int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	FILE *file = NULL;
@@ -34,9 +34,11 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	for(size_t i = 0; i < A.d[0]; i++) {
 		for(size_t j = 0; j < A.d[1]; j++) {
 			size_t index = i*A.d[1]+j;
+			//if(party ==2) printf("%g ", fixed_to_double(A.value[index], precision));
 			A_mask.value[index] = 123456; // Of course in a real application random masks would be used
 			A.value[index] = (uint64_t) A.value[index] - (uint64_t) A_mask.value[index];
 		}
+		//if(party==2)printf("\n");
 		b_mask.value[i] = 0xDEADBEEF;
 		b.value[i] = (uint64_t) b.value[i] - (uint64_t) b_mask.value[i];
 	}
@@ -120,7 +122,7 @@ int main(int argc, char **argv) {
 	if(party == 2) { 
 	  //check(ls.beta.len == d, "Computation error.");
 	  printf("Time elapsed: %f\n", wallClock() - time);
-	  printf("Number of gates: %d\n", ls.gates);
+	  printf("Number of gates: %lld\n", ls.gates);
 	  printf("Result: ");
 	  for(size_t i = 0; i < ls.beta.len; i++) {
 	    printf("%20.15f ", fixed_to_double(ls.beta.value[i], precision));
