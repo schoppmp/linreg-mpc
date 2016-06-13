@@ -125,8 +125,9 @@ void cgd(void *v) {
 		//p[i] = g[i];
 	}
 
-	obig n;
+	obig n, n_old;
 	obig_init(&n, FIXED_BIT_SIZE / 8);
+	obig_init(&n_old, FIXED_BIT_SIZE/8);
 	for(size_t i = 0; i < d; i++) {
 		ofixed_mul(&obigtemp, g[i], g[i], prec);
 		ofixed_add(&n, n, obigtemp);
@@ -163,8 +164,6 @@ void cgd(void *v) {
 			//beta[i] += ofixed_mul(eta, p[i], prec);
 		}
 
-		obig n_old;
-		obig_init(&n_old, FIXED_BIT_SIZE/8);
 		obig_copy_signed(&n_old, n);
 		obig_zero(&n);
 		for(size_t i = 0; i < d; i++) {
@@ -215,6 +214,8 @@ void cgd(void *v) {
 	obig_free(&eta);
 	obig_free(&gamma);
 	obig_free(&q);
+	obig_free(&n);
+	obig_free(&n_old);
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
 		obig_free(&a[ii]);
 	}
