@@ -19,8 +19,8 @@ native=$(objDir)/$(1)_c.o
 obliv=$(objDir)/$(1)_o.o
 both=$(call native,$(1)) $(call obliv,$(1))
 
-$(binDir)/test_linear_system: $(ackLib) $(call native,test/test_linear_system) $(call both,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd)
-	$(link)
+$(binDir)/test_linear_system: $(ackLib) $(call native,test/test_linear_system) $(call both,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd) $(call native,network)
+	$(link) -lczmq
 
 $(binDir)/test_fixed: $(ackLib) $(call both,test/test_fixed) $(call both,fixed) $(call native,util)
 	$(link)
