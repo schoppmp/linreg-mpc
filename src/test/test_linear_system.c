@@ -1,9 +1,6 @@
 #include <errno.h>
 #include <obliv.h>
 #include <stdio.h>
-#include <czmq.h>
-
-#include "network.h"
 #include "linear.h"
 #include "util.h"
 #include "error.h"
@@ -80,12 +77,6 @@ error:	// for some reason, oblivc removes this label if the stuff
 
 
 int main(int argc, char **argv) {
-	ProtocolDesc pd;
-	int pd_initialised = 0;
-	linear_system_t ls = {};
-	zsock_t *socket = NULL;
-	int status;
-
 	check(argc >= 5, "Usage: %s [Port] [Party] [Input file] [Algorithm] [Num. iterations CGD]", argv[0]);
 	char *algorithm = argv[4];
 	check(!strcmp(algorithm, "cholesky") || !strcmp(algorithm, "ldlt")  || !strcmp(algorithm, "cgd"), 
@@ -99,6 +90,7 @@ int main(int argc, char **argv) {
 	}
 	check(party > 0, "Party must be either 1 or 2.");
 
+	linear_system_t ls;
 	read_ls_from_file(party, argv[3], &ls);
 	if(!strcmp(algorithm, "cgd")){
 	       ls.num_iterations = atoi(argv[5]);
@@ -106,17 +98,8 @@ int main(int argc, char **argv) {
 	       ls.num_iterations = 0;
 	}
 
-	socket = zsock_new(ZMQ_DEALER);
-	if(party == 1) {
-		status = zsock_bind(socket, "tcp://0.0.0.0:%s", argv[1]);
-	} else {
-		status = zsock_connect(socket, "tcp://%s:%s", get_remote_host(), argv[1]);
-			
-	}
-	check(status != -1, "%s", strerror(errno));
-	protocol_use_zsock(&pd, socket);
-	pd_initialised=1;
-
+	ProtocolDesc pd;
+	ocTestUtilTcpOrDie(&pd, party==1, argv[1]);
 	setCurrentParty(&pd, party);
 
 	double time = wallClock();
@@ -147,18 +130,35 @@ int main(int argc, char **argv) {
 	  printf("\n");
 	}
 
+	/* This code is to run all three algorithms
+	void (*algorithms[])(void *) = {cholesky, ldlt, cgd};
+	char *algorithm_names[] = {"Cholesky", "LDL^T", "Conjugate Gradient Descent"};
+	for(int i = 0; i < 3; i++) {
+		double time = wallClock();
+		if(party == 2) {
+			printf("\n");
+			printf("Algorithm: %s\n", algorithm_names[i]);
+		}
+		execYaoProtocol(&pd, algorithms[i], &ls);
+
+		if(party == 2) { 
+		  //check(ls.beta.len == d, "Computation error.");
+			printf("Time elapsed: %f\n", wallClock() - time);
+			printf("Number of gates: %d\n", ls.gates);
+			printf("Result: ");
+			for(size_t i = 0; i < ls.beta.len; i++) {
+				printf("%20.15f ", fixed_to_double(ls.beta.value[i], precision));
+			}
+			printf("\n");
+		}
+	}
+	*/
 	cleanupProtocol(&pd);
-	zsock_destroy(&socket);
 	free(ls.a.value);
 	free(ls.b.value);
 	if (ls.beta.value) free(ls.beta.value);
 
 	return 0;
 error:
-	if(pd_initialised) cleanupProtocol(&pd);
-	zsock_destroy(&socket);
-	free(ls.a.value);
-	free(ls.b.value);
-	if (ls.beta.value) free(ls.beta.value);
 	return 1;
 }
