@@ -32,14 +32,14 @@ void util_loop_accept(ProtocolDesc *pd, const char *port) {
 }
 
 void util_loop_connect(ProtocolDesc *pd, const char *host, const char *port) {
-	while(protocolConnectTcp2P(pd,host,port)!=0) { 
+	while(protocolConnectTcp2P(pd,host,port)!=0) {
 		nanosleep(&sleeptime, NULL);
 	}
 }
 
 
 void ocTestUtilTcpOrDie(ProtocolDesc* pd,bool isServer,const char* port) {
-	if(isServer) { 
+	if(isServer) {
 		util_loop_accept(pd, port);
 	} else{
 		util_loop_connect(pd, remote_host, port);
@@ -58,13 +58,13 @@ int tcpListenAny(const char* portn) {
 	if((outsock=socket(AF_INET,SOCK_STREAM,0))<0) return -1;
 	int reuse = 1;
 	if (setsockopt(outsock, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0) {
-		fprintf(stderr,"setsockopt(SO_REUSEADDR) failed\n"); 
+		fprintf(stderr,"setsockopt(SO_REUSEADDR) failed\n");
 		return -1;
 	}
-	struct sockaddr_in sa = { 
-		.sin_family=AF_INET, 
+	struct sockaddr_in sa = {
+		.sin_family=AF_INET,
 		.sin_port=htons(port),
-		.sin_addr={INADDR_ANY} 
+		.sin_addr={INADDR_ANY}
 	};
 	if(bind(outsock,(struct sockaddr*)&sa,sizeof(sa))<0) return -1;
 	if(listen(outsock,SOMAXCONN)<0) return -1;
