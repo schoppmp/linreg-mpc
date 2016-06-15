@@ -1,6 +1,6 @@
 package secure_multiplication;
 
 message msg {
-	repeated uint32 vector = 1 [packed=true];
-	required uint32 value = 2;
+	repeated uint64 vector = 1 [packed=true];
+	required uint64 value = 2;
 }

@@ -38,7 +38,7 @@ static int barrier(node *self) {
 }
 
 int main(int argc, char **argv) {
-	uint32_t *share_A = NULL, *share_b = NULL; 
+	uint64_t *share_A = NULL, *share_b = NULL; 
 	config *c = NULL;
 	node *self = NULL;
 	int status;
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 
 	if(c->party == 0) {
 		//printf("Party %d running as TI\n", party);
-		status = run_trusted_initializer(self, c);
+		status = run_trusted_initializer(self, c, precision);
 		check(!status, "Error while running trusted initializer");
 	} else if(c->party != -1){
 		//printf("Party %d running as DP\n", party);
@@ -107,9 +107,9 @@ int main(int argc, char **argv) {
 	struct timespec sleeptime;
 	sleeptime.tv_sec = sleeptime.tv_nsec = 0;
 	if(party == 2) {
-		sleeptime.tv_sec = 20;
+		sleeptime.tv_sec = 1;
 	} else if(party != 1) {
-		sleeptime.tv_sec = 5 + party;
+		sleeptime.tv_sec = 0 + party;
 		//sleeptime.tv_nsec = party * 100 * 1000000l;
 	} 
 	nanosleep(&sleeptime, NULL);

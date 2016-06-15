@@ -40,8 +40,8 @@ void dcsClose(DualconS* dcs)
   cleanupProtocol(&dcs->pd2);
   free(dcs);
 }
-static const int intsize = 32;
-void dcsSendIntArray(DualconS* dcs,const int* input,int n)
+static const int intsize = 64;
+void dcsSendIntArray(DualconS* dcs,const uint64_t* input,int n)
 {
   int i,j,nn = n*intsize;
   bool* sel = malloc(nn*sizeof(bool));

@@ -29,7 +29,7 @@ const char *endpoint[3] = {
 	"tcp://127.0.0.1:4569"
 };
 
-static int receive_value(fixed32_t *value, void *sender) {
+static int receive_value(fixed64_t *value, void *sender) {
 	int *val = sender;
   	printf("Receiving...\n");
 	int status;
@@ -56,7 +56,7 @@ error:
 	return -1;
 }
 
-static int send_value(fixed32_t value, void *recipient) {
+static int send_value(fixed64_t value, void *recipient) {
 	int status;
 	int *rec = recipient;
 	printf("Sending value %x...", value);
@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
 		check(gcry_check_version(GCRYPT_VERSION), "Unsupported gcrypt version");
 		gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
 		// generate random masks and send them to parties 1 and 2
-		fixed32_t mask[2] = {0, 0};
+		fixed64_t mask[2] = {0, 0};
 		for(int i = 0; i < 2; i++) {
 		        gcry_randomize(&mask[i], 4, GCRY_STRONG_RANDOM);
 			printf("TI:: Sending message to party %d: %x\n", i+1, mask[i]);
@@ -150,26 +150,26 @@ int main(int argc, char **argv) {
 			check(status == 0, "Error sending message to party %d", i+1);
 		}
 
-		fixed32_t share = mask[0]*mask[1];
+		fixed64_t share = mask[0]*mask[1];
 		printf("Party %d:: Share: %x\n", party, share);
 
 		// receive first share
-		fixed32_t share_1;
+		fixed64_t share_1;
 		status = receive_value(&share_1, socket[party - 1]);
 		check(status == 0, "Error receiving message");
 
 		// receive second share
-		fixed32_t share_2;
+		fixed64_t share_2;
 		status = receive_value(&share_2, socket[party - 1]);
 		check(status == 0, "Error receiving message");
 
 
-		fixed32_t share_1_ = share_1 /  (1 << precision);
-		fixed32_t share_2_ = share_2 / (1 << precision);
-		fixed32_t share_ = share / (1 << precision);
-		fixed32_t share_1_rem = share_1 & ((1 << precision) - 1);
-		fixed32_t share_2_rem = share_2 & ((1 << precision) - 1);
-		fixed32_t share_rem = share & ((1 << precision) - 1);
+		fixed64_t share_1_ = share_1 /  (1 << precision);
+		fixed64_t share_2_ = share_2 / (1 << precision);
+		fixed64_t share_ = share / (1 << precision);
+		fixed64_t share_1_rem = share_1 & ((1 << precision) - 1);
+		fixed64_t share_2_rem = share_2 & ((1 << precision) - 1);
+		fixed64_t share_rem = share & ((1 << precision) - 1);
 		printf("Party %d:: Share 1: %d\n", party, share_1);
 		printf("Party %d:: Share 1: %d\n", party, share_1_);
 		printf("Party %d:: Share 1 remainder: %d\n", party, share_1_rem);
@@ -187,8 +187,8 @@ int main(int argc, char **argv) {
 
 		
 	} else {
-		fixed32_t a;
-		fixed32_t x = double_to_fixed(input, precision);
+		fixed64_t a;
+		fixed64_t x = double_to_fixed(input, precision);
 		printf("Party %d:: Input %f\n", party, input);
 		printf("Party %d:: Input (fixed) %d\n", party, x);
 		//printf("Party %d:: Input %f\n", party, fixed_to_double(x, precision));
@@ -206,7 +206,7 @@ int main(int argc, char **argv) {
 			printf("Party %d:: Value sent to party %d: %x\n", party, party % 2 + 1, a);
 		
 			// receive value from party 2
-			fixed32_t a2;
+			fixed64_t a2;
 			status = receive_value(&a2, socket[party - 1]);
 			check(status == 0, "Error receiving message from party %d", party % 2 + 1);
 
@@ -214,14 +214,14 @@ int main(int argc, char **argv) {
 			printf("a2 = %x\n", a2);
 			printf("x = %d\n", x);
 			
-			fixed32_t share = -(x + a)*a2+x*a2;
+			fixed64_t share = -(x + a)*a2+x*a2;
 			printf("Party %d:: Share: %x\n", party, share);
 			status = send_value(share, socket[2]);
 			check(status == 0, "Error sending message");
 
 		} else { // party == 2
 		       // receive value from party 1
-		       fixed32_t a2;
+		       fixed64_t a2;
 		       status = receive_value(&a2, socket[party - 1]);
 		       check(status == 0, "Error receiving message from party %d", party % 2 + 1);
 		
@@ -235,7 +235,7 @@ int main(int argc, char **argv) {
 		       printf("a2 = %x\n", a2);
 		       printf("x = %d\n", x);
 		       
-		       fixed32_t share = a2*x;
+		       fixed64_t share = a2*x;
 		       printf("Party %d:: Share: %x\n", party, share);
 		       // send share to TI
 		       status = send_value(share, socket[2]);

@@ -1,12 +1,9 @@
 #include "phase1.h"
 #include <math.h>
 
-const int precision = 24;
-
-
-// computes inner product in Z_{2^32}
-static uint32_t inner_prod_32(uint32_t *x, uint32_t *y, size_t n, size_t stride_x, size_t stride_y) {
-	uint32_t xy = 0;
+// computes inner product in Z_{2^64}
+static uint64_t inner_prod_64(uint64_t *x, uint64_t *y, size_t n, size_t stride_x, size_t stride_y) {
+	uint64_t xy = 0;
 	for(size_t i = 0; i < n; i++) {
 		xy += x[i*stride_x] * y[i*stride_y];
 	}
@@ -64,10 +61,10 @@ error:
 }
 
 
-int run_trusted_initializer(node *self, config *c) {
+int run_trusted_initializer(node *self, config *c, int precision) {
 	int status;
-	uint32_t *x = calloc(c->n , sizeof(uint32_t));
-	uint32_t *y = calloc(c->n , sizeof(uint32_t));
+	uint64_t *x = calloc(c->n , sizeof(uint64_t));
+	uint64_t *y = calloc(c->n , sizeof(uint64_t));
 	check(x && y, "malloc: %s", strerror(errno));
 	for(size_t i = 0; i <= c->d; i++) {
 		for(size_t j = 0; j <= i && j < c->d; j++) {
@@ -80,14 +77,14 @@ int run_trusted_initializer(node *self, config *c) {
 			}
 
 			// generate random vectors x, y and value r
-			uint32_t r = 0;
-			randombytes_buf(x, c->n * sizeof(uint32_t));
+			uint64_t r = 0;
+			randombytes_buf(x, c->n * sizeof(uint64_t));
 			for(size_t k = 0; k < c->n; k++) {
 				y[k] = 1;
 			}
-			randombytes_buf(y, c->n * sizeof(uint32_t));
-			randombytes_buf(&r, sizeof(uint32_t));
-			uint32_t xy = inner_prod_32(x, y, c->n, 1, 1);
+			randombytes_buf(y, c->n * sizeof(uint64_t));
+			randombytes_buf(&r, sizeof(uint64_t));
+			uint64_t xy = inner_prod_64(x, y, c->n, 1, 1);
 
 			// create protobuf message
 			SecureMultiplication__Msg pmsg_a, pmsg_b;
@@ -108,11 +105,11 @@ int run_trusted_initializer(node *self, config *c) {
 		}
 	}
 
-/*	// Receive and combine shares from peers for testing; TODO: remove
-	uint32_t *share_A = NULL, *share_b = NULL;
+	// Receive and combine shares from peers for testing; TODO: remove
+	uint64_t *share_A = NULL, *share_b = NULL;
 	size_t d = c->d;
-	share_A = calloc(d * (d + 1) / 2, sizeof(uint32_t));
-	share_b = calloc(d, sizeof(uint32_t));
+	share_A = calloc(d * (d + 1) / 2, sizeof(uint64_t));
+	share_b = calloc(d, sizeof(uint64_t));
 
 	SecureMultiplication__Msg *pmsg_in;
 	for(int p = 1; p < c->num_parties; p++) {
@@ -132,11 +129,11 @@ int run_trusted_initializer(node *self, config *c) {
 	}
 	for(size_t i = 0; i < c->d; i++) {
 		for(size_t j = 0; j <= i; j++) {
-			printf("%f ", fixed_to_double((fixed32_t) share_A[idx(i, j)], precision));
+			printf("%f ", fixed_to_double((fixed64_t) share_A[idx(i, j)], precision));
 		}
 		printf("\n");
 	}
-*/
+
 	free(x);
 	free(y);
 	return 0;
@@ -148,7 +145,7 @@ error:
 }
 
 
-int run_party(node *self, config *c, int precision, struct timespec *wait_total, uint32_t **res_A, uint32_t **res_b) {
+int run_party(node *self, config *c, int precision, struct timespec *wait_total, uint64_t **res_A, uint64_t **res_b) {
 	matrix_t data; // TODO: maybe use dedicated type for finite field matrices here
 	vector_t target;
 	data.value = target.value = NULL;
@@ -162,8 +159,8 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 				  pmsg_out;
 	secure_multiplication__msg__init(&pmsg_out);
 	pmsg_out.n_vector = c->n;
-	pmsg_out.vector = malloc(c->n * sizeof(uint32_t));
-	uint32_t *share_A = NULL, *share_b = NULL;
+	pmsg_out.vector = malloc(c->n * sizeof(uint64_t));
+	uint64_t *share_A = NULL, *share_b = NULL;
 	check(pmsg_out.vector, "malloc: %s", strerror(errno));
 
 	// read inputs and allocate result buffer
@@ -175,39 +172,38 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	check(c->n == target.len && d == c->d && c->n == data.d[0],
 		"Input dimensions invalid: (%zd, %zd), %zd",
 		data.d[0], data.d[1], target.len);
-	share_A = calloc(d * (d + 1) / 2, sizeof(uint32_t));
-	share_b = calloc(d, sizeof(uint32_t));
+	share_A = calloc(d * (d + 1) / 2, sizeof(uint64_t));
+	share_b = calloc(d, sizeof(uint64_t));
 
-	
 	for(size_t i = 0; i < c->n; i++) {
 		for(size_t j = 0; j < c->d; j++) {
 			// rescale in advance 
-			data.value[i*c->d+j] = (fixed32_t) round(data.value[i*c->d+j] / (sqrt((1<<precision) * c->d * c->n)));
+			data.value[i*c->d+j] = (fixed64_t) round(data.value[i*c->d+j] / (sqrt(pow(2,precision) * c->d * c->n)));
 		}
-		target.value[i] = (fixed32_t) round(target.value[i] / (sqrt((1<<precision) * c->d * c->n)));
+		target.value[i] = (fixed64_t) round(target.value[i] / (sqrt(pow(2,precision) * c->d * c->n)));
 	}
 
 	for(size_t i = 0; i <= c->d; i++) {
-		uint32_t *row_start;
+		uint64_t *row_start;
 		size_t stride;
 		if(i < c->d) { // row of input matrix
-			row_start = (uint32_t *) data.value + i;
+			row_start = (uint64_t *) data.value + i;
 			stride = d;
 		} else { // row is target vector
-			row_start = (uint32_t *) target.value;
+			row_start = (uint64_t *) target.value;
 			stride = 1;
 		}
 		for(size_t j = 0; j <= i && j < c->d; j++) {
 			int owner_i = get_owner(i, c);
 			int owner_j = get_owner(j, c);
 
-			uint32_t share;
+			uint64_t share;
 			// if we own neither i or j, skip.
 			if(owner_i != c->party && owner_j != c->party) { 
 				continue;
 			// if we own both, compute locally
 			} else if(owner_i == c->party && owner_i == owner_j) {
-				share = inner_prod_32(row_start, (uint32_t *) data.value + j, 
+				share = inner_prod_64(row_start, (uint64_t *) data.value + j, 
 					c->n, stride, d);
 			} else {
 				// receive random values from TI
@@ -217,7 +213,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 				if(owner_i == c->party) { // if we own i but not j, we are party a
 					// set our own share r_A randomly
 					share = 0;
-					randombytes_buf(&share, sizeof(uint32_t));
+					randombytes_buf(&share, sizeof(uint64_t));
 					// receive (b', _) from party b
 					int party_b = get_owner(j, c);
 
@@ -233,7 +229,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 						"B (%d)", party_b);
 
 					// Send (a + x, <a, b'> - r - r_A) to party b
-					pmsg_out.value = inner_prod_32(row_start, pmsg_in->vector,
+					pmsg_out.value = inner_prod_64(row_start, pmsg_in->vector,
 						c->n, stride, 1);
 					pmsg_out.value -= (pmsg_ti->value + share);
 					for(size_t k = 0; k < c->n; k++) {
@@ -249,7 +245,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 					// send (b - y, _) to party a
 					pmsg_out.value = 0;
 					for(size_t k = 0; k < c->n; k++) {
-						pmsg_out.vector[k] = ((uint32_t *) data.value)[k * d + j]
+						pmsg_out.vector[k] = ((uint64_t *) data.value)[k * d + j]
 							- pmsg_ti->vector[k];
 						//assert(pmsg_out.vector[k] == 1023);
 					}
@@ -269,7 +265,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 					check(!status, "Could not receive message from party A (%d)", party_a);
 
 					// set our share to <a', y> + a'' - z
-					share = inner_prod_32(pmsg_in->vector, pmsg_ti->vector, c->n, 1, 1);
+					share = inner_prod_64(pmsg_in->vector, pmsg_ti->vector, c->n, 1, 1);
 					share += pmsg_in->value - pmsg_ti->value;
 			
 				}
@@ -298,7 +294,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	}
 	
 	free(pmsg_out.vector);
-/*	// send results to TI for testing; TODO: remove
+	// send results to TI for testing; TODO: remove
 	pmsg_out.vector = share_A;
 	pmsg_out.n_vector = d * (d + 1) / 2;
 	status = send_pmsg(&pmsg_out, self->peer[0]);
@@ -307,7 +303,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	pmsg_out.n_vector = d;
 	status = send_pmsg(&pmsg_out, self->peer[0]);
 	check(!status, "Could not send share_b to TI");
-*/
+
 	free(data.value);
 	free(target.value);
 	return 0;

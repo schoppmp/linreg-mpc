@@ -36,3 +36,7 @@ void ocTestUtilTcpOrDie(ProtocolDesc* pd,bool isServer,const char* port)
       exit(1);
     }
 }
+
+const char *get_remote_host() {
+	return remote_host;
+}

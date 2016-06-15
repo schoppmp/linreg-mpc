@@ -4,6 +4,7 @@
 #include "fixed.h"
 #include "fixed.oh"
 #include <alloca.h>
+#include "obig.oh"
 
 
 
@@ -12,10 +13,22 @@ void cholesky(void *v) {
 	linear_system_t *ls = v;
 	// allocate space for obliv values and read inputs
 	size_t d = ls->a.d[0];
-	obliv fixed32_t *a = alloca(((d * (d+1)) / 2) * sizeof(obliv fixed32_t));
-	obliv fixed32_t *b = alloca(d * sizeof(obliv fixed32_t));
-	obliv fixed32_t *y = alloca(d * sizeof(obliv fixed32_t));
-	obliv fixed32_t *beta = alloca(d * sizeof(obliv fixed32_t));
+	obig *a = alloca(((d * (d+1)) / 2) * sizeof(obig));
+	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
+		obig_init(&a[ii], FIXED_BIT_SIZE/8);
+	}
+
+	obig *b = alloca(d * sizeof(obig));
+	obig *y = alloca(d * sizeof(obig));
+	obig *beta = alloca(d * sizeof(obig));
+	for (size_t ii = 0; ii < d; ii++) {
+		obig_init(&b[ii], FIXED_BIT_SIZE/8);
+		obig_init(&y[ii], FIXED_BIT_SIZE/8);
+		obig_init(&beta[ii], FIXED_BIT_SIZE/8);
+	}
+
+	obig temp;
+	obig_init(&temp, FIXED_BIT_SIZE/8);
 
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
@@ -23,44 +36,64 @@ void cholesky(void *v) {
 		return;
 	}
 
-
 	// allocate output vector if not already done and we are party 2
 	if(!(ls->beta.value) && ocCurrentParty() == 2) {
 		ls->beta.len = d;
-		ls->beta.value = malloc(d * sizeof(fixed32_t));
+		ls->beta.value = malloc(d * sizeof(fixed64_t));
 	}
 
 	// decompose a into L^T L
 	for(size_t j = 0; j < d; j++) {
 		for(size_t k = 0; k < j; k++) {
 			for(size_t i = j; i < d; i++) {
-				a[idx(i,j)] -= ofixed_mul(a[idx(i,k)], a[idx(j,k)], ls->precision);
+				ofixed_mul(&temp, a[idx(i,k)], a[idx(j,k)], ls->precision);
+				ofixed_sub(&a[idx(i,j)], a[idx(i,j)], temp);
+				//a[idx(i,j)] -= ofixed_mul(a[idx(i,k)], a[idx(j,k)], ls->precision);
 			}
 		}
-		a[idx(j,j)] = ofixed_sqrt(a[idx(j,j)], ls->precision);
+		ofixed_sqrt(&a[idx(j,j)], a[idx(j,j)], ls->precision);
+		//a[idx(j,j)] = ofixed_sqrt(a[idx(j,j)], ls->precision);
 		for(size_t k = j + 1; k < d; k++) {
-			a[idx(k,j)] = ofixed_div(a[idx(k,j)], a[idx(j,j)], ls->precision);
+			ofixed_div(&a[idx(k,j)], a[idx(k,j)], a[idx(j,j)], ls->precision);
+			//a[idx(k,j)] = ofixed_div(a[idx(k,j)], a[idx(j,j)], ls->precision);
 		}
 	}
 	
 	// compute y, where L^T y = b
 	for(size_t i = 0; i < d; i++) {
 		for(size_t j = 0; j < i; j++) {
-			b[i] -= ofixed_mul(a[idx(i,j)], y[j], ls->precision);
+			ofixed_mul(&temp, a[idx(i,j)], y[j], ls->precision);
+			ofixed_sub(&b[i], b[i], temp);
+			//b[i] -= ofixed_mul(a[idx(i,j)], y[j], ls->precision);
 		}
-		y[i] = ofixed_div(b[i], a[idx(i,i)], ls->precision);
+		ofixed_div(&y[i], b[i], a[idx(i,i)], ls->precision);
+		//y[i] = ofixed_div(b[i], a[idx(i,i)], ls->precision);
 	}
 
 	// compute beta, where L beta = y
 	for(ssize_t i = d-1; i >= 0; i--) {
 		for(ssize_t j = d-1; j > i; j--) {
-			y[i] -= ofixed_mul(a[idx(j,i)], beta[j], ls->precision);
+			ofixed_mul(&temp, a[idx(j,i)], beta[j], ls->precision);
+			ofixed_sub(&y[i], y[i], temp);
+			//y[i] -= ofixed_mul(a[idx(j,i)], beta[j], ls->precision);
 		}
-		beta[i] = ofixed_div(y[i], a[idx(i,i)], ls->precision);
-		revealOblivInt(ls->beta.value + i, beta[i], 2);
+		ofixed_div(&beta[i], y[i], a[idx(i,i)], ls->precision);
+		//beta[i] = ofixed_div(y[i], a[idx(i,i)], ls->precision);
+		obliv fixed64_t temp = obig_export_onative_signed(beta[i]);
+		revealOblivLLong(ls->beta.value + i, temp, 2);
 	}
 
 	ls->gates = yaoGateCount();
+
+	obig_free(&temp);
+	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
+		obig_free(&a[ii]);
+	}
+	for (size_t ii = 0; ii < d; ii++) {
+		obig_free(&b[ii]);
+		obig_free(&y[ii]);
+		obig_free(&beta[ii]);
+	}
 	return;
 
 }

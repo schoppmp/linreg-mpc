@@ -1,5 +1,5 @@
 package test;
 
 message Fixed {
-	required int32 value = 1;
+	required int64 value = 1;
 }

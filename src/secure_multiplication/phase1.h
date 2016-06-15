@@ -12,5 +12,5 @@
 #include "check_error.h"
 #include "linear.h"
 
-int run_trusted_initializer(node *self, config *c);
-int run_party(node *self, config *c, int precision, struct timespec *wait_total, uint32_t **res_A, uint32_t **res_b);
+int run_trusted_initializer(node *self, config *c, int precision);
+int run_party(node *self, config *c, int precision, struct timespec *wait_total, uint64_t **res_A, uint64_t **res_b);
