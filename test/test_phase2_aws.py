@@ -24,8 +24,8 @@ def update_and_compile(ip, remote_ip):
     client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
 
     cmd = 'cd secure-distributed-linear-regression; ' + \
-        'pwd; git stash; git checkout experiments_phase2; ' + \
-        'git pull; make clean; make OBLIVC_PATH=$(cd ../obliv-c && pwd) REMOTE_HOST={0}; '.format(remote_ip)
+        'pwd; git checkout experiments_phase2; ' + \
+        'git pull; make clean; make OBLIVC_PATH=$(cd ../obliv-c && pwd) REMOTE_HOST={0}; killall -9 test_linear_system'.format(remote_ip)
     logger.info('Compiling in {0}:'.format(ip))
     logger.info('{0}'.format(cmd))
     stdin, stdout, stderr = client.exec_command(cmd)
