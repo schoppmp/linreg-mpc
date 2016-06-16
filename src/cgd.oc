@@ -125,6 +125,10 @@ void cgd(void *v) {
 		//p[i] = g[i];
 	}
 
+	obig d_big;
+	obig_init(&d_big, FIXED_BIT_SIZE/8);
+	obig_import_onative(&d_big, d);
+
 	obig n, n_old;
 	obig_init(&n, FIXED_BIT_SIZE / 8);
 	obig_init(&n_old, FIXED_BIT_SIZE/8);
@@ -141,8 +145,8 @@ void cgd(void *v) {
 		obig_zero(&q);
 		//obliv fixed32_t eta = 0, gamma = 0, q = 0;
 		for(size_t i = 0; i < d; i++) {
-			obig_import_onative(&obigtemp, double_to_fixed(d, prec));
-			ofixed_mul(&p_tilde[i], p[i], obigtemp, prec);
+			// integer multiplication, not fixed point!
+			obig_mul_signed(&p_tilde[i], p[i], d_big);
 		}
 		for(size_t i = 0; i < d; i++) {
 			obig_zero(&ap_tilde[i]);
