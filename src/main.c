@@ -102,6 +102,7 @@ int main(int argc, char **argv) {
 
 	printf("Party %d finished phase 1\n", party);
 
+/*
 	// dirtiest of hacks: sleep based on party to mitigate plain tcp race conditions
 	// TODO (!!): use zeromq instead of plain tcp
 	struct timespec sleeptime;
@@ -113,7 +114,7 @@ int main(int argc, char **argv) {
 		//sleeptime.tv_nsec = party * 100 * 1000000l;
 	} 
 	nanosleep(&sleeptime, NULL);
-
+*/
 
 	// At this point:
 	// if party = 1 then I am the CSP and c->party = 0
@@ -136,12 +137,14 @@ int main(int argc, char **argv) {
 	if(party < 3){  // CSP and Evaluator
 		if(party == 1) {
 			ls.port = csp_port2;
-			check(!protocolAcceptTcp2P(&pd, csp_port), 
-				"TCP accept at %s:%s failed: %s", csp_server, csp_port, strerror(errno));
+			util_loop_accept(&pd, csp_port);
+			//check(!protocolAcceptTcp2P(&pd, csp_port), 
+			//	"TCP accept at %s:%s failed: %s", csp_server, csp_port, strerror(errno));
 		} else {
 			ls.port = eval_port;
-			check(!protocolConnectTcp2P(&pd, csp_server, csp_port),
-				"TCP connect to %s:%s failed: %s", csp_server, csp_port, strerror(errno));
+			util_loop_connect(&pd, csp_server, csp_port);
+			//check(!protocolConnectTcp2P(&pd, csp_server, csp_port),
+			//	"TCP connect to %s:%s failed: %s", csp_server, csp_port, strerror(errno));
 		}
 		setCurrentParty(&pd, party);
 		ls.num_data_providers = c->num_parties - 1;

@@ -1,4 +1,5 @@
 #include"input.h"
+#include "util.h"
 #include<obliv_types_internal.h>
 #include<obliv_common.h>
 #include<obliv_yao.h>
@@ -23,11 +24,13 @@ DualconS* dcsConnect(const char* csp_server,const char* csp_port,
   dhRandomInit();
   // Not setting party numbers: problem? check
   // Zeroes everywhere: Tcp2P ignores party numbers anyway
-  if(protocolConnectTcp2P(&dcs->pd1,csp_server,csp_port)!=0)
-    error(-1,errno,"Could not connect to %s:%s",csp_server,csp_port);
+  util_loop_connect(&dcs->pd1,csp_server,csp_port);
+//  if(protocolConnectTcp2P(&dcs->pd1,csp_server,csp_port)!=0)
+//    error(-1,errno,"Could not connect to %s:%s",csp_server,csp_port);
   osend(&dcs->pd1,0,&party,sizeof(party));
-  if(protocolConnectTcp2P(&dcs->pd2,eval_server,eval_port)!=0)
-    error(-1,errno,"Could not connect to %s:%s",eval_server,eval_port);
+  util_loop_connect(&dcs->pd2,eval_server,eval_port);
+//  if(protocolConnectTcp2P(&dcs->pd2,eval_server,eval_port)!=0)
+//    error(-1,errno,"Could not connect to %s:%s",eval_server,eval_port);
   osend(&dcs->pd2,0,&party,sizeof(party));
   flush(&dcs->pd2);
   dcs->r = honestOTExtRecverNew(&dcs->pd1,0);
@@ -70,9 +73,10 @@ DualconR* dcrConnect(const char* port,int pc)
   dcr->count = pc;
   dcr->party = malloc(sizeof(int)*pc);
   dcr->s = meCsp()?malloc(sizeof(struct HonestOTExtSender*)*pc):0;
-  for(p=0;p<pc;++p)
-  { if(protocolAcceptTcp2P(dcr->pd+p,port)!=0)
-      error(-1,errno,"TCP connection error");
+  for(p=0;p<pc;++p) {
+  util_loop_accept(dcr->pd+p,port);
+//  { if(protocolAcceptTcp2P(dcr->pd+p,port)!=0)
+//      error(-1,errno,"TCP connection error");
     orecv(dcr->pd+p,0,dcr->party+p,sizeof(int));
   }
   if(meCsp()) for(p=0;p<pc;++p)
