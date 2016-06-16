@@ -1,15 +1,18 @@
 import os
 import argparse
-from generate_tests import (generate_lin_system_from_regression_problem, generate_lin_system)
+from generate_tests import generate_lin_system_from_regression_problem
 import paramiko
 import re
 import time
 import logging
+import numpy as np
+from math import sqrt, pow
 
 REMOTE_USER = 'ubuntu'
 KEY_FILE = '/home/ubuntu/.ssh/id_rsa'
 
 logger = logging.getLogger(__name__)
+logging.basicConfig()
 logger.setLevel(logging.INFO)
 
 
@@ -17,13 +20,13 @@ def update_and_compile(ip, remote_ip):
     key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    logger.info('Connecting to {0}:'.format(ip))
     client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
 
-    cmd = 'cd secure-distributed-linear-regression; '
-    'pwd; git stash; git checkout experiments_phase_1; '
-    'git pull; make clean; make REMOTE_HOST={0}; '.format(remote_ip)
-    'killall -9 test_linear_system'
-    logger.info('Sending compilation command to {0}:'.format(ip))
+    cmd = 'cd secure-distributed-linear-regression; ' + \
+        'pwd; git stash; git checkout experiments_phase2; ' + \
+        'git pull; make clean; make OBLIVC_PATH=$(cd ../obliv-c && pwd) REMOTE_HOST={0}; '.format(remote_ip)
+    logger.info('Compiling in {0}:'.format(ip))
     logger.info('{0}'.format(cmd))
     stdin, stdout, stderr = client.exec_command(cmd)
     for line in stdout:
@@ -34,14 +37,15 @@ def update_and_compile(ip, remote_ip):
     client.close()
 
 
-def parse_output(n, d, alg, solution, filepath_ls_out, filepath_ls_exec,
+def parse_output(n, d, alg, solution, condition_number,
+        filepath_out, filepath_exec,
         alg_has_scaling=False):
     """
     Generates a .out file containing accuracy information given
     an .exec file with execution information
     (e.g. intermediate solutions of cgd) for a specific test case.
     """
-    with open(filepath_ls_exec, 'r') as f_exec:
+    with open(filepath_exec, 'r') as f_exec:
         lines = f_exec.readlines()
     cgd_iter_solutions = []
     cgd_iter_gate_sizes = []
@@ -91,8 +95,9 @@ def parse_output(n, d, alg, solution, filepath_ls_out, filepath_ls_exec,
             result = map(float, m.group(1).split())
             # At this point we have all the data we need to produce the
             # .out file
-            f = open(filepath_ls_out, 'w')
-            error = spatial.distance.euclidean(result, solution)
+            logger.info('Creating .out file: {}'.format(filepath_out))
+            f = open(filepath_out, 'w')
+            error = np.linalg.norm(result - solution)
             f.write('n d algorithm time error gate_count')
             f.write('\n{0} {1} {2} {3} {4} {5}'.format(n, d,
                 alg, time, error, gate_count))
@@ -110,14 +115,22 @@ def parse_output(n, d, alg, solution, filepath_ls_out, filepath_ls_exec,
                         cgd_iter_gate_sizes)
                 f.write('\niter_i error_i gate_count_i')
                 for i in range(len(cgd_iter_solutions)):
-                    error_i = spatial.distance.euclidean(
-                        cgd_iter_solutions[i], solution)
+                    error_i = np.linalg.norm(
+                        cgd_iter_solutions[i] - solution)
                     f.write('\n{0} {1} {2}'.format(
                         i + 1, error_i, cgd_iter_gate_sizes[i]))
-    f.close()
+            f.write('\nsolution:')
+            f.write('\n{0}'.format(d))
+            f.write('\n{0}'.format(' '.join(map(str, solution))))
+            f.write('\nresult:')
+            f.write('\n{0}'.format(d))
+            f.write('\n{0}'.format(' '.join(map(str, result))))
+            f.write('\nCondition number:')
+            f.write('\n{0}'.format(condition_number))
+            f.close()
 
 
-def run_instance_remotely(n, d, alg, solution,
+def run_instance_remotely(n, d, alg, solution, condition_number,
         remote_working_dir,
         remote_dest_folder, local_dest_folder,
         local_input_filepath, remote_exec_filepath,
@@ -128,37 +141,61 @@ def run_instance_remotely(n, d, alg, solution,
         corresponding .out file in [local_dest_folder]
     """
     key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
+    logger.info('Connecting to {}:'.format(ip))
+    #logger.info('Remote working directory: {}'.format(remote_working_dir))
+    #logger.info('Remote destination folder: {}'.format(remote_dest_folder))
+
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
     sftp = client.open_sftp()
-    try:
-        sftp.chdir(remote_dest_folder)  # Test if remote_path exists
-    except IOError:
-        sftp.mkdir(remote_dest_folder)  # Create remote_path
-        sftp.chdir(remote_dest_folder)
+    # This function emulates mkdir -p, taken from
+    # http://stackoverflow.com/questions/14819681/upload-files-using-sftp-in-python-but-create-directories-if-path-doesnt-exist
+    def mkdir_p(sftp, remote_directory):
+        """Change to this directory, recursively making new folders if needed.
+        Returns True if any folders were created."""
+        if remote_directory == '/':
+            # absolute path so change directory to root
+            sftp.chdir('/')
+            return
+        if remote_directory == '':
+            # top-level relative directory must exist
+            return
+        try:
+            sftp.chdir(remote_directory)  # sub-directory exists
+        except IOError:
+            dirname, basename = os.path.split(remote_directory.rstrip('/'))
+            mkdir_p(sftp, dirname)  # make parent directories
+            sftp.mkdir(basename)  # sub-directory missing, so created it
+            sftp.chdir(basename)
+            return True
+    remote_dest_folder = os.path.join(
+        'secure-distributed-linear-regression', remote_dest_folder)
+    mkdir_p(sftp, remote_dest_folder)
     input_filename = os.path.basename(local_input_filepath)
     sftp.put(local_input_filepath, input_filename)
-    logger.info('Sending execution command to {0}:'.format(i))
+    logger.info('Executing in {0}:'.format(ip))
     logger.info('{0}'.format(cmd))
     stdin, stdout, stderr = client.exec_command(
-        'cd {0};'.format(remote_working_dir, cmd))
+        'cd {0}; {1}'.format(remote_working_dir, cmd))
     for line in stdout:
         logger.info('... ' + line.strip('\n'))
     for line in stderr:
         logger.error('... ' + line.strip('\n'))
 
     if is_party_2:
-        # Get exec file from remote
-        sftp.get(remote_exec_filepath, local_dest_folder)
-        # Parse execfile in this machine and produce .out file
+        # Get exec file from remote and
+        # parse it in this machine and produce .out file
+        logger.info('Getting file {0} from {1}:'.format(
+            remote_exec_filepath, ip))
         exec_filename = os.path.basename(remote_exec_filepath)
         local_exec_filepath = os.path.join(
             local_dest_folder, exec_filename)
-        out_filename = os.path.split(exec_filename)[0] + '.out'
+        sftp.get(exec_filename, local_exec_filepath)
+        out_filename = os.path.splitext(exec_filename)[0] + '.out'
         local_out_filepath = os.path.join(
             local_dest_folder, out_filename)
-        parse_output(n, d, alg, solution,
+        parse_output(n, d, alg, solution, condition_number,
             local_out_filepath, local_exec_filepath)
 
     # Remove .in file from remote (they are too big)
@@ -176,13 +213,13 @@ if __name__ == "__main__":
     parser.add_argument('remote_ip_2', help='Second remote ip address')
 
     exec_file = 'bin/test_linear_system'
-    dest_folder = 'test/experiments/phase_2/'
+    dest_folder = 'test/experiments/phase2/'
     assert os.path.exists(dest_folder), '{0} does not exist.'.format(
         dest_folder)
     assert not os.listdir(dest_folder), '{0} is not empty.'.format(
         dest_folder)
     num_iters_cgd = 15
-    num_examples = 5
+    num_examples = 1
 
     args = parser.parse_args()
 
@@ -190,24 +227,71 @@ if __name__ == "__main__":
     update_and_compile(ips[0], ips[1])
     update_and_compile(ips[1], ips[0])
 
-    for i in num_examples:
+    def get_n(d):
+        cmax = 10.
+        cmin = 1.2
+        sigmaY = 0.1
+        rand = np.random.random_sample()
+        z = (cmax - cmin) * rand  + cmin
+        print z
+        nmult_num = pow((z - 1) / (z + 1), 2)
+        nmult_den = pow(1 - sqrt(1 - (1 + 6 * pow(sigmaY, 2)) / pow((z + 1) / (z - 1), 2)), 2)
+        nmult = nmult_num / nmult_den
+        n = int(round(nmult * d))*150
+        return n
+
+    # This code is to produce a set of tests with a variety of condition numbers,
+    # as in the scatter plot in the paper. Domething is wrong with it, 
+    # since it should be producing values of n in [1600, 200000]
+    # and consition numbers evenly distributed in [1.2,10], but that is not the case
+    # c_nums = []
+    # for x in range(100):
+    #     d = 500
+    #     n = get_n(d)
+    #     sigma = 0.1
+    #     alg = 'cgd'
+    #     i = 0
+    #     print n
+    #     if n > 200000:
+    #         continue
+    #     #logger.info('Running instance: n={0}, d={1}, sigma={2}, alg={3}, num_iters_cgd={4} run={5}'.
+    #     #    format(n, d, sigma, alg, num_iters_cgd, i + 1))
+    #     filename_in = 'test_LS_{0}x{1}_{2}_{3}.in'.format(
+    #         n, d, sigma, i)
+    #     filepath_in = os.path.join(
+    #         dest_folder, filename_in)
+
+    #     (X, y, beta, condition_number) = \
+    #         generate_lin_system_from_regression_problem(
+    #         n, d, sigma, filepath_in)
+
+    #     #logger.info('Wrote instance in file {0}'.format(
+    #     #    filepath_in))
+    #     print n, condition_number
+    #     c_nums.append(condition_number)
+
+    #     #logger.info(condition_number)
+    # print sorted(c_nums)
+
+    for i in range(num_examples):
         for alg in ['cgd', 'cholesky']:
             for sigma in [0.1]:
                 for d in [10, 20, 50, 100, 200, 500]:
                     for n in [1000, 2000, 5000, 100000, 500000, 1000000]:
                         logger.info(
                             'Running instance: n={0}, d={1}, sigma={2}, alg={3}, num_iters_cgd={4} run={5}'.
-                            format(n, d, sigma, alg, num_iters_cgd, i))
+                            format(n, d, sigma, alg, num_iters_cgd, i + 1))
                         filename_in = 'test_LS_{0}x{1}_{2}_{3}.in'.format(
                             n, d, sigma, i)
                         filepath_in = os.path.join(
                             dest_folder, filename_in)
 
-                        (X, y, beta) = generate_lin_system_from_regression_problem(
-                            n, d, sigma, filepath_in)
+                        (X, y, beta, condition_number) = \
+                            generate_lin_system_from_regression_problem(
+                                n, d, sigma, filepath_in)
 
                         logger.info('Wrote instance in file {0}'.format(
-                                filepath_ls_in))
+                            filepath_in))
 
                         for party in [1, 2]:
                             filename_exec = 'test_LS_{0}x{1}_{2}_{3}_{4}_{5}_p{6}.exec'.format(
@@ -215,23 +299,26 @@ if __name__ == "__main__":
                             filepath_exec = os.path.join(
                                 dest_folder, filename_exec)
 
-                            cmd = '{0} 1234 {1} {2} {3} {4} > {5}'.format(
+                            cmd = '{0} 1234 {1} {2} {3} {4} > {5} {6}'.format(
                                 exec_file,
                                 party,
                                 filepath_in,
                                 alg,
                                 num_iters_cgd,
-                                filepath_exec)
+                                filepath_exec,
+                                '&' if party == 1 else '')
 
 
                             remote_working_dir = 'secure-distributed-linear-regression/'
                             run_instance_remotely(
-                                n, d, alg, beta,
+                                n, d, alg, beta, condition_number,
                                 remote_working_dir,
                                 dest_folder, dest_folder,
                                 filepath_in, filepath_exec,
+                                # [172.31.17.207][party - 1],  cmd, party == 2)
                                 ips[party - 1], cmd, party == 2)
+                            time.sleep(.2)
 
-                            # Remove instance (the get too big)
-                            os.system('rm {0}'.format(filepath_in))
-                            time.sleep(.5)
+                        # Remove instance (they get too big)
+                        logger.info('Deleting file {0}'.format(filepath_in))
+                        os.system('rm {0}'.format(filepath_in))

@@ -67,18 +67,18 @@ def write_lr_instance(X, y, solution, filepath, num_parties=1):
             f.write(' ')
 
 
-def generate_sls_instance_from_regression_problem(
-        n, d, lambda_, filepath, num_parties=1):
-    if not lambda_:
-        (A, b, solution) = generate_lin_system_from_regression_problem(
-            n, d, float(d) / n)
-    else:
-        (A, b, solution) = generate_lin_system_from_regression_problem(
-            n, d, lambda_)
-    if filepath:
-        write_sls_instance(A, b, solution, filepath, num_parties)
-    assert numpy.allclose(A.dot(solution), b)
-    return (A, b, solution)
+# def generate_sls_instance_from_regression_problem(
+#         n, d, lambda_, filepath, num_parties=1):
+#     if not lambda_:
+#         (A, b, solution) = generate_lin_system_from_regression_problem(
+#             n, d, float(d) / n)
+#     else:
+#         (A, b, solution) = generate_lin_system_from_regression_problem(
+#             n, d, lambda_)
+#     if filepath:
+#         write_sls_instance(A, b, solution, filepath, num_parties)
+#     assert numpy.allclose(A.dot(solution), b)
+#     return (A, b, solution)
 
 
 def generate_lin_system(n, d, filepath=None):
@@ -96,14 +96,15 @@ def generate_lin_system(n, d, filepath=None):
 
 def generate_lin_system_from_regression_problem(n, d, sigma, filepath=None):
     (X, y, beta, e) = generate_lin_regression(n, d, sigma)
-    #lambda_ = 6. * sigma**2. / n
+    # lambda_ = 6. * sigma**2. / n
     lambda_ = sigma**2. / (n * numpy.linalg.norm(beta) ** 2)
-    A = 1. / (d*n) * X.T.dot(X) + numpy.identity(d) * lambda_
-    b = 1. / (d*n) * X.T.dot(y)
+    A = 1. / (d * n) * X.T.dot(X) + numpy.identity(d) * lambda_
+    b = 1. / (d * n) * X.T.dot(y)
     x = linalg.solve(A, b)
+    cn = numpy.linalg.cond(A)
     if filepath:
         write_system(A, b, x, filepath)
-    return (A, b, x)
+    return (A, b, x, cn)
 
 
 def generate_lin_regression_nikolaenko(n, d):
