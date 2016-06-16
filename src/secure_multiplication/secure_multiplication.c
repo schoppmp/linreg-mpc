@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
 	clock_gettime(CLOCK_MONOTONIC, &realtime_start);
 
 	if(c->party == 0) {
-		status = run_trusted_initializer(self, c);
+		status = run_trusted_initializer(self, c, precision);
 		check(!status, "Error while running trusted initializer");
 	} else {
 		status = run_party(self, c, precision, &wait_total, NULL, NULL);
