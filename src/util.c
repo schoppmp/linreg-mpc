@@ -24,13 +24,13 @@ double wallClock() {
 const struct timespec sleeptime = {.tv_nsec = 200000000};
 
 void util_loop_accept(ProtocolDesc *pd, const char *port) {
-	if(protocolAcceptTcp2P(pd,port)!=0) {
+	while(protocolAcceptTcp2P(pd,port)!=0) {
 		nanosleep(&sleeptime, NULL);
 	}
 }
 
 void util_loop_connect(ProtocolDesc *pd, const char *host, const char *port) {
-	if(protocolConnectTcp2P(pd,host,port)!=0) { 
+	while(protocolConnectTcp2P(pd,host,port)!=0) { 
 		nanosleep(&sleeptime, NULL);
 	}
 }
