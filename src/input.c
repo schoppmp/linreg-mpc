@@ -7,6 +7,8 @@
 #include<assert.h>
 #include<error.h>
 #include<errno.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 struct DualconS
 { ProtocolDesc pd1,pd2; 
@@ -63,6 +65,23 @@ struct DualconR
   struct HonestOTExtSender** s;
 };
 
+// stolen from obliv_bits.c
+static int tcpListenAny(const char* portn)
+{
+  in_port_t port;
+  int outsock;
+  if(sscanf(portn,"%hu",&port)<1) return -1;
+  if((outsock=socket(AF_INET,SOCK_STREAM,0))<0) return -1;
+  int reuse = 1;
+  if (setsockopt(outsock, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0)
+  { fprintf(stderr,"setsockopt(SO_REUSEADDR) failed\n"); return -1; }
+  struct sockaddr_in sa = { .sin_family=AF_INET, .sin_port=htons(port)
+                          , .sin_addr={INADDR_ANY} };
+  if(bind(outsock,(struct sockaddr*)&sa,sizeof(sa))<0) return -1;
+  if(listen(outsock,SOMAXCONN)<0) return -1;
+  return outsock;
+}
+
 bool meCsp() { return ocCurrentParty()==1; }
 DualconR* dcrConnect(const char* port,int pc)
 {
@@ -73,12 +92,15 @@ DualconR* dcrConnect(const char* port,int pc)
   dcr->count = pc;
   dcr->party = malloc(sizeof(int)*pc);
   dcr->s = meCsp()?malloc(sizeof(struct HonestOTExtSender*)*pc):0;
+  int listen_socket = tcpListenAny(port);
   for(p=0;p<pc;++p) {
-  util_loop_accept(dcr->pd+p,port);
+    int sock=accept(listen_socket,0,0);
+    protocolUseTcp2P(dcr->pd+p,sock,false);
 //  { if(protocolAcceptTcp2P(dcr->pd+p,port)!=0)
 //      error(-1,errno,"TCP connection error");
     orecv(dcr->pd+p,0,dcr->party+p,sizeof(int));
   }
+  close(listen_socket);
   if(meCsp()) for(p=0;p<pc;++p)
     dcr->s[p] = honestOTExtSenderNew(dcr->pd+p,0);
   return dcr;
