@@ -1,6 +1,5 @@
 #include <obliv.oh>
 #include <stdio.h>
-#include <alloca.h>
 #include "linear.h"
 #include "linear.oh"
 #include "fixed.h"
@@ -33,14 +32,14 @@ void cgd(void *v) {
 		obig_init(&a[ii], FIXED_BIT_SIZE / 8);
 	}
 
-	obig *b = alloca(d * sizeof(obig));
-	obig *g = alloca(d * sizeof(obig));
-	obig *p = alloca(d * sizeof(obig));
-	obig *p_tilde = alloca(d * sizeof(obig));
-	obig *ap_tilde = alloca(d * sizeof(obig));
-	obig *beta = alloca(d * sizeof(obig));
-	obig *abeta = alloca(d * sizeof(obig));
-	obig *m = alloca(d * sizeof(obig));
+	obig *b = malloc(d * sizeof(obig));
+	obig *g = malloc(d * sizeof(obig));
+	obig *p = malloc(d * sizeof(obig));
+	obig *p_tilde = malloc(d * sizeof(obig));
+	obig *ap_tilde = malloc(d * sizeof(obig));
+	obig *beta = malloc(d * sizeof(obig));
+	obig *abeta = malloc(d * sizeof(obig));
+	obig *m = malloc(d * sizeof(obig));
 	for (size_t ii = 0; ii < d; ii++) {
 		obig_init(&b[ii], FIXED_BIT_SIZE / 8);
 		obig_init(&g[ii], FIXED_BIT_SIZE / 8);
@@ -55,6 +54,8 @@ void cgd(void *v) {
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
 		ls->beta.len = -1;
+		free(a);
+		free(b);
 		return;
 	}
 
@@ -221,7 +222,6 @@ void cgd(void *v) {
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
 		obig_free(&a[ii]);
 	}
-	free(a);
 	for (size_t ii = 0; ii < d; ii++) {
 		obig_free(&b[ii]);
 		obig_free(&g[ii]);
@@ -232,6 +232,15 @@ void cgd(void *v) {
 		obig_free(&abeta[ii]);
 		obig_free(&m[ii]);
 	}
+	free(a);
+	free(b);
+	free(g);
+	free(p);
+	free(p_tilde);
+	free(ap_tilde);
+	free(beta);
+	free(abeta);
+	free(m);
 	return;
 
 }

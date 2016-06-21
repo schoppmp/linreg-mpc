@@ -3,7 +3,6 @@
 #include "linear.oh"
 #include "fixed.h"
 #include "fixed.oh"
-#include <alloca.h>
 #include "obig.oh"
 
 
@@ -13,14 +12,14 @@ void cholesky(void *v) {
 	linear_system_t *ls = v;
 	// allocate space for obliv values and read inputs
 	size_t d = ls->a.d[0];
-	obig *a = alloca(((d * (d+1)) / 2) * sizeof(obig));
+	obig *a = malloc(((d * (d+1)) / 2) * sizeof(obig));
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
 		obig_init(&a[ii], FIXED_BIT_SIZE/8);
 	}
 
-	obig *b = alloca(d * sizeof(obig));
-	obig *y = alloca(d * sizeof(obig));
-	obig *beta = alloca(d * sizeof(obig));
+	obig *b = malloc(d * sizeof(obig));
+	obig *y = malloc(d * sizeof(obig));
+	obig *beta = malloc(d * sizeof(obig));
 	for (size_t ii = 0; ii < d; ii++) {
 		obig_init(&b[ii], FIXED_BIT_SIZE/8);
 		obig_init(&y[ii], FIXED_BIT_SIZE/8);
@@ -33,6 +32,8 @@ void cholesky(void *v) {
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
 		ls->beta.len = -1;
+		free(a);
+		free(b);
 		return;
 	}
 
@@ -94,6 +95,10 @@ void cholesky(void *v) {
 		obig_free(&y[ii]);
 		obig_free(&beta[ii]);
 	}
+	free(a);
+	free(b);
+	free(y);
+	free(beta);
 	return;
 
 }

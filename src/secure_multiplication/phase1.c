@@ -1,4 +1,6 @@
 #include "phase1.h"
+#include "bcrandom.h"
+
 #include <math.h>
 
 // computes inner product in Z_{2^64}
@@ -62,6 +64,7 @@ error:
 
 
 int run_trusted_initializer(node *self, config *c, int precision) {
+	BCipherRandomGen *gen = newBCipherRandomGen();
 	int status;
 	uint64_t *x = calloc(c->n , sizeof(uint64_t));
 	uint64_t *y = calloc(c->n , sizeof(uint64_t));
@@ -78,12 +81,9 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 
 			// generate random vectors x, y and value r
 			uint64_t r = 0;
-			randombytes_buf(x, c->n * sizeof(uint64_t));
-			for(size_t k = 0; k < c->n; k++) {
-				y[k] = 1;
-			}
-			randombytes_buf(y, c->n * sizeof(uint64_t));
-			randombytes_buf(&r, sizeof(uint64_t));
+			randomizeBuffer(gen, (char *)x, c->n * sizeof(uint64_t));
+			randomizeBuffer(gen, (char *)y, c->n * sizeof(uint64_t));
+			randomizeBuffer(gen, (char *)&r, sizeof(uint64_t));
 			uint64_t xy = inner_prod_64(x, y, c->n, 1, 1);
 
 			// create protobuf message
@@ -136,16 +136,19 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 
 	free(x);
 	free(y);
+	releaseBCipherRandomGen(gen);
 	return 0;
 
 error:
 	free(x);
 	free(y);
+	releaseBCipherRandomGen(gen);
 	return 1;
 }
 
 
 int run_party(node *self, config *c, int precision, struct timespec *wait_total, uint64_t **res_A, uint64_t **res_b) {
+	BCipherRandomGen *gen = newBCipherRandomGen();
 	matrix_t data; // TODO: maybe use dedicated type for finite field matrices here
 	vector_t target;
 	data.value = target.value = NULL;
@@ -213,7 +216,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 				if(owner_i == c->party) { // if we own i but not j, we are party a
 					// set our own share r_A randomly
 					share = 0;
-					randombytes_buf(&share, sizeof(uint64_t));
+					randomizeBuffer(gen, (char *)&share, sizeof(uint32_t));
 					// receive (b', _) from party b
 					int party_b = get_owner(j, c);
 
@@ -306,6 +309,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 
 	free(data.value);
 	free(target.value);
+	releaseBCipherRandomGen(gen);
 	return 0;
 
 error:
@@ -322,6 +326,7 @@ error:
 	} else {
 		free(share_b);
 	}
+	releaseBCipherRandomGen(gen);
 	if(pmsg_ti) secure_multiplication__msg__free_unpacked(pmsg_ti, NULL);
 	if(pmsg_in) secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
 	return 1;

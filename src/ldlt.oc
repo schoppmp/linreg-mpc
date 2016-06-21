@@ -4,7 +4,6 @@
 #include "linear.oh"
 #include "fixed.h"
 #include "fixed.oh"
-#include <alloca.h>
 
 
 // solves a symmetric, positive definite linear system using LDL^T decomposition
@@ -13,12 +12,12 @@ void ldlt(void *v) {
 	// allocate space for obliv values and read inputs
 	// we can do most computations in-place in this case
 	size_t d = ls->a.d[0];
-	obig *a = alloca(((d * (d+1)) / 2) * sizeof(obig));
+	obig *a = malloc(((d * (d+1)) / 2) * sizeof(obig));
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
 		obig_init(&a[ii], FIXED_BIT_SIZE/8);
 	}
 
-	obig *b = alloca(d * sizeof(obig));
+	obig *b = malloc(d * sizeof(obig));
 	for (size_t ii = 0; ii < d; ii++) {
 		obig_init(&b[ii], FIXED_BIT_SIZE/8);
 	}
@@ -31,6 +30,8 @@ void ldlt(void *v) {
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
 		ls->beta.len = -1;
+		free(a);
+		free(b);
 		return;
 	}
 
@@ -87,7 +88,6 @@ void ldlt(void *v) {
 
 	ls->gates = yaoGateCount();
 
-
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
 		obig_free(&a[ii]);
 	}
@@ -96,6 +96,8 @@ void ldlt(void *v) {
 	}
 	obig_free(&a_jk_kk);
 	obig_free(&otemp);
+	free(a);
+	free(b);
 	return;
 
 }

@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sodium.h>
 #include <time.h>
 
 #include "secure_multiplication.pb-c.h"
