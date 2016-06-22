@@ -32,8 +32,8 @@ all: $(binDir)/test_multiplication $(binDir)/test_linear_system $(binDir)/test_i
 $(binDir)/main: $(objDir)/main.o $(objDir)/secure_multiplication/node.o $(objDir)/secure_multiplication/config.o $(objDir)/secure_multiplication/phase1.o $(objDir)/secure_multiplication/secure_multiplication.pb-c.o $(call both,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd) $(call native,input)
 	$(link_obliv) -lczmq -lzmq -lsodium -lprotobuf-c -lm
 
-$(binDir)/secure_multiplication:$(objDir)/secure_multiplication/secure_multiplication.pb-c.o $(objDir)/secure_multiplication/secure_multiplication.o $(objDir)/secure_multiplication/config.o $(objDir)/secure_multiplication/node.o $(objDir)/linear.o $(objDir)/fixed.o $(objDir)/secure_multiplication/phase1.o $(objDir)/secure_multiplication/bcrandom.o
-	$(link) -lczmq -lzmq -lgcrypt -lprotobuf-c -lm
+$(binDir)/secure_multiplication:$(objDir)/secure_multiplication/secure_multiplication.pb-c.o $(objDir)/secure_multiplication/secure_multiplication.o $(objDir)/secure_multiplication/config.o $(objDir)/secure_multiplication/node.o $(objDir)/linear.o $(objDir)/fixed.o $(objDir)/secure_multiplication/phase1.o $(objDir)/secure_multiplication/bcrandom.o $(objDir)/util.o
+	$(link_obliv) -lgcrypt -lprotobuf-c -lm
 
 $(binDir)/test_inner_product: $(ackLib) $(objDir)/test/test_inner_product.pb-c.o $(objDir)/test/test_inner_product.o $(objDir)/fixed.o $(objDir)/linear.o
 	$(link) -lzmq -lprotobuf-c -lgcrypt

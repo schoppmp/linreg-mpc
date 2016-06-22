@@ -2,8 +2,10 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<time.h>
-#include"util.h"
 #include <errno.h>
+#include <arpa/inet.h>
+
+#include"util.h"
 
 #ifndef REMOTE_HOST
 #define REMOTE_HOST localhost
@@ -46,4 +48,25 @@ void ocTestUtilTcpOrDie(ProtocolDesc* pd,bool isServer,const char* port) {
 
 const char *get_remote_host() {
 	return remote_host;
+}
+
+// stolen from obliv_bits.c
+int tcpListenAny(const char* portn) {
+	in_port_t port;
+	int outsock;
+	if(sscanf(portn,"%hu",&port)<1) return -1;
+	if((outsock=socket(AF_INET,SOCK_STREAM,0))<0) return -1;
+	int reuse = 1;
+	if (setsockopt(outsock, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0) {
+		fprintf(stderr,"setsockopt(SO_REUSEADDR) failed\n"); 
+		return -1;
+	}
+	struct sockaddr_in sa = { 
+		.sin_family=AF_INET, 
+		.sin_port=htons(port),
+		.sin_addr={INADDR_ANY} 
+	};
+	if(bind(outsock,(struct sockaddr*)&sa,sizeof(sa))<0) return -1;
+	if(listen(outsock,SOMAXCONN)<0) return -1;
+	return outsock;
 }

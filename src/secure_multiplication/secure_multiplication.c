@@ -11,22 +11,30 @@
 #include "check_error.h"
 #include "linear.h"
 #include "phase1.h"
+#include "obliv_common.h"
 
 static int barrier(node *self) {
 	// wait until everybody is here
-	for(int i = 0; i < self->num_peers; i++) {
-		if(i == self->peer_id) continue;
-		check(!zsock_signal(self->peer[i], 0), // value is arbitrary
-			"zsock_signal: %s\n", zmq_strerror(errno));
+	int flag = 42; // value is arbitrary
+	if(self->party != 1) {
+		check(orecv(self->peer[self->party-2], 0, &flag, sizeof(flag)) == sizeof(flag),
+			"orecv: %s", strerror(errno));
 	}
-	for(int i = 0; i < self->num_peers; i++) {
-		if(i == self->peer_id) continue;
-		check(!zsock_wait(self->peer[i]),
-			"zsock_signal: %s\n", zmq_strerror(errno));
+	if(self->party != self->num_parties) {
+		check(osend(self->peer[self->party], 0, &flag, sizeof(flag)) == sizeof(flag),
+			"osend: %s", strerror(errno));
+		check(orecv(self->peer[self->party], 0, &flag, sizeof(flag)) == sizeof(flag),
+			"orecv: %s", strerror(errno));
 	}
+	if(self->party != 1) {
+		check(osend(self->peer[self->party-2], 0, &flag, sizeof(flag)) == sizeof(flag),
+			"osend: %s", strerror(errno));
+		orecv(self->peer[self->party-2],0,NULL,0);
+	} 
 	return 0;
 
-	error: return 1;
+error:
+	return -1;
 }
 
 
@@ -54,22 +62,22 @@ int main(int argc, char **argv) {
 	check(!status, "Could not read config");
 	c->party = party;
 
-	if(party == 0) {
-		printf("{\"n\":\"%zd\", \"d\":\"%zd\", \"p\":\"%d\"}\n", c->n, c->d, c->num_parties - 1);
+	if(party == 1) {
+		printf("{\"n\":\"%zd\", \"d\":\"%zd\", \"p\":\"%d\"}\n", c->n, c->d, c->num_parties-2);
 	}
 
 	status = node_new(&self, c);
 	check(!status, "Could not create node");
 	
 	// wait until everybody has started up
-	check(!barrier(self), "Error while waiting for other peers to start");
+	barrier(self);
 	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &cputime_start);
 	clock_gettime(CLOCK_MONOTONIC, &realtime_start);
 
-	if(c->party == 0) {
+	if(c->party == 1) {
 		status = run_trusted_initializer(self, c, precision);
 		check(!status, "Error while running trusted initializer");
-	} else {
+	} else if(c->party > 2) {
 		status = run_party(self, c, precision, &wait_total, NULL, NULL);
 		check(!status, "Error while running party %d", c->party);
 	}
@@ -88,13 +96,13 @@ int main(int argc, char **argv) {
 		(double) (realtime_end.tv_nsec - realtime_start.tv_nsec) / bill);
 	
 	// wait until everybody has finished
-	check(!barrier(self), "Error while waiting for other peers to finish");
+	barrier(self);
 
-	node_free(&self);
-	config_free(&c);
+	node_destroy(&self);
+	config_destroy(&c);
 	return 0;
 error:
-	config_free(&c);	
-	node_free(&self);
+	config_destroy(&c);	
+	node_destroy(&self);
 	return 1;
 }

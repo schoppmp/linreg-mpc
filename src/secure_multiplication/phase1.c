@@ -1,7 +1,9 @@
+#include <math.h>
+#include <errno.h>
+
 #include "phase1.h"
 #include "bcrandom.h"
-
-#include <math.h>
+#include "obliv_common.h"
 
 // computes inner product in Z_{2^64}
 static uint64_t inner_prod_64(uint64_t *x, uint64_t *y, size_t n, size_t stride_x, size_t stride_y) {
@@ -27,38 +29,50 @@ error:
 
 // receives a message from peer, storing it in pmsg
 // the result should be freed by the caller after use
-static int recv_pmsg(SecureMultiplication__Msg **pmsg, zsock_t *peer) {
-	zframe_t *zframe = NULL;
-	check(pmsg && peer, "recv_pmsg: Arguments may not be null");
+static int recv_pmsg(SecureMultiplication__Msg **pmsg, ProtocolDesc *pd) {
+	char *buf = NULL;
+	check(pmsg && pd, "recv_pmsg: Arguments may not be null");
 	*pmsg = NULL;
-
-	zframe = zframe_recv(peer);
-	check(zframe, "zframe_recv: %s", zmq_strerror(errno));
-	//zframe_print(zframe, "recvd: ");
-	*pmsg = secure_multiplication__msg__unpack(NULL, zframe_size(zframe), zframe_data(zframe));
+	size_t msg_size = 0;
+	check(orecv(pd, 0, &msg_size, sizeof(msg_size)) == sizeof(msg_size), "orecv: %s", strerror(errno));
+	buf = malloc(msg_size);
+	check(buf, "Out of memory");
+	check(orecv(pd, 0, buf, msg_size) == msg_size, "orecv: %s", strerror(errno));
+	*pmsg = secure_multiplication__msg__unpack(NULL, msg_size, buf);
 	check(*pmsg && (*pmsg)->vector, "msg__unpack: %s", strerror(errno));
 
-	zframe_destroy(&zframe);
+	free(buf);
 	return 0;
 error:
-	if(zframe) zframe_destroy(&zframe);
+	free(buf);
 	return 1;			
 }
 
-// sends the message pointed to by pmsg to peer
-static int send_pmsg(SecureMultiplication__Msg *pmsg, zsock_t *peer) {
-	zframe_t *zframe = NULL;
-	check(pmsg && peer, "send_pmsg: Arguments may not be null");
+// Use protobuf-c's buffers to avoid copying data
+typedef struct {
+	ProtobufCBuffer base;
+	ProtocolDesc *pd;
+	int status;
+} ProtocolDescBuffer;
 
-	zframe = zframe_new(NULL, secure_multiplication__msg__get_packed_size(pmsg));
-	check(zframe, "zframe_new: %s", zmq_strerror(errno));
-	// pack and send frames
-	secure_multiplication__msg__pack(pmsg, zframe_data(zframe));
-	//zframe_print(zframe, "sending: ");
-	check(zframe_send(&zframe, peer, 0) != -1, "zframe_send: %s", zmq_strerror(errno));
+static void protocol_desc_buffer_append(ProtobufCBuffer *buffer, size_t len, const uint8_t *data) {
+	ProtocolDescBuffer *send_buffer = (ProtocolDescBuffer *) buffer;
+	send_buffer->status = osend(send_buffer->pd, 0, data, len);
+}
+
+// sends the message pointed to by pmsg to peer
+static int send_pmsg(SecureMultiplication__Msg *pmsg, ProtocolDesc *pd) {
+	check(pmsg && pd, "send_pmsg: Arguments may not be null");
+	size_t msg_size = secure_multiplication__msg__get_packed_size(pmsg);
+	check(osend(pd, 0, &msg_size, sizeof(msg_size)) >= 0, "osend: %s", strerror(errno));
+	ProtocolDescBuffer send_buffer = {.pd = pd};
+	send_buffer.base.append = protocol_desc_buffer_append;
+
+	secure_multiplication__msg__pack_to_buffer(pmsg, &send_buffer.base);
+	check(send_buffer.status >= 0, "msg__pack_to_buffer: %s", strerror(errno));
+	orecv(pd,0,NULL,0);
 	return 0;
 error:
-	if(zframe) zframe_destroy(&zframe);
 	return 1;
 }
 
@@ -74,6 +88,8 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 			// get parties a and b
 			int party_a = get_owner(i, c);
 			int party_b = get_owner(j, c);
+			check(party_a >= 2, "Invalid owner %d for row %zd", party_a, i);
+			check(party_b >= 2, "Invalid owner %d for row %zd", party_b, j);
 			// if parties are identical, skip; will be computed locally
 			if(party_a == party_b) {
 				continue;
@@ -112,7 +128,7 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 	share_b = calloc(d, sizeof(uint64_t));
 
 	SecureMultiplication__Msg *pmsg_in;
-	for(int p = 1; p < c->num_parties; p++) {
+	for(int p = 2; p < c->num_parties; p++) {
 		status = recv_pmsg(&pmsg_in, self->peer[p]);
 		check(!status, "Could not receive result share_A from peer %d", p);
 		for(size_t i = 0; i < d * (d + 1) / 2; i++) {
@@ -199,13 +215,15 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 		for(size_t j = 0; j <= i && j < c->d; j++) {
 			int owner_i = get_owner(i, c);
 			int owner_j = get_owner(j, c);
+			check(owner_i >= 2, "Invalid owner %d for row %zd", owner_i, i);
+			check(owner_j >= 2, "Invalid owner %d for row %zd", owner_j, j);
 
 			uint64_t share;
 			// if we own neither i or j, skip.
-			if(owner_i != c->party && owner_j != c->party) { 
+			if(owner_i != c->party-1 && owner_j != c->party-1) { 
 				continue;
 			// if we own both, compute locally
-			} else if(owner_i == c->party && owner_i == owner_j) {
+			} else if(owner_i == c->party-1 && owner_i == owner_j) {
 				share = inner_prod_64(row_start, (uint64_t *) data.value + j, 
 					c->n, stride, d);
 			} else {
@@ -213,12 +231,13 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 				status = recv_pmsg(&pmsg_ti, self->peer[0]);
 				check(!status, "Could not receive message from TI; %d %d", i, j);
 
-				if(owner_i == c->party) { // if we own i but not j, we are party a
+				if(owner_i == c->party-1) { // if we own i but not j, we are party a
 					// set our own share r_A randomly
 					share = 0;
 					randomizeBuffer(gen, (char *)&share, sizeof(uint32_t));
 					// receive (b', _) from party b
 					int party_b = get_owner(j, c);
+					check(party_b >= 2, "Invalid owner %d for row %zd", party_b, j);
 
 					
 					clock_gettime(CLOCK_MONOTONIC, &wait_start);
@@ -245,6 +264,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 
 				} else { // if we own j but not i, we are party b
 					int party_a = get_owner(i, c);
+					check(party_a >= 2, "Invalid owner %d for row %zd", party_a, i);
 					// send (b - y, _) to party a
 					pmsg_out.value = 0;
 					for(size_t k = 0; k < c->n; k++) {
