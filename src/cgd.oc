@@ -195,7 +195,7 @@ void cgd(void *v) {
 		}
 		if(ocCurrentParty() == 2) {
 			printf("\nIteration %d gate count: %lld\n", t, yaoGateCount());
-			printf("Iteration %d ime: %f\n", t, wallClock() - time_start);
+			printf("Iteration %d time: %f\n", t, wallClock() - time_start);
 		}
 
 		flag = ocBroadcastBool(flag, 1) || ocBroadcastBool(flag, 2);
