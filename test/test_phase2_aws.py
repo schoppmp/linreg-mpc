@@ -326,7 +326,7 @@ if __name__ == "__main__":
                                 '&' if party == 1 else '')
 
 
-                            remote_working_dir = 'secure-distrib   uted-linear-regression/'
+                            remote_working_dir = 'secure-distributed-linear-regression/'
                             run_instance_remotely(
                                 n, d, X, y, lambda_, alg, beta,
                                 condition_number,
