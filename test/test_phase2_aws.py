@@ -60,7 +60,7 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
         should be set to true, otherwise intermediate accuracy values
         will not be correct
         """
-        m = re.match('OT\s+time:\s*(\S+))', line)
+        m = re.match('OT\s+time:\s*(\S+)', line)
         if m:
             ot_time = float(m.group(1))
         if alg == 'cgd':
@@ -88,11 +88,13 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
             # Reading intermediate time for cgd
             m = re.match('Iteration\s+([0-9]+)\s+time:\s*(.+)$', line)
             if m:
-                cgd_iter_solutions.append(float(m.group(1)))
+                assert m.group(1) == len(cgd_iter_solutions)
+                cgd_iter_solutions.append(float(m.group(2)))
             # Reading intermediate gate count for cgd
             m = re.match('Iteration\s+([0-9]+)\s+gate\s+count:\s+(.+)$', line)
             if m:
-                cgd_iter_gate_sizes.append(int(m.group(1)))
+                assert m.group(1) == len(cgd_iter_gate_sizes)
+                cgd_iter_gate_sizes.append(int(m.group(2)))
         m = re.match('Algorithm:\s*(\S+)', line)
         if m:
             pass#assert alg == m.group(1)
@@ -125,12 +127,15 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
                         cgd_iter_solutions,
                         len(cgd_iter_gate_sizes),
                         cgd_iter_gate_sizes)
-                f.write('\niter_i error_i gate_count_i')
+                f.write('\niter_i error_i obj_i time_i gate_count_i')
                 for i in range(len(cgd_iter_solutions)):
                     error_i = np.linalg.norm(
                         cgd_iter_solutions[i] - solution)
-                    f.write('\n{0} {1} {2}'.format(
-                        i + 1, error_i, cgd_iter_gate_sizes[i]))
+                    f.write('\n{0} {1} {2} {3} {4}'.format(
+                        i + 1, error_i,
+                        cgd_iter_objective_values[i],
+                        cgd_iter_times[i],
+                        cgd_iter_gate_sizes[i]))
             f.write('\nsolution:')
             f.write('\n{0}'.format(d))
             f.write('\nObjective on solution:')
