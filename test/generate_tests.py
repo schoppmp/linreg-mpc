@@ -134,7 +134,7 @@ def generate_lin_regression(n, d, sigma):
     """
     X = random.randn(n, d)
     for i in xrange(d):
-    X[:,i] /= numpy.max(numpy.abs(X[:,i]))
+        X[:, i] /= numpy.max(numpy.abs(X[:, i]))
     beta = random.uniform(low=0, high=1, size=d)
     e = numpy.array(random.normal(0, sigma, n))
     y = X.dot(beta) + e.T
