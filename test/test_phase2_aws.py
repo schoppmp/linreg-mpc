@@ -37,7 +37,7 @@ def update_and_compile(ip, remote_ip):
     client.close()
 
 
-def parse_output(n, d, alg, solution, condition_number,
+def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
         objective_value,
         filepath_out, filepath_exec,
         alg_has_scaling=False):
@@ -145,7 +145,7 @@ def parse_output(n, d, alg, solution, condition_number,
             f.close()
 
 
-def run_instance_remotely(n, d, alg, solution, condition_number,
+def run_instance_remotely(n, d, X, y, lambda_, alg, solution, condition_number,
         objective_value,
         remote_working_dir,
         remote_dest_folder, local_dest_folder,
@@ -211,7 +211,7 @@ def run_instance_remotely(n, d, alg, solution, condition_number,
         out_filename = os.path.splitext(exec_filename)[0] + '.out'
         local_out_filepath = os.path.join(
             local_dest_folder, out_filename)
-        parse_output(n, d, alg, solution, condition_number,
+        parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
             objective_value,
             local_out_filepath, local_exec_filepath)
 
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     assert not os.listdir(dest_folder), '{0} is not empty.'.format(
         dest_folder)
     num_iters_cgd = 15
-    num_examples = 1
+    num_examples = 4
 
     args = parser.parse_args()
 
@@ -294,7 +294,7 @@ if __name__ == "__main__":
         for alg in ['cgd', 'cholesky']:
             for sigma in [0.1]:
                 for d in [10, 20, 50, 100, 200, 500]:
-                    for n in [1000, 2000, 5000, 100000, 500000, 1000000]:
+                    for n in [100000]:
                         logger.info(
                             'Running instance: n={0}, d={1}, sigma={2}, alg={3}, num_iters_cgd={4} run={5}'.
                             format(n, d, sigma, alg, num_iters_cgd, i + 1))
@@ -303,7 +303,7 @@ if __name__ == "__main__":
                         filepath_in = os.path.join(
                             dest_folder, filename_in)
 
-                        (X, y, beta, condition_number, objective_value) = \
+                        (X, y, lambda_, beta, condition_number, objective_value) = \
                             generate_lin_system_from_regression_problem(
                                 n, d, sigma, filepath_in)
 
@@ -326,9 +326,10 @@ if __name__ == "__main__":
                                 '&' if party == 1 else '')
 
 
-                            remote_working_dir = 'secure-distributed-linear-regression/'
+                            remote_working_dir = 'secure-distrib   uted-linear-regression/'
                             run_instance_remotely(
-                                n, d, alg, beta, condition_number,
+                                n, d, X, y, lambda_, alg, beta,
+                                condition_number,
                                 objective_value,
                                 remote_working_dir,
                                 dest_folder, dest_folder,
