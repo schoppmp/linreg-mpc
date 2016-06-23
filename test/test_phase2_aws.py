@@ -12,7 +12,7 @@ REMOTE_USER = 'ubuntu'
 KEY_FILE = '/home/ubuntu/.ssh/id_rsa'
 
 logger = logging.getLogger(__name__)
-logging.basicConfig()
+logging.basicConfig(format='%(asctime)s %(message)s')
 logger.setLevel(logging.INFO)
 
 
