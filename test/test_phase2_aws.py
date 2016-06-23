@@ -87,13 +87,13 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
                     cgd_iter_objective_values.append(obj_val)
             # Reading intermediate time for cgd
             m = re.match('Iteration\s+([0-9]+)\s+time:\s*(.+)$', line)
-            if m:
-                assert m.group(1) == len(cgd_iter_solutions)
-                cgd_iter_solutions.append(float(m.group(2)))
+            if m: 
+                assert int(m.group(1)) == len(cgd_iter_times)
+                cgd_iter_times.append(float(m.group(2)))
             # Reading intermediate gate count for cgd
             m = re.match('Iteration\s+([0-9]+)\s+gate\s+count:\s+(.+)$', line)
             if m:
-                assert m.group(1) == len(cgd_iter_gate_sizes)
+                assert int(m.group(1)) == len(cgd_iter_gate_sizes)
                 cgd_iter_gate_sizes.append(int(m.group(2)))
         m = re.match('Algorithm:\s*(\S+)', line)
         if m:
@@ -135,12 +135,13 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
                         i + 1, error_i,
                         cgd_iter_objective_values[i],
                         cgd_iter_times[i],
-                        cgd_iter_gate_sizes[i]))
+                        cgd_iter_gate_sizes[i],
+			ot_time))
             f.write('\nsolution:')
             f.write('\n{0}'.format(d))
-            f.write('\nObjective on solution:')
+	    f.write('\n{0}'.format(' '.join(map(str, solution))))
+            f.write('\nObjective function on solution:')
             f.write('\n{0}'.format(objective_value))
-            f.write('\n{0}'.format(' '.join(map(str, solution))))
             f.write('\nresult:')
             f.write('\n{0}'.format(d))
             f.write('\n{0}'.format(' '.join(map(str, result))))
@@ -308,7 +309,7 @@ if __name__ == "__main__":
                         filepath_in = os.path.join(
                             dest_folder, filename_in)
 
-                        (X, y, lambda_, beta, condition_number, objective_value) = \
+                        (A, b, X, y, lambda_, beta, condition_number, objective_value) = \
                             generate_lin_system_from_regression_problem(
                                 n, d, sigma, filepath_in)
 

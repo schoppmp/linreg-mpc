@@ -110,7 +110,7 @@ def generate_lin_system_from_regression_problem(n, d, sigma, filepath=None):
     obj = objective(X, y, x, lambda_, n)
     if filepath:
         write_system(A, b, x, filepath)
-    return (A, b, lambda_, x, cn, obj)
+    return (A, b, X, y, lambda_, x, cn, obj)
 
 
 def generate_lin_regression_nikolaenko(n, d):
