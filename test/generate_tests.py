@@ -96,8 +96,8 @@ def generate_lin_system(n, d, filepath=None):
 
 def objective(X, y, theta, lambda_, n):
     return 1 / n * reduce(
-        sum, [(y[i] - x.dot(X[i])) ** 2 for i in range(n)]) +\
-        lambda_ * numpy.linalg.norm(x) ** 2
+        sum, [(y[i] - theta.dot(X[i])) ** 2 for i in range(n)]) +\
+        lambda_ * numpy.linalg.norm(theta) ** 2
 
 
 def generate_lin_system_from_regression_problem(n, d, sigma, filepath=None):
