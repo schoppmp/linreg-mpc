@@ -95,7 +95,7 @@ def generate_lin_system(n, d, filepath=None):
 
 
 def objective(X, y, theta, lambda_, n):
-    return numpy.mean([(y[i] - theta.dot(X[i])) ** 2 for i in range(n)]) +\
+    return numpy.mean([(y[i] - numpy.dot(theta, X[i]) ** 2 for i in range(n)]) +\
         lambda_ * numpy.linalg.norm(theta) ** 2
 
 
