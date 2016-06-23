@@ -1,10 +1,10 @@
 #include <obliv.oh>
 #include <stdio.h>
+#include <signal.h>
 #include "linear.h"
 #include "linear.oh"
 #include "fixed.h"
 #include "fixed.oh"
-#include <signal.h>
 #include "util.h"
 
 int flag = 0;
@@ -16,7 +16,6 @@ void sig_handler(int signo) {
 // solves a symmetric, positive definite linear system using coordinate gradient descent
 // and scaling.
 void cgd(void *v) {
-
 	double time_start = wallClock();
 
 	struct sigaction act;
