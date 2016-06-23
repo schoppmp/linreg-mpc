@@ -1,6 +1,6 @@
 import os
 import argparse
-from generate_tests import generate_lin_system_from_regression_problem
+from generate_tests import generate_lin_system_from_regression_problem, objective
 import paramiko
 import re
 import time
@@ -38,6 +38,7 @@ def update_and_compile(ip, remote_ip):
 
 
 def parse_output(n, d, alg, solution, condition_number,
+        objective_value,
         filepath_out, filepath_exec,
         alg_has_scaling=False):
     """
@@ -49,6 +50,8 @@ def parse_output(n, d, alg, solution, condition_number,
         lines = f_exec.readlines()
     cgd_iter_solutions = []
     cgd_iter_gate_sizes = []
+    cgd_iter_times = []
+    cgd_iter_objective_values = []
     for line in lines:
         """
         The following code relies on the format of the implementation's
@@ -57,6 +60,9 @@ def parse_output(n, d, alg, solution, condition_number,
         should be set to true, otherwise intermediate accuracy values
         will not be correct
         """
+        m = re.match('OT\s+time:\s*(\S+))', line)
+        if m:
+            ot_time = float(m.group(1))
         if alg == 'cgd':
             if alg_has_scaling:
                 # Reading scaling value m
@@ -77,8 +83,14 @@ def parse_output(n, d, alg, solution, condition_number,
                 if m:
                     partial_solution = map(float, m.group(1).split())
                     cgd_iter_solutions.append(partial_solution)
+                    obj_val = objective(X, y, partial_solution, lambda_, n)
+                    cgd_iter_objective_values.append(obj_val)
+            # Reading intermediate time for cgd
+            m = re.match('Iteration\s+([0-9]+)\s+time:\s*(.+)$', line)
+            if m:
+                cgd_iter_solutions.append(float(m.group(1)))
             # Reading intermediate gate count for cgd
-            m = re.match('\s*Yao\'s\s+gates\s+count:\s+(.+)$', line)
+            m = re.match('Iteration\s+([0-9]+)\s+gate\s+count:\s+(.+)$', line)
             if m:
                 cgd_iter_gate_sizes.append(int(m.group(1)))
         m = re.match('Algorithm:\s*(\S+)', line)
@@ -98,9 +110,9 @@ def parse_output(n, d, alg, solution, condition_number,
             logger.info('Creating .out file: {}'.format(filepath_out))
             f = open(filepath_out, 'w')
             error = np.linalg.norm(result - solution)
-            f.write('n d algorithm time error gate_count')
-            f.write('\n{0} {1} {2} {3} {4} {5}'.format(n, d,
-                alg, time, error, gate_count))
+            f.write('n d algorithm ot_time time error gate_count')
+            f.write('\n{0} {1} {2} {3} {4} {5} {6}'.format(n, d,
+                alg, ot_time, time, error, gate_count))
             if alg == 'cgd':
                 gate_count_after_iters =\
                     gate_count - cgd_iter_gate_sizes[-1]
@@ -121,16 +133,20 @@ def parse_output(n, d, alg, solution, condition_number,
                         i + 1, error_i, cgd_iter_gate_sizes[i]))
             f.write('\nsolution:')
             f.write('\n{0}'.format(d))
+            f.write('\nObjective on solution:')
+            f.write('\n{0}'.format(objective_value))
             f.write('\n{0}'.format(' '.join(map(str, solution))))
             f.write('\nresult:')
             f.write('\n{0}'.format(d))
             f.write('\n{0}'.format(' '.join(map(str, result))))
             f.write('\nCondition number:')
             f.write('\n{0}'.format(condition_number))
+
             f.close()
 
 
 def run_instance_remotely(n, d, alg, solution, condition_number,
+        objective_value,
         remote_working_dir,
         remote_dest_folder, local_dest_folder,
         local_input_filepath, remote_exec_filepath,
@@ -196,6 +212,7 @@ def run_instance_remotely(n, d, alg, solution, condition_number,
         local_out_filepath = os.path.join(
             local_dest_folder, out_filename)
         parse_output(n, d, alg, solution, condition_number,
+            objective_value,
             local_out_filepath, local_exec_filepath)
 
     # Remove .in file from remote (they are too big)
@@ -286,7 +303,7 @@ if __name__ == "__main__":
                         filepath_in = os.path.join(
                             dest_folder, filename_in)
 
-                        (X, y, beta, condition_number) = \
+                        (X, y, beta, condition_number, objective_value) = \
                             generate_lin_system_from_regression_problem(
                                 n, d, sigma, filepath_in)
 
@@ -312,10 +329,10 @@ if __name__ == "__main__":
                             remote_working_dir = 'secure-distributed-linear-regression/'
                             run_instance_remotely(
                                 n, d, alg, beta, condition_number,
+                                objective_value,
                                 remote_working_dir,
                                 dest_folder, dest_folder,
                                 filepath_in, filepath_exec,
-                                # [172.31.17.207][party - 1],  cmd, party == 2)
                                 ips[party - 1], cmd, party == 2)
                             time.sleep(.2)
 

@@ -94,6 +94,12 @@ def generate_lin_system(n, d, filepath=None):
     return (A, mask_A, b, mask_b, y)
 
 
+def objective(X, y, theta, lambda_, n):
+    return 1 / n * reduce(
+        sum, [(y[i] - x.dot(X[i])) ** 2 for i in range(n)]) +\
+        lambda_ * numpy.linalg.norm(x) ** 2
+
+
 def generate_lin_system_from_regression_problem(n, d, sigma, filepath=None):
     (X, y, beta, e) = generate_lin_regression(n, d, sigma)
     # lambda_ = 6. * sigma**2. / n
@@ -102,9 +108,10 @@ def generate_lin_system_from_regression_problem(n, d, sigma, filepath=None):
     b = 1. / (d * n) * X.T.dot(y)
     x = linalg.solve(A, b)
     cn = numpy.linalg.cond(A)
+    obj = objective(X, y, x, lambda_, n)
     if filepath:
         write_system(A, b, x, filepath)
-    return (A, b, x, cn)
+    return (A, b, lambda_, x, cn, obj)
 
 
 def generate_lin_regression_nikolaenko(n, d):
@@ -127,7 +134,7 @@ def generate_lin_regression(n, d, sigma):
     """
     X = random.randn(n, d)
     for i in xrange(d):
-	X[:,i] /= numpy.max(numpy.abs(X[:,i]))
+    X[:,i] /= numpy.max(numpy.abs(X[:,i]))
     beta = random.uniform(low=0, high=1, size=d)
     e = numpy.array(random.normal(0, sigma, n))
     y = X.dot(beta) + e.T
