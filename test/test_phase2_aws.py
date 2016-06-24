@@ -297,7 +297,7 @@ if __name__ == "__main__":
     # print sorted(c_nums)
 
     for i in range(num_examples):
-        for alg in ['cgd', 'cholesky']:
+        for alg in ['cgd']:
             for sigma in [0.1]:
                 for d in [10, 20, 50, 100, 200, 500]:
                     for n in [100000]:
