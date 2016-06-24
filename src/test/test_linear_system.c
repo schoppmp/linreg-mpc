@@ -51,7 +51,7 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 
 	// Construct instance ls
 	ls->precision = precision;
-	ls->port = NULL;
+	ls->self = NULL;
 	if(party != 1) {
 		ls->a = A;
 		ls->b = b;
@@ -69,7 +69,7 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	}
 	return 0;
 
-error:	// for some reason, oblivc removes this label if the stuff 
+error:	// for some reason, oblivc removes this label if the stuff
 	// below isn't commented out. TODO: fix this and do proper cleanup
 	/* fclose(file);
 	free(A_mask.value);
@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
 
 	check(argc >= 5, "Usage: %s [Port] [Party] [Input file] [Algorithm] [Num. iterations CGD]", argv[0]);
 	char *algorithm = argv[4];
-	check(!strcmp(algorithm, "cholesky") || !strcmp(algorithm, "ldlt")  || !strcmp(algorithm, "cgd"), 
+	check(!strcmp(algorithm, "cholesky") || !strcmp(algorithm, "ldlt")  || !strcmp(algorithm, "cgd"),
 	      "Algorithm must be cholesky, ldlt, or cgd.");
 	check(strcmp(algorithm, "cgd") || argc == 6, "Number of iterations for CGD must be provided");
 	int party = 0;
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
 		status = zsock_bind(socket, "tcp://0.0.0.0:%s", argv[1]);
 	} else {
 		status = zsock_connect(socket, "tcp://%s:%s", get_remote_host(), argv[1]);
-			
+
 	}
 	check(status != -1, "%s", strerror(errno));
 	protocol_use_zsock(&pd, socket);
@@ -134,10 +134,10 @@ int main(int argc, char **argv) {
 	} else {
 	      alg_index = 2;
 	}
-	
+
 	execYaoProtocol(&pd, algorithms[alg_index], &ls);
-	
-	if(party == 2) { 
+
+	if(party == 2) {
 	  //check(ls.beta.len == d, "Computation error.");
 	  printf("Time elapsed: %f\n", wallClock() - time);
 	  printf("Number of gates: %lld\n", ls.gates);

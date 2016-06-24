@@ -9,9 +9,9 @@
 int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obig *a, obig *b) {
 	// This function must only be executed by the parties that run the GC protocol: CSP and Evaluator,
 	// with is'd 1 and 2 and c->party = 0 and 1, respectively.
-	int num_data_providers = ls->num_data_providers;
-	printf("party %d listening for %d inputs on port %s\n", ocCurrentParty(), num_data_providers, ls->port);
-	DualconR* conn = dcrConnect(ls->port, num_data_providers);
+	int num_parties = ls->self->num_parties;
+	printf("party %d listening for %d inputs", ocCurrentParty(), num_parties - 2);
+	DualconR* conn = dcrConnect(ls->self);
 	size_t d = ls->a.d[0];
 
 	for(int ij = 0; ij < d * (d+1) / 2; ij++) {
@@ -27,7 +27,7 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obig *
 	obig_init(&obigtemp, FIXED_BIT_SIZE/8);
 	struct timespec time_start, time_end;
 	clock_gettime(CLOCK_MONOTONIC, &time_start);
-	for(int k = 3; k < num_data_providers+3; k++) {
+	for(int k = 3; k <= num_parties; k++) {
 		printf("%s receiving A from party %d\n", ocCurrentParty()==1?"CSP":"Evaluator",k);
 		dcrRecvIntArray(conn, share_a, d*(d + 1)/2, k);
 		printf("%s received A from party %d\n", ocCurrentParty()==1?"CSP":"Evaluator",k);
@@ -45,7 +45,7 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obig *
 	}
 	clock_gettime(CLOCK_MONOTONIC, &time_end);
 	if(ocCurrentParty() == 2) printf("Time taken for OT: %f\n", (time_end.tv_sec-time_start.tv_sec)+1e-9*(time_end.tv_nsec-time_start.tv_nsec));
-	
+
 	free(share_a);
 	free(share_b);
 	dcrClose(conn);
@@ -67,7 +67,7 @@ int read_symmetric_linear_system_from_ls(linear_system_t *ls, obig *a, obig *b) 
 
 	// check if inputs have equal dimensions
 	bool equal;
-	revealOblivBool(&equal, 
+	revealOblivBool(&equal,
 		feedOblivInt(d, 1) ==
 		feedOblivInt(d, 2), 0);
 	check(equal, "Inputs of the two parties differ.");
@@ -95,7 +95,7 @@ error:
 
 int read_symmetric_linear_system(linear_system_t *ls, obig *a, obig *b) {
 	// This distinction is to maintain compatibility to our tests of phase 2 only
-	if(!ls->port){
+	if(!ls->self){
 		return read_symmetric_linear_system_from_ls(ls, a, b);
 	} else {
 		return read_symmetric_linear_system_from_data_providers(ls, a, b);

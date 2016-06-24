@@ -1,20 +1,19 @@
 #pragma once
 #include<obliv_types_internal.h>
+#include "secure_multiplication/node.h"
 
 typedef struct DualconR DualconR;
 typedef struct DualconS DualconS;
 
-DualconS* dcsConnect(const char* csp_server,const char* csp_port,
-                     const char* eval_server,const char* eval_port,
-                     int party);
-void dcsSendIntArray(DualconS* con,const uint64_t* input,int n);
+DualconS* dcsConnect(node *self);
+void dcsSendIntArray(DualconS* con,const uint64_t* input,size_t n);
 void dcsClose(DualconS* con);
 
-DualconR* dcrConnect(const char* port,int partyCount);
-void dcrRecvBitArray(DualconR* con,OblivBit* dest,int n,int party);
+DualconR* dcrConnect(node *self);
+void dcrRecvBitArray(DualconR* con,OblivBit* dest,size_t n,int party);
 #ifdef __oblivious_c
-static inline void 
-dcrRecvIntArray(DualconR* con,obliv uint64_t* input,int n,int party)
+static inline void
+dcrRecvIntArray(DualconR* con,obliv uint64_t* input,size_t n,int party)
   { dcrRecvBitArray(con,(OblivBit*)input,n*ocBitSize(*input),party); }
 #endif
 void dcrClose(DualconR* con);

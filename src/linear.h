@@ -1,6 +1,7 @@
 #pragma once
-#include "fixed.h"
 #include <stdio.h>
+#include "fixed.h"
+#include "secure_multiplication/node.h"
 
 typedef struct {
 	size_t d[2];
@@ -19,8 +20,7 @@ typedef struct {
 	int precision;
 	long long gates;
 	int num_iterations; // for cgd
-	char *port; // from phase 1 config. TODO: find a nicer way to do this
-	int num_data_providers;
+	node *self; // for reading input from data providers
 } linear_system_t;
 
 // helper function that maps indices into a symmetric matrix
