@@ -242,7 +242,7 @@ if __name__ == "__main__":
     assert not os.listdir(dest_folder), '{0} is not empty.'.format(
         dest_folder)
     num_iters_cgd = 15
-    num_examples = 4
+    num_examples = 3
 
     args = parser.parse_args()
 
