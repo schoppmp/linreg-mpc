@@ -9,7 +9,6 @@
 #include <obliv_common.h>
 
 #include "secure_multiplication/secure_multiplication.pb-c.h"
-#include "secure_multiplication/secure_multiplication.h"
 #include "secure_multiplication/node.h"
 #include "secure_multiplication/config.h"
 #include "check_error.h"
