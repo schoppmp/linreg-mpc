@@ -5,7 +5,6 @@
 #include <time.h>
 
 #include "secure_multiplication.pb-c.h"
-#include "secure_multiplication.h"
 #include "node.h"
 #include "config.h"
 #include "check_error.h"

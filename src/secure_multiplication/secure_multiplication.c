@@ -5,7 +5,6 @@
 #include <time.h>
 
 #include "secure_multiplication.pb-c.h"
-#include "secure_multiplication.h"
 #include "node.h"
 #include "config.h"
 #include "check_error.h"
@@ -30,7 +29,7 @@ static int barrier(node *self) {
 		check(osend(self->peer[self->party-2], 0, &flag, sizeof(flag)) == sizeof(flag),
 			"osend: %s", strerror(errno));
 		orecv(self->peer[self->party-2],0,NULL,0);
-	} 
+	}
 	return 0;
 
 error:
@@ -68,7 +67,7 @@ int main(int argc, char **argv) {
 
 	status = node_new(&self, c);
 	check(!status, "Could not create node");
-	
+
 	// wait until everybody has started up
 	barrier(self);
 	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &cputime_start);
@@ -85,16 +84,16 @@ int main(int argc, char **argv) {
 
 	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &cputime_end);
 	clock_gettime(CLOCK_MONOTONIC, &realtime_end);
-	
+
 	double bill = 1000000000L;
-	printf("{\"party\":\"%d\", \"cputime\":\"%f\", \"wait_time\":%f, \"realtime\":\"%f\"}\n", c->party, 
+	printf("{\"party\":\"%d\", \"cputime\":\"%f\", \"wait_time\":%f, \"realtime\":\"%f\"}\n", c->party,
 		(cputime_end.tv_sec - cputime_start.tv_sec) +
 		(double) (cputime_end.tv_nsec - cputime_start.tv_nsec) / bill,
 		(wait_total.tv_sec) +
 		(double) (wait_total.tv_nsec) / bill,
 		(realtime_end.tv_sec - realtime_start.tv_sec) +
 		(double) (realtime_end.tv_nsec - realtime_start.tv_nsec) / bill);
-	
+
 	// wait until everybody has finished
 	barrier(self);
 
@@ -102,7 +101,7 @@ int main(int argc, char **argv) {
 	config_destroy(&c);
 	return 0;
 error:
-	config_destroy(&c);	
+	config_destroy(&c);
 	node_destroy(&self);
 	return 1;
 }

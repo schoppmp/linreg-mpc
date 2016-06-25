@@ -45,7 +45,7 @@ static int recv_pmsg(SecureMultiplication__Msg **pmsg, ProtocolDesc *pd) {
 	return 0;
 error:
 	free(buf);
-	return 1;			
+	return 1;
 }
 
 // Use protobuf-c's buffers to avoid copying data
@@ -83,6 +83,13 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 	uint64_t *x = calloc(c->n , sizeof(uint64_t));
 	uint64_t *y = calloc(c->n , sizeof(uint64_t));
 	check(x && y, "malloc: %s", strerror(errno));
+	SecureMultiplication__Msg pmsg_a, pmsg_b;
+	secure_multiplication__msg__init(&pmsg_a);
+	secure_multiplication__msg__init(&pmsg_b);
+	pmsg_a.n_vector = c->n;
+	pmsg_b.n_vector = c->n;
+	pmsg_a.vector = y;
+	pmsg_b.vector = x;
 	for(size_t i = 0; i <= c->d; i++) {
 		for(size_t j = 0; j <= i && j < c->d; j++) {
 			// get parties a and b
@@ -103,15 +110,8 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 			uint64_t xy = inner_prod_64(x, y, c->n, 1, 1);
 
 			// create protobuf message
-			SecureMultiplication__Msg pmsg_a, pmsg_b;
-			secure_multiplication__msg__init(&pmsg_a);
-			secure_multiplication__msg__init(&pmsg_b);
-			pmsg_a.vector = x;
-			pmsg_a.n_vector = c->n;
-			pmsg_a.value = r;
-			pmsg_b.vector = y;
-			pmsg_b.n_vector = c->n;
-			pmsg_b.value = xy-r;
+			pmsg_a.value = xy-r;
+			pmsg_b.value = r;
 			//assert(pmsg_b.value == 0);
 
 			status = send_pmsg(&pmsg_a, self->peer[party_a]);
@@ -141,7 +141,7 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 			share_b[i] += pmsg_in->vector[i];
 		}
 		secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
-		
+
 	}
 	for(size_t i = 0; i < c->d; i++) {
 		for(size_t j = 0; j <= i; j++) {
@@ -164,7 +164,6 @@ error:
 
 
 int run_party(node *self, config *c, int precision, struct timespec *wait_total, uint64_t **res_A, uint64_t **res_b) {
-	BCipherRandomGen *gen = newBCipherRandomGen();
 	matrix_t data; // TODO: maybe use dedicated type for finite field matrices here
 	vector_t target;
 	data.value = target.value = NULL;
@@ -173,7 +172,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	if(wait_total) {
 		wait_total->tv_sec = wait_total->tv_nsec = 0;
 	}
-	SecureMultiplication__Msg *pmsg_ti = NULL, 
+	SecureMultiplication__Msg *pmsg_ti = NULL,
 				  *pmsg_in = NULL,
 				  pmsg_out;
 	secure_multiplication__msg__init(&pmsg_out);
@@ -196,23 +195,32 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 
 	for(size_t i = 0; i < c->n; i++) {
 		for(size_t j = 0; j < c->d; j++) {
-			// rescale in advance 
-			data.value[i*c->d+j] = (fixed64_t) round(data.value[i*c->d+j] / (sqrt(pow(2,precision) * c->d * c->n)));
+			// rescale in advance
+			data.value[i*c->d+j] = (fixed64_t) round(data.value[i*c->d+j] /
+				(sqrt(pow(2,precision) * c->d * c->n)));
 		}
-		target.value[i] = (fixed64_t) round(target.value[i] / (sqrt(pow(2,precision) * c->d * c->n)));
+		target.value[i] = (fixed64_t) round(target.value[i] /
+			(sqrt(pow(2,precision) * c->d * c->n)));
 	}
 
 	for(size_t i = 0; i <= c->d; i++) {
-		uint64_t *row_start;
-		size_t stride;
+		uint64_t *row_start_i, *row_start_j;
+		size_t stride_i, stride_j;
 		if(i < c->d) { // row of input matrix
-			row_start = (uint64_t *) data.value + i;
-			stride = d;
+			row_start_i = (uint64_t *) data.value + i;
+			stride_i = d;
 		} else { // row is target vector
-			row_start = (uint64_t *) target.value;
-			stride = 1;
+			row_start_i = (uint64_t *) target.value;
+			stride_i = 1;
 		}
 		for(size_t j = 0; j <= i && j < c->d; j++) {
+			if(j < c->d) { // row of input matrix
+				row_start_j = (uint64_t *) data.value + j;
+				stride_j = d;
+			} else { // row is target vector
+				row_start_j = (uint64_t *) target.value;
+				stride_j = 1;
+			}
 			int owner_i = get_owner(i, c);
 			int owner_j = get_owner(j, c);
 			check(owner_i >= 2, "Invalid owner %d for row %zd", owner_i, i);
@@ -220,26 +228,22 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 
 			uint64_t share;
 			// if we own neither i or j, skip.
-			if(owner_i != c->party-1 && owner_j != c->party-1) { 
+			if(owner_i != c->party-1 && owner_j != c->party-1) {
 				continue;
 			// if we own both, compute locally
 			} else if(owner_i == c->party-1 && owner_i == owner_j) {
-				share = inner_prod_64(row_start, (uint64_t *) data.value + j, 
-					c->n, stride, d);
+				share = inner_prod_64(row_start_i, row_start_j,
+					c->n, stride_i, stride_j);
 			} else {
 				// receive random values from TI
 				status = recv_pmsg(&pmsg_ti, self->peer[0]);
 				check(!status, "Could not receive message from TI; %d %d", i, j);
 
 				if(owner_i == c->party-1) { // if we own i but not j, we are party a
-					// set our own share r_A randomly
-					share = 0;
-					randomizeBuffer(gen, (char *)&share, sizeof(uint32_t));
-					// receive (b', _) from party b
 					int party_b = get_owner(j, c);
 					check(party_b >= 2, "Invalid owner %d for row %zd", party_b, j);
 
-					
+					// receive (b', _) from party b
 					clock_gettime(CLOCK_MONOTONIC, &wait_start);
 					status = recv_pmsg(&pmsg_in, self->peer[party_b]);
 					clock_gettime(CLOCK_MONOTONIC, &wait_end);
@@ -247,37 +251,34 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 						wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
 						wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
 					}
-					check(!status, "Could not receive message from party "
-						"B (%d)", party_b);
+					check(!status, "Could not receive message from party B (%d)", party_b);
 
-					// Send (a + x, <a, b'> - r - r_A) to party b
-					pmsg_out.value = inner_prod_64(row_start, pmsg_in->vector,
-						c->n, stride, 1);
-					pmsg_out.value -= (pmsg_ti->value + share);
+					// Send (a - y, _) to party b
+					pmsg_out.value = 0;
 					for(size_t k = 0; k < c->n; k++) {
-						pmsg_out.vector[k] = row_start[k*stride] 
-							+ pmsg_ti->vector[k];
+						pmsg_out.vector[k] = row_start_i[k*stride_i] - pmsg_ti->vector[k];
 					}
 					status = send_pmsg(&pmsg_out, self->peer[party_b]);
-					check(!status, "Could not send message to party B (%d)",
-						party_b);
+					check(!status, "Could not send message to party B (%d)", party_b);
+
+					// compute share as (b + x)y - (xy - r)
+					share = inner_prod_64(pmsg_in->vector, pmsg_ti->vector, c->n, 1, 1);
+					share -= pmsg_ti->value;
 
 				} else { // if we own j but not i, we are party b
 					int party_a = get_owner(i, c);
 					check(party_a >= 2, "Invalid owner %d for row %zd", party_a, i);
-					// send (b - y, _) to party a
+
+					// send (b + y, _) to party a
 					pmsg_out.value = 0;
 					for(size_t k = 0; k < c->n; k++) {
-						pmsg_out.vector[k] = ((uint64_t *) data.value)[k * d + j]
-							- pmsg_ti->vector[k];
+						pmsg_out.vector[k] = row_start_j[k*stride_j] + pmsg_ti->vector[k];
 						//assert(pmsg_out.vector[k] == 1023);
 					}
-
 					status = send_pmsg(&pmsg_out, self->peer[party_a]);
-					check(!status, "Could not send message to party A (%d)",
-						party_a);
-					
-					// receive (a', a'') from party a
+					check(!status, "Could not send message to party A (%d)", party_a);
+
+					// receive (a', _) from party a
 					clock_gettime(CLOCK_MONOTONIC, &wait_start);
 					status = recv_pmsg(&pmsg_in, self->peer[party_a]);
 					clock_gettime(CLOCK_MONOTONIC, &wait_end);
@@ -287,10 +288,10 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 					}
 					check(!status, "Could not receive message from party A (%d)", party_a);
 
-					// set our share to <a', y> + a'' - z
-					share = inner_prod_64(pmsg_in->vector, pmsg_ti->vector, c->n, 1, 1);
-					share += pmsg_in->value - pmsg_ti->value;
-			
+					// set our share to b(a - y) - r
+					share = inner_prod_64(pmsg_in->vector, row_start_j, c->n, 1, stride_j);
+					share -= pmsg_ti->value;
+
 				}
 				secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
 				secure_multiplication__msg__free_unpacked(pmsg_ti, NULL);
@@ -315,7 +316,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	} else {
 		free(share_b);
 	}
-	
+
 	free(pmsg_out.vector);
 	// send results to TI for testing; TODO: remove
 	pmsg_out.vector = share_A;
@@ -329,7 +330,6 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 
 	free(data.value);
 	free(target.value);
-	releaseBCipherRandomGen(gen);
 	return 0;
 
 error:
@@ -346,7 +346,6 @@ error:
 	} else {
 		free(share_b);
 	}
-	releaseBCipherRandomGen(gen);
 	if(pmsg_ti) secure_multiplication__msg__free_unpacked(pmsg_ti, NULL);
 	if(pmsg_in) secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
 	return 1;
