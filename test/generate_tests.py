@@ -46,6 +46,7 @@ def write_lr_instance(X, y, solution, filepath, num_parties=1, endpoints=None):
             f.write('localhost:{0}\n'.format(1234))
         else:
             f.write('{0}\n'.format(endpoints[0]))
+            f.write('{0}\n'.format(endpoints[1]))
         if num_parties > 1:
             # We assume an even partition of (A,b) among the parties
             # Last party gets num_features mod num_parties additional features
@@ -53,9 +54,9 @@ def write_lr_instance(X, y, solution, filepath, num_parties=1, endpoints=None):
             #f.write('// endpoint and initial index of features from each party\n')
             for p in range(num_parties):
                 if not endpoints:
-                    f.write('localhost:{0} {1}\n'.format(1234 + p + 1, i))
+                    f.write('localhost:{0} {1}\n'.format(1234 + p + 2, i))
                 else:
-                    f.write('{0} {1}\n'.format(endpoints[p + 1], i))
+                    f.write('{0} {1}\n'.format(endpoints[p + 2], i))
                 i += d / num_parties
         #f.write('// X:\n')
         f.write('{0} {1}\n'.format(n, d))
@@ -77,9 +78,9 @@ def write_lr_instance(X, y, solution, filepath, num_parties=1, endpoints=None):
             f.write(' ')
         f.write('\n')
         #f.write('// XX^T:\n')
-        cov = 1./(d*n)*X.T.dot(X)
-	b = 1./(d*n)*X.T.dot(y)
-	assert b.shape[0] == d
+        cov = 1. / (d * n) * X.T.dot(X)
+        b = 1. / (d * n) * X.T.dot(y)
+        assert b.shape[0] == d
         assert cov.shape[0] == d
         assert cov.shape[1] == d
         f.write('{0} {0}\n'.format(d))
@@ -88,24 +89,24 @@ def write_lr_instance(X, y, solution, filepath, num_parties=1, endpoints=None):
                 f.write(str(cov[i][j]))
                 f.write(' ')
             f.write('\n')
-	f.write('{0}\n'.format(d))
-	for i in range(d):
-		f.write(str(b[i]))
-		f.write(' ')
+        f.write('{0}\n'.format(d))
+        for i in range(d):
+            f.write(str(b[i]))
+            f.write(' ')
 
 
-def generate_sls_instance_from_regression_problem(
-        n, d, lambda_, filepath, num_parties=1):
-    if not lambda_:
-        (A, b, solution) = generate_lin_system_from_regression_problem(
-            n, d, float(d) / n)
-    else:
-        (A, b, solution) = generate_lin_system_from_regression_problem(
-            n, d, lambda_)
-    if filepath:
-        write_sls_instance(A, b, solution, filepath, num_parties)
-    assert numpy.allclose(A.dot(solution), b)
-    return (A, b, solution)
+# def generate_sls_instance_from_regression_problem(
+#         n, d, lambda_, filepath, num_parties=1):
+#     if not lambda_:
+#         (A, b, solution) = generate_lin_system_from_regression_problem(
+#             n, d, float(d) / n)
+#     else:
+#         (A, b, solution) = generate_lin_system_from_regression_problem(
+#             n, d, lambda_)
+#     if filepath:
+#         write_sls_instance(A, b, solution, filepath, num_parties)
+#     assert numpy.allclose(A.dot(solution), b)
+#     return (A, b, solution)
 
 
 def generate_lin_system(n, d, filepath=None):
@@ -121,16 +122,23 @@ def generate_lin_system(n, d, filepath=None):
     return (A, mask_A, b, mask_b, y)
 
 
+def objective(X, y, theta, lambda_, n):
+    return numpy.mean([(y[i] - numpy.dot(theta, X[i])) ** 2 for i in range(n)]) +\
+        lambda_ * numpy.linalg.norm(theta) ** 2
+
+
 def generate_lin_system_from_regression_problem(n, d, sigma, filepath=None):
     (X, y, beta, e) = generate_lin_regression(n, d, sigma)
-    #lambda_ = 6. * sigma**2. / n
+    # lambda_ = 6. * sigma**2. / n
     lambda_ = sigma**2. / (n * numpy.linalg.norm(beta) ** 2)
-    A = 1. / (d*n) * X.T.dot(X) + numpy.identity(d) * lambda_
-    b = 1. / (d*n) * X.T.dot(y)
+    A = 1. / (d * n) * X.T.dot(X) + numpy.identity(d) * lambda_
+    b = 1. / (d * n) * X.T.dot(y)
     x = linalg.solve(A, b)
+    cn = numpy.linalg.cond(A)
+    obj = objective(X, y, x, lambda_, n)
     if filepath:
         write_system(A, b, x, filepath)
-    return (A, b, x)
+    return (A, b, X, y, lambda_, x, cn, obj)
 
 
 def generate_lin_regression_nikolaenko(n, d):
@@ -153,7 +161,7 @@ def generate_lin_regression(n, d, sigma):
     """
     X = random.randn(n, d)
     for i in xrange(d):
-	X[:,i] /= numpy.max(numpy.abs(X[:,i]))
+        X[:, i] /= numpy.max(numpy.abs(X[:, i]))
     beta = random.uniform(low=0, high=1, size=d)
     e = numpy.array(random.normal(0, sigma, n))
     y = X.dot(beta) + e.T

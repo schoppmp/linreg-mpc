@@ -237,7 +237,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 			} else {
 				// receive random values from TI
 				status = recv_pmsg(&pmsg_ti, self->peer[0]);
-				check(!status, "Could not receive message from TI; %d %d", i, j);
+				check(!status, "Could not receive message from TI; %zd %zd", i, j);
 
 				if(owner_i == c->party-1) { // if we own i but not j, we are party a
 					int party_b = get_owner(j, c);
