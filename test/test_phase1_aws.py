@@ -51,8 +51,9 @@ if __name__ == "__main__":
 
         cmd_cd = 'cd obliv-c; make CFLAGS=\"-DPROFILE_NETWORK\"; cd ..; ' +\
             'cd secure-distributed-linear-regression; ' +\
-            'git stash; git checkout master; git pull; make clean' +\
-            'make bin/secure_multiplication; killall -9 secure_multiplication'
+            'git stash; git checkout master; git pull; make clean;' +\
+            'make OBLIVC_PATH=$(cd ../obliv-c && pwd) bin/secure_multiplication;' +\
+            'killall -9 secure_multiplication'
         stdin, stdout, stderr = client.exec_command(cmd_cd)
         for line in stdout:
             print '... ' + line.strip('\n')
