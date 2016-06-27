@@ -121,6 +121,7 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 		}
 	}
 
+/*
 	// Receive and combine shares from peers for testing; TODO: remove
 	uint64_t *share_A = NULL, *share_b = NULL;
 	size_t d = c->d;
@@ -149,6 +150,9 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 		}
 		printf("\n");
 	}
+	free(share_A);
+	free(share_b);
+*/
 
 	free(x);
 	free(y);
@@ -305,7 +309,24 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 			}
 		}
 	}
+	
+/*
+	// send results to TI for testing; TODO: remove
+	free(pmsg_out.vector);
+	pmsg_out.vector = share_A;
+	pmsg_out.n_vector = d * (d + 1) / 2;
+	status = send_pmsg(&pmsg_out, self->peer[0]);
+	check(!status, "Could not send share_A to TI");
+	pmsg_out.vector = share_b;
+	pmsg_out.n_vector = d;
+	status = send_pmsg(&pmsg_out, self->peer[0]);
+	check(!status, "Could not send share_b to TI");
+	pmsg_out.vector = NULL;
+*/
 
+	free(data.value);
+	free(target.value);
+	free(pmsg_out.vector);
 	if(res_A){
 		*res_A = share_A;
 	} else {
@@ -316,20 +337,6 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	} else {
 		free(share_b);
 	}
-
-	free(pmsg_out.vector);
-	// send results to TI for testing; TODO: remove
-	pmsg_out.vector = share_A;
-	pmsg_out.n_vector = d * (d + 1) / 2;
-	status = send_pmsg(&pmsg_out, self->peer[0]);
-	check(!status, "Could not send share_A to TI");
-	pmsg_out.vector = share_b;
-	pmsg_out.n_vector = d;
-	status = send_pmsg(&pmsg_out, self->peer[0]);
-	check(!status, "Could not send share_b to TI");
-
-	free(data.value);
-	free(target.value);
 	return 0;
 
 error:
@@ -338,14 +345,12 @@ error:
 	free(pmsg_out.vector);
 	if(res_A){
 		*res_A = NULL;
-	} else {
-		free(share_A);
 	}
 	if(res_b){
 		*res_b = NULL;
-	} else {
-		free(share_b);
 	}
+	free(share_A);
+	free(share_b);
 	if(pmsg_ti) secure_multiplication__msg__free_unpacked(pmsg_ti, NULL);
 	if(pmsg_in) secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
 	return 1;
