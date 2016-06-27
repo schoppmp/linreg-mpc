@@ -70,9 +70,8 @@ if __name__ == "__main__":
 
         client.close()
 
-    if public_ips:
-        for ip in public_ips:
-            update_and_compile(ip)
+    for ip in (public_ips if USE_PUB_IPS else private_ips):
+        update_and_compile(ip)
 
     def run_remotely(remote_working_dir,
             remote_dest_folder, local_dest_folder,
@@ -141,12 +140,12 @@ if __name__ == "__main__":
             sftp.get(f, os.path.join(local_dest_folder, f))
             client.close()
 
-    for n in [1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000]:
+    for i in range(num_examples):
         for d in [10, 20, 50, 100, 200, 500]:
             for p in [2, 5, 10, 20]:  # p is number of data providers (not TI)
                 if p > d:
                     continue
-                for i in range(num_examples):
+                for n in [1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000]:
                     logger.info('Running instance n = {0}, d = {1}, p = {2}, run = {3}'.format(
                         n, d, p, i))
                     filename_in = 'test_LR_{0}x{1}_{2}_{3}.in'.format(
@@ -194,10 +193,13 @@ if __name__ == "__main__":
                             dest_folder, filename_exec)
                         filename_out = os.path.splitext(
                             filename_exec)[0] + '.out'
+			filepath_out = os.path.join(
+			    dest_folder, filename_out)
                         f_exec = open(filepath_exec, 'r')
-                        f_out = open(filepath_exec, 'r')
-                        print filepath_exec
-                        for line in f_exec.readlines():
-                            print line
+                        f_out = open(filepath_out, 'w')
+                        logger.info('Writing .out file {0}'.format(filepath_out))
+			for line in f_exec.readlines():
+                            if line.startswith('{'):
+				f_out.write(line)
                         f_exec.close()
                         f_out.close()
