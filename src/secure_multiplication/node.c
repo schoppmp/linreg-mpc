@@ -34,8 +34,7 @@ int node_new(node **nn, config *conf) {
 		free(host);
 		check(osend(n->peer[i], 0, &(n->party), sizeof(n->party)) == sizeof(n->party),
 			"Party %d: osend: %s", n->party, strerror(errno)); // announce ourselves
-		orecv(n->peer[i],0,NULL,0);
-		printf("Party %d connected to %d\n", n->party, i+1);
+		orecv(n->peer[i],0,NULL,0); // flush
 	}
 
 	// open our own listening socket
@@ -44,7 +43,6 @@ int node_new(node **nn, config *conf) {
 	n->peer[i] = NULL;
 	char* port = strchr(conf->endpoint[i], ':') +1;
 	listen_sock = tcpListenAny(port);
-	printf("Party %d listening on port %s\n", n->party, port);
 	check(listen_sock >= 0, "Could not create listen socket");
 
 	// accept incoming connections from peers
@@ -61,7 +59,6 @@ int node_new(node **nn, config *conf) {
 		check(n->peer[other-1] == NULL, 
 			"Duplicate party %d", other);
 		n->peer[other-1] = pd;
-		printf("Party %d accepted connection from %d\n", n->party, other);
 	}
 	close(listen_sock);
 	return 0;
