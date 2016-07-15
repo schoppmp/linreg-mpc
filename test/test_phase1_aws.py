@@ -53,15 +53,19 @@ if __name__ == "__main__":
         logger.info('Compiling in {0}'.format(ip))
 
 
-        cmd = 'cd obliv-c; make CFLAGS=\"-DPROFILE_NETWORK\"; cd ..; ' +\
+        '''
+        cmd = 'cd obliv-c; make clean; make CFLAGS=\"-DPROFILE_NETWORK\"; cd ..; ' +\
             'cd secure-distributed-linear-regression; ' +\
             'git stash; git checkout master; git pull; make clean;' +\
-             'git submodule update --init --recursive;' +\
+            'git submodule update --init --recursive;' +\
             'cd lib/absentminded-crypto-kit/;' +\
             'make OBLIVC_PATH=$(cd ../../../obliv-c && pwd);' +\
             'cd ../..;' +\
-            'make OBLIVC_PATH=$(cd ../obliv-c && pwd) bin/secure_multiplication;' +\
+            'make OBLIVC_PATH=$(cd ../obliv-c && pwd) bin/secure_multiplication;' +\ 
             'killall -9 secure_multiplication'
+        '''
+        cmd = 'killall -9 secure_multiplication; ' +\
+              'rm secure-distributed-linear-regression/test/experiments/phase1/*'
         stdin, stdout, stderr = client.exec_command(cmd)
         for line in stdout:
             print '... ' + line.strip('\n')
@@ -166,7 +170,7 @@ if __name__ == "__main__":
                         filepath_exec = os.path.join(
                             dest_folder, filename_exec)
                         party_exec_files.append(filename_exec)
-                        cmd = '{0} {1} {2} {3} > {4} {5}'.format(
+                        cmd = '{0} {1} {2} {3} > {4} 2>&1 {5}'.format(
                             exec_file,
                             filepath_in,
                             precision,
@@ -203,3 +207,4 @@ if __name__ == "__main__":
 				f_out.write(line)
                         f_exec.close()
                         f_out.close()
+                    os.remove(filepath_in)
