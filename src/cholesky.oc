@@ -4,11 +4,14 @@
 #include "fixed.h"
 #include "fixed.oh"
 #include "obig.oh"
+#include "util.h"
 
 
 
 // solves a symmetric, positive definite linear system using cholesky decomposition
 void cholesky(void *v) {
+	double time_start = wallClock();
+
 	linear_system_t *ls = v;
 	// allocate space for obliv values and read inputs
 	size_t d = ls->a.d[0];
@@ -43,6 +46,8 @@ void cholesky(void *v) {
 		ls->beta.value = malloc(d * sizeof(fixed64_t));
 	}
 
+	if(ocCurrentParty() == 2) {printf("OT time: %f\n", wallClock() - time_start);}
+
 	// decompose a into L^T L
 	for(size_t j = 0; j < d; j++) {
 		for(size_t k = 0; k < j; k++) {
@@ -59,7 +64,7 @@ void cholesky(void *v) {
 			//a[idx(k,j)] = ofixed_div(a[idx(k,j)], a[idx(j,j)], ls->precision);
 		}
 	}
-	
+
 	// compute y, where L^T y = b
 	for(size_t i = 0; i < d; i++) {
 		for(size_t j = 0; j < i; j++) {

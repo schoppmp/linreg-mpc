@@ -1,11 +1,11 @@
 #include <obliv.oh>
 #include <stdio.h>
+#include <signal.h>
 #include "linear.h"
 #include "linear.oh"
 #include "fixed.h"
 #include "fixed.oh"
-#include <signal.h>
-//#include "util.h"
+#include "util.h"
 
 
 int flag = 0;
@@ -17,6 +17,7 @@ void sig_handler(int signo) {
 // solves a symmetric, positive definite linear system using coordinate gradient descent
 // and scaling.
 void cgd(void *v) {
+	double time_start = wallClock();
 
 	struct sigaction act;
 	act.sa_handler = &sig_handler;
@@ -26,7 +27,7 @@ void cgd(void *v) {
 	// allocate space for obliv values and read inputs
 	// we can do most computations in-place in this case
 	size_t d = ls->a.d[0];
-	
+
 	obig *a = malloc(((d * (d+1)) / 2) * sizeof(obig));
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
 		obig_init(&a[ii], FIXED_BIT_SIZE / 8);
@@ -78,7 +79,7 @@ void cgd(void *v) {
 	obig_init(&gamma, FIXED_BIT_SIZE / 8);
 	obig q;
 	obig_init(&q, FIXED_BIT_SIZE / 8);
-	
+
 	int prec = ls->precision;
 /*	if(ocCurrentParty() == 2) printf("m = ");
 	for(size_t i = 0; i < d; i++) {
@@ -128,6 +129,10 @@ void cgd(void *v) {
 		//p[i] = g[i];
 	}
 
+	obig d_big;
+	obig_init(&d_big, FIXED_BIT_SIZE/8);
+	obig_import_onative(&d_big, d);
+
 	obig n, n_old;
 	obig_init(&n, FIXED_BIT_SIZE / 8);
 	obig_init(&n_old, FIXED_BIT_SIZE/8);
@@ -136,7 +141,7 @@ void cgd(void *v) {
 		ofixed_add(&n, n, obigtemp);
 	}
 
-	if(ocCurrentParty() == 2) {printf("Starting iterations.\n");}
+	if(ocCurrentParty() == 2) {printf("OT time: %f\nStarting iterations.\n", wallClock() - time_start);}
 	//double time = wallClock();
 	for(size_t t = 0; !flag && t < ls->num_iterations; t++) {
 		obig_zero(&eta);
@@ -144,8 +149,8 @@ void cgd(void *v) {
 		obig_zero(&q);
 		//obliv fixed32_t eta = 0, gamma = 0, q = 0;
 		for(size_t i = 0; i < d; i++) {
-			obig_import_onative(&obigtemp, double_to_fixed(d, prec));
-			ofixed_mul(&p_tilde[i], p[i], obigtemp, prec);
+			// integer multiplication, not fixed point!
+			obig_mul_signed(&p_tilde[i], p[i], d_big);
 		}
 		for(size_t i = 0; i < d; i++) {
 			obig_zero(&ap_tilde[i]);
@@ -180,7 +185,7 @@ void cgd(void *v) {
 			ofixed_add(&n, obigtemp, n);
 		}
 		ofixed_div(&gamma, n, n_old, prec);
-		
+
 		if(ocCurrentParty() == 2) printf("Iteration %d:\n", t);
 		for(size_t i = 0; i < d; i++) {
 			ofixed_mul(&obigtemp, gamma, p[i], prec);
@@ -191,9 +196,10 @@ void cgd(void *v) {
 			//revealOblivInt(&temp, beta[i], 2);
 			if(ocCurrentParty() == 2) printf("%20.15f ", fixed_to_double(temp, prec));
 		}
-		if(ocCurrentParty() == 2) printf("\n");
-		if(ocCurrentParty() == 2) printf("Yao's gates count: %lld", yaoGateCount());
-		if(ocCurrentParty() == 2) printf("\n");
+		if(ocCurrentParty() == 2) {
+			printf("\nIteration %d gate count: %lld\n", t, yaoGateCount());
+			printf("Iteration %d time: %f\n", t, wallClock() - time_start);
+		}
 
 		flag = ocBroadcastBool(flag, 1) || ocBroadcastBool(flag, 2);
 	}
