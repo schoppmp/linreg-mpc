@@ -79,7 +79,7 @@ if __name__ == "__main__":
         client.close()
 
     for ip in (public_ips if USE_PUB_IPS else private_ips):
-        update_and_compile(ip)
+        pass #update_and_compile(ip)
 
     def run_remotely(remote_working_dir,
             remote_dest_folder, local_dest_folder,
@@ -150,11 +150,11 @@ if __name__ == "__main__":
             client.close()
 
     for i in range(num_examples):
-        for d in [10, 20, 50, 100, 200, 500]:
+        for d in [500]:
             for p in [2, 3, 5]: #, 10, 20]:  # p is number of data providers (not TI)
                 if p > d:
                     continue
-                for n in [1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000]:
+                for n in [1000000]:
                     logger.info('Running instance n = {0}, d = {1}, p = {2}, run = {3}'.format(
                         n, d, p, i))
 
