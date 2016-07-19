@@ -3,8 +3,8 @@
 
 typedef struct protocolIO {
 	fixed64_t *inputs, result;
-	int len, p;
-	int gates;
+	size_t len, gates;
+	int p;
 } protocolIO;
 
 void test_fixed(void *v);
