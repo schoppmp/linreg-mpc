@@ -3,6 +3,7 @@
 #include "fixed.oh"
 #include "test/test_fixed.h"
 #include "util.h"
+#include <stdio.h>
 
 
 void test_fixed(void *v) {
