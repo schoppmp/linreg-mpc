@@ -2,6 +2,8 @@
 #include "fixed.h"
 #include "fixed.oh"
 #include "test/test_fixed.h"
+#include "util.h"
+#include <stdio.h>
 
 
 void test_fixed(void *v) {
@@ -18,20 +20,23 @@ void test_fixed(void *v) {
 		return;
 	} 
 	
-	// compute the square root of the dot product of a and b
+	// compute the dot product of a and b
 	obig c, x, y, t;
 	obig_init(&c, 4);
 	obig_init(&x, 4);
 	obig_init(&y, 4);
 	obig_init(&t, 4);
-	for(int i = 0; i < args->len; i++) {
+	double start_time = wallClock();
+	for(size_t i = 0; i < args->len; i++) {
+		if(i % 1000 == 0 && ocCurrentParty() == 2) {
+			printf("%zd\t%f\n", i, wallClock() - start_time);
+		}
 		// assuming sizeof(int) == sizeof(fixed32_t)
 		obig_import_onative_signed(&x, feedOblivLLong(args->inputs[i], 1));
 		obig_import_onative_signed(&y, feedOblivLLong(args->inputs[i], 2));
 		ofixed_mul(&t, x, y, args->p);
 		ofixed_add(&c, c, t);
 	}
-	ofixed_sqrt(&c, c, args->p);
 	
 	obliv fixed64_t out = obig_export_onative_signed(c);
 	revealOblivLLong(&(args->result), out, 0);

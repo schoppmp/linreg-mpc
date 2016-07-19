@@ -5,13 +5,16 @@
 #include "check_error.h"
 
 
-const int precision = 16;
+const int precision = 56;
+const int len = 1000000;
 
 int main(int argc, char **argv) {
 	ProtocolDesc pd;
-	protocolIO io;
+	protocolIO io = {0};
+	int ret = 1;
 
-	check(argc >= 4, "Usage: %s [Port] [Party] [Value]...", argv[0]);
+	//check(argc >= 4, "Usage: %s [Port] [Party] [Value]...", argv[0]);
+	check(argc >= 3, "Usage: %s Port Party");
 
 	// read party
 	int party = 0;
@@ -22,13 +25,15 @@ int main(int argc, char **argv) {
 	}
 	check(party > 0, "Party must be either 1 or 2.");
 
-	// read inputs
+	// generate inputs
 	io.p = precision;
-	io.len = argc - 3;
-	io.inputs = alloca(io.len * sizeof(fixed64_t));
+	//io.len = argc - 3;
+	io.len = len;
+	io.inputs = malloc(io.len * sizeof(fixed64_t));
 	for(int i = 0; i < io.len; i++) {
-		double d;
-		check(sscanf(argv[i+3], "%lf", &d) == 1, "Error scanning argument number %d.", i+3);
+		double d = (double)rand() / RAND_MAX;
+		// double d;
+		// check(sscanf(argv[i+3], "%lf", &d) == 1, "Error scanning argument number %d.", i+3);
 		io.inputs[i] = double_to_fixed(d, precision);
 	}
 	
@@ -44,8 +49,9 @@ int main(int argc, char **argv) {
 		printf("Number of gates: %d\n", io.gates);
 		printf("Result: %f\n", fixed_to_double(io.result, precision));
 	}
-
-	return 0;
+	free(io.inputs);
+	ret = 0;
+	
 error:
-	return 1;
+	return ret;
 }
