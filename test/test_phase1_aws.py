@@ -168,7 +168,7 @@ if __name__ == "__main__":
             for p in [2, 3, 5]: #, 10, 20]:  # p is number of data providers (not TI)
                 if p > d:
                     continue
-                for n in [1000000]:
+                for n in [1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000]:
                     logger.info('Running instance n = {0}, d = {1}, p = {2}, run = {3}'.format(
                         n, d, p, i))
 
