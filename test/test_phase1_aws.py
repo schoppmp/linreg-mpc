@@ -57,8 +57,8 @@ if __name__ == "__main__":
         logger.info('Compiling in {0}'.format(ip))
 
 
-        '''
-        cmd = 'cd obliv-c; make clean; make CFLAGS=\"-DPROFILE_NETWORK\"; cd ..; ' +\
+
+        cmd_network_profiling = 'cd obliv-c; make clean; make CFLAGS=\"-DPROFILE_NETWORK\"; cd ..; ' +\
             'cd secure-distributed-linear-regression; ' +\
             'git stash; git checkout master; git pull; make clean;' +\
             'git submodule update --init --recursive;' +\
@@ -67,10 +67,21 @@ if __name__ == "__main__":
             'cd ../..;' +\
             'make OBLIVC_PATH=$(cd ../obliv-c && pwd) bin/secure_multiplication;' +\
             'killall -9 secure_multiplication'
-        '''
-        cmd = 'killall -9 secure_multiplication; ' +\
+
+        cmd_compile = 'cd obliv-c; make clean; make; cd ..; ' +\
+            'cd secure-distributed-linear-regression; ' +\
+            'git stash; git checkout master; git pull; make clean;' +\
+            'git submodule update --init --recursive;' +\
+            'cd lib/absentminded-crypto-kit/;' +\
+            'make OBLIVC_PATH=$(cd ../../../obliv-c && pwd);' +\
+            'cd ../..;' +\
+            'make OBLIVC_PATH=$(cd ../obliv-c && pwd) bin/secure_multiplication;' +\
+            'killall -9 secure_multiplication; ' +\
+            'rm secure-distributed-linear-regression/test/experiments/phase1/*'
+
+        cmd_dont_compile = 'killall -9 secure_multiplication; ' +\
               'rm secure-distributed-linear-regression/test/experiments/phase1/*'
-        stdin, stdout, stderr = client.exec_command(cmd)
+        stdin, stdout, stderr = client.exec_command(cmd_compile)
         for line in stdout:
             print '... ' + line.strip('\n')
         for line in stderr:
@@ -118,7 +129,10 @@ if __name__ == "__main__":
         mkdir_p(sftp, remote_dest_folder)
         input_filename = os.path.basename(local_input_filepath)
         logger.info('Copying {0} to {1}...'.format(local_input_filepath, ip))
-        sftp.put(local_input_filepath, input_filename)
+        #sftp.put(local_input_filepath, input_filename)
+        scp_cmd = 'scp {0} {1}:{2}'.format(local_input_filepath, ip, remote_dest_folder)
+        logger.info(scp_cmd)
+        os.system(scp_cmd)
         logger.info('Executing in {0}:'.format(ip))
         logger.info('{0}'.format(cmd))
         stdin, stdout, stderr = client.exec_command(
@@ -150,7 +164,7 @@ if __name__ == "__main__":
             client.close()
 
     for i in range(num_examples):
-        for d in [10, 20, 50, 100, 200, 500]:
+        for d in [10, 20, 50, 100, 200]:#, 500]:
             for p in [2, 3, 5]: #, 10, 20]:  # p is number of data providers (not TI)
                 if p > d:
                     continue
@@ -179,7 +193,9 @@ if __name__ == "__main__":
                         n, d, p, i)
                     filepath_in = os.path.join(dest_folder, filename_in)
                     if RECOMPUTE or not os.path.exists(filepath_in):
+                        logger.info('Generating instance...')
                         (X, y, beta, e) = GT.generate_lin_regression(n, d, 0.1)
+                        logger.info('Writing instance...')
                         GT.write_lr_instance(
                             X, y, beta,
                             filepath_in,
