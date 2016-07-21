@@ -1,5 +1,5 @@
 
-filename = '/Users/khaos/svn/bballe/private-ml/src/fp-cgd/phillipp1.data';
+filename = 'phillipp1.data';
 delimiter = ' ';
 fileID = fopen(filename,'r');
 formatSpec = '%f%f%f%f%f%f%f%f%f%f%[^\n\r]';
