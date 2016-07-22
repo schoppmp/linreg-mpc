@@ -11,7 +11,6 @@ function [X,P,G] = cgdfp7(A,b,it,T) %#codegen
 	g = cast(zeros(d,1),'like',T);
 	pscl = cast(zeros(d,1),'like',T);
 	pA = cast(zeros(1,d),'like',T);
-	etapscl = cast(zeros(d,1),'like',T);
 	gdq = cast(zeros(d,1),'like',T);
 	etap = cast(zeros(d,1),'like',T);
 	gdeta = cast(zeros(d,1),'like',T);
@@ -28,14 +27,13 @@ function [X,P,G] = cgdfp7(A,b,it,T) %#codegen
 	for i = 1:it
 		display(sprintf('===== Iteration: %d =====',i));
 		%%%
-		pscl(:) = p;
 		pA(:) = p'*A;
-		q(:) = pA*pscl;    
+		q(:) = pA*p;    
 		%%% q = <p, Ap>
 		eta(:) = ng/q;
 		%%% eta = <g,g> / <p,Ap>
-		etapscl(:) = eta*pscl;
-		x(:) = x - etapscl;
+		etap(:) = eta*p;
+		x(:) = x - etap;
 		%%% x = x - eta*p
 		Ax(:) = A*x;
 		g(:) = Ax - b;
