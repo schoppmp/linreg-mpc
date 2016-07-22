@@ -12,7 +12,7 @@ sigmaY = 0.1;
 
 %results = struct('r',{},'d',{},'nmult',{},'n',{},'kappa',{},'b',{},'err',{});
 
-fname = 'exp2-2-sY-0.1.mat';
+fname = 'exp2-3-sY-0.1.mat';
 foo = load(fname);
 all = foo.results;
 
