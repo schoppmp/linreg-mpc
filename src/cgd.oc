@@ -32,26 +32,11 @@ void cgd(void *v) {
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
 		obig_init(&a[ii], FIXED_BIT_SIZE / 8);
 	}
-
 	obig *b = malloc(d * sizeof(obig));
-	obig *g = malloc(d * sizeof(obig));
-	obig *p = malloc(d * sizeof(obig));
-	obig *p_tilde = malloc(d * sizeof(obig));
-	obig *ap_tilde = malloc(d * sizeof(obig));
-	obig *beta = malloc(d * sizeof(obig));
-	obig *abeta = malloc(d * sizeof(obig));
-	obig *m = malloc(d * sizeof(obig));
 	for (size_t ii = 0; ii < d; ii++) {
 		obig_init(&b[ii], FIXED_BIT_SIZE / 8);
-		obig_init(&g[ii], FIXED_BIT_SIZE / 8);
-		obig_init(&p[ii], FIXED_BIT_SIZE / 8);
-		obig_init(&p_tilde[ii], FIXED_BIT_SIZE / 8);
-		obig_init(&ap_tilde[ii], FIXED_BIT_SIZE / 8);
-		obig_init(&beta[ii], FIXED_BIT_SIZE / 8);
-		obig_init(&abeta[ii], FIXED_BIT_SIZE / 8);
-		obig_init(&m[ii], FIXED_BIT_SIZE / 8);
 	}
-
+	
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
 		ls->beta.len = -1;
@@ -59,11 +44,35 @@ void cgd(void *v) {
 		free(b);
 		return;
 	}
-
 	// allocate output vector if not already done and we are party 2
 	if(!(ls->beta.value) && ocCurrentParty() == 2) {
 		ls->beta.len = d;
 		ls->beta.value = malloc(d * sizeof(fixed64_t));
+	}
+	
+	obig *x = malloc(d * sizeof(obig));
+	obig *ax = malloc(d * sizeof(obig));
+	obig *p = malloc(d * sizeof(obig));
+	obig *gammap = malloc(d * sizeof(obig));
+	obig *g = malloc(d * sizeof(obig));
+	obig *pscl = malloc(d * sizeof(obig));
+	obig *pA = malloc(d * sizeof(obig));
+	obig *etapscl = malloc(d * sizeof(obig));
+	obig *gdq = malloc(d * sizeof(obig));
+	obig *etap = malloc(d * sizeof(obig));
+	obig *gdeta = malloc(d * sizeof(obig));
+	for (size_t ii = 0; ii < d; ii++) {
+		obig_init(&x[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&ax[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&p[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&gammap[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&g[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&pscl[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&pA[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&etapscl[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&gdq[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&etap[ii], FIXED_BIT_SIZE / 8);
+		obig_init(&gdeta[ii], FIXED_BIT_SIZE / 8);
 	}
 
 	// loop for a fixed number of iterations
@@ -71,131 +80,127 @@ void cgd(void *v) {
 	obliv fixed64_t otemp;
 	obig obigtemp;
 	obig_init(&obigtemp, FIXED_BIT_SIZE / 8);
-	obig obigtemp2;
-	obig_init(&obigtemp2, FIXED_BIT_SIZE / 8);
+	obig ng;
+	obig_init(&ng, FIXED_BIT_SIZE / 8);
+	obig q;
+	obig_init(&q, FIXED_BIT_SIZE / 8);
 	obig eta;
 	obig_init(&eta, FIXED_BIT_SIZE / 8);
 	obig gamma;
 	obig_init(&gamma, FIXED_BIT_SIZE / 8);
-	obig q;
-	obig_init(&q, FIXED_BIT_SIZE / 8);
 
 	int prec = ls->precision;
-/*	if(ocCurrentParty() == 2) printf("m = ");
-	for(size_t i = 0; i < d; i++) {
-		// scaling diagonal matrix
-		obig_zero(&m[i]);
-		//m[i] = 0;
-		for(size_t j = 0; j < d; j++) {
-			//obliv fixed32_t a_ij = a[idx(i,j)];
-			//obliv if(a_ij > 0) {
-			//	m[i] += a_ij;
-			size_t idxij = idx(i,j);
-			obliv if(obig_gtz_signed(a[idxij])) {
-				ofixed_add(&m[i], m[i], a[idxij]);
-			} else {
-				ofixed_sub(&m[i], m[i], a[idxij]);
-				//m[i] -= a_ij;
-			}
-		}
-		ofixed_sqrt(&m[i], m[i], prec);
-		otemp = obig_export_onative_signed(m[i]);
-		revealOblivLLong(&temp, otemp, 2);
-		//m[i] = ofixed_sqrt(m[i], prec);
-		//revealOblivInt(&temp, m[i], 2);
-		if(ocCurrentParty() == 2) printf("%20.15f ", fixed_to_double(temp, prec));
-	}
-	if(ocCurrentParty() == 2) printf("\n");
-
-	// scale A and b
-	for(size_t i = 0; i < d; i++) {
-		for(size_t j = 0; j <= i; j++) { // A is symmetric
-			ofixed_div(&a[idx(i,j)], a[idx(i,j)], m[i], prec);
-			ofixed_div(&a[idx(i,j)], a[idx(i,j)], m[j], prec);
-			//a[idx(i,j)] = ofixed_div(a[idx(i,j)], m[i], prec);
-			//a[idx(i,j)] = ofixed_div(a[idx(i,j)], m[j], prec);
-		}
-		ofixed_div(&b[i], b[i], m[i], prec);
-		//b[i] = ofixed_div(b[i], m[i], prec);
-	}
-*/
 
 	// initialise
+	// Ax(:) = A*x;
+	// p(:) = Ax - b;
+	// g(:) = p;
 	for(size_t i = 0; i < d; i++) {
 		ofixed_sub(&g[i], g[i], b[i]);
 		obig_copy_signed(&p[i], g[i]);
-		//beta[i] = 0;
-		//g[i] = b[i];
-		//p[i] = g[i];
 	}
 
-	obig d_big;
-	obig_init(&d_big, FIXED_BIT_SIZE/8);
-	obig_import_onative(&d_big, d);
-
-	obig n, n_old;
-	obig_init(&n, FIXED_BIT_SIZE / 8);
-	obig_init(&n_old, FIXED_BIT_SIZE/8);
+	// ng(:) = g'*g;
 	for(size_t i = 0; i < d; i++) {
 		ofixed_mul(&obigtemp, g[i], g[i], prec);
-		ofixed_add(&n, n, obigtemp);
+		ofixed_add(&ng, ng, obigtemp);
 	}
 
 	if(ocCurrentParty() == 2) {printf("OT time: %f\nStarting iterations.\n", wallClock() - time_start);}
 	//double time = wallClock();
-	for(size_t t = 0; !flag && t < ls->num_iterations; t++) {
-		obig_zero(&eta);
-		obig_zero(&gamma);
+	for(size_t t = 0; !flag && t < ls->num_iterations; t++) {	
+		// pscl(:) = p;
+		for(size_t i = 0; i < d; i++) {
+			obig_copy_signed(&pscl[i], p[i]);
+		}
+		
+		// pA(:) = p'*A;
+		for(size_t i = 0; i < d; i++) {
+			obig_zero(&pA[i]);
+			for(size_t j = 0; j < d; j++) {
+				ofixed_mul(&obigtemp, a[idx(i,j)], p[j], prec);
+				ofixed_add(&pA[i], pA[i], obigtemp);
+			}
+		}
+		
+		// q(:) = pA*pscl;
 		obig_zero(&q);
-		//obliv fixed32_t eta = 0, gamma = 0, q = 0;
 		for(size_t i = 0; i < d; i++) {
-			// integer multiplication, not fixed point!
-			obig_mul_signed(&p_tilde[i], p[i], d_big);
-		}
-		for(size_t i = 0; i < d; i++) {
-			obig_zero(&ap_tilde[i]);
-			for(size_t j = 0; j < d; j++) {
-				ofixed_mul(&obigtemp, a[idx(i,j)], p_tilde[j], prec);
-				ofixed_add(&ap_tilde[i], ap_tilde[i], obigtemp);
-				//ap[i] += ofixed_mul(a[idx(i,j)], p[j], prec);
-			}
-			ofixed_mul(&obigtemp, p[i], ap_tilde[i], prec);
+			ofixed_mul(&obigtemp, pA[i], pscl[i], prec);
 			ofixed_add(&q, q, obigtemp);
-			//q += ofixed_mul(p[i], ap[i], prec);
 		}
+		
+		// // eta(:) = ng/q;
+		// eta = q/ng; 
+		// we use the inverse here so it's < 1
+		// the obliv if switch below ensures there are no updates after
+		// eta becomes zero
+		ofixed_div(&eta, q, ng, prec);
 
-		ofixed_div(&eta, n, q, prec);
-
+		// etapscl(:) = eta*pscl;
+		// etapscl(:) = pscl / eta;
+		// x(:) = x - etapscl;
 		for(size_t i = 0; i < d; i++) {
-			ofixed_mul(&obigtemp, eta, p_tilde[i], prec);
-			ofixed_sub(&beta[i], beta[i], obigtemp);
-			//beta[i] += ofixed_mul(eta, p[i], prec);
-		}
-
-		obig_copy_signed(&n_old, n);
-		obig_zero(&n);
-		for(size_t i = 0; i < d; i++) {
-			obig_zero(&abeta[i]);
-			for(size_t j = 0; j < d; j++) {
-				ofixed_mul(&obigtemp, a[idx(i,j)], beta[j], prec);
-				ofixed_add(&abeta[i], abeta[i], obigtemp);
+			ofixed_div(&etapscl[i], pscl[i], eta, prec);
+			obliv if((~obig_eqz(q)) &1) {
+				ofixed_sub(&x[i], x[i], etapscl[i]);
 			}
-			ofixed_sub(&g[i], abeta[i], b[i]);
-			ofixed_mul(&obigtemp, g[i], g[i], prec);
-			ofixed_add(&n, obigtemp, n);
 		}
-		ofixed_div(&gamma, n, n_old, prec);
+
+		// Ax(:) = A*x;
+		// g(:) = Ax - b;
+		for(size_t i = 0; i < d; i++) {
+			obig_zero(&ax[i]);
+			for(size_t j = 0; j < d; j++) {
+				ofixed_mul(&obigtemp, a[idx(i,j)], x[j], prec);
+				ofixed_add(&ax[i], ax[i], obigtemp);
+			}
+			ofixed_sub(&g[i], ax[i], b[i]);
+		}
+		
+		// // gdeta(:) = g/eta;
+		// gdeta(:) = g * eta;
+		// gdq(:) = g/q;
+		// gamma(:) = gdeta'*gdq;
+		obig_zero(&gamma);
+		for(size_t i = 0; i < d; i++) {
+			ofixed_mul(&gdeta[i], g[i], eta, prec);
+			ofixed_div(&gdq[i], g[i], q, prec);
+			ofixed_mul(&obigtemp, gdeta[i], gdq[i], prec);
+			ofixed_add(&gamma, gamma, obigtemp);
+		}
+		
+    // gammap(:) = gamma*p;
+		// p(:) = g + gammap;
+		for(size_t i = 0; i < d; i++) {
+			ofixed_mul(&gammap[i], gamma, p[i], prec);
+			ofixed_add(&p[i], g[i], gammap[i]);
+		}
+		
+		// ng(:) = g'*g;
+		obig_zero(&ng);
+		for(size_t i = 0; i < d; i++) {
+			ofixed_mul(&obigtemp, g[i], g[i], prec);
+			ofixed_add(&ng, ng, obigtemp);
+		}
 
 		if(ocCurrentParty() == 2) printf("Iteration %d:\n", t);
 		for(size_t i = 0; i < d; i++) {
-			ofixed_mul(&obigtemp, gamma, p[i], prec);
-			ofixed_add(&p[i], obigtemp, g[i]);
-			otemp = obig_export_onative_signed(beta[i]);
+			otemp = obig_export_onative_signed(x[i]);
 			revealOblivLLong(&temp, otemp, 2);
 			//p[i] = g[i] + ofixed_mul(gamma, p[i], prec);
 			//revealOblivInt(&temp, beta[i], 2);
 			if(ocCurrentParty() == 2) printf("%20.15f ", fixed_to_double(temp, prec));
 		}
+		otemp = obig_export_onative_signed(gamma);
+		revealOblivLLong(&temp, otemp, 2);
+		if(ocCurrentParty() == 2) printf("\nGamma: %30.20f ", fixed_to_double(temp, prec));
+		otemp = obig_export_onative_signed(eta);
+		revealOblivLLong(&temp, otemp, 2);
+		if(ocCurrentParty() == 2) printf("\nEta: %30.20f ", fixed_to_double(temp, prec));
+		otemp = obig_export_onative_signed(q);
+		revealOblivLLong(&temp, otemp, 2);
+		if(ocCurrentParty() == 2) printf("\nq: %30.20f ", fixed_to_double(temp, prec));
 		if(ocCurrentParty() == 2) {
 			printf("\nIteration %d gate count: %lld\n", t, yaoGateCount());
 			printf("Iteration %d time: %f\n", t, wallClock() - time_start);
@@ -203,50 +208,48 @@ void cgd(void *v) {
 
 		flag = ocBroadcastBool(flag, 1) || ocBroadcastBool(flag, 2);
 	}
-/*
-	// re-scale beta
-	for(size_t i = 0; i < d; i++) {
-		ofixed_div(&beta[i], beta[i], m[i], prec);
-		//beta[i] = ofixed_div(beta[i], m[i], prec);
-	}
-*/
+	
 	// return the result
 	for(size_t i = 0; i < d; i++) {
-		otemp = obig_export_onative_signed(beta[i]);
+		otemp = obig_export_onative_signed(x[i]);
 		revealOblivLLong(ls->beta.value + i, otemp, 2); // <- is this right, or should it be &ls->beta.value[i]? <- isn't that the same?
 		//revealOblivInt(ls->beta.value + i, beta[i], 2);
 	}
 
 	ls->gates = yaoGateCount();
-	obig_free(&obigtemp);
-	obig_free(&obigtemp2);
+	obig_free(&ng);
+	obig_free(&q);
 	obig_free(&eta);
 	obig_free(&gamma);
-	obig_free(&q);
-	obig_free(&n);
-	obig_free(&n_old);
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
 		obig_free(&a[ii]);
 	}
 	for (size_t ii = 0; ii < d; ii++) {
 		obig_free(&b[ii]);
-		obig_free(&g[ii]);
+		obig_free(&x[ii]);
+		obig_free(&ax[ii]);
 		obig_free(&p[ii]);
-		obig_free(&p_tilde[ii]);
-		obig_free(&ap_tilde[ii]);
-		obig_free(&beta[ii]);
-		obig_free(&abeta[ii]);
-		obig_free(&m[ii]);
+		obig_free(&gammap[ii]);
+		obig_free(&g[ii]);
+		obig_free(&pscl[ii]);
+		obig_free(&pA[ii]);
+		obig_free(&etapscl[ii]);
+		obig_free(&gdq[ii]);
+		obig_free(&etap[ii]);
+		obig_free(&gdeta[ii]);
 	}
 	free(a);
 	free(b);
-	free(g);
+	free(x);
+	free(ax);
 	free(p);
-	free(p_tilde);
-	free(ap_tilde);
-	free(beta);
-	free(abeta);
-	free(m);
+	free(gammap);
+	free(g);
+	free(pscl);
+	free(pA);
+	free(etapscl);
+	free(gdq);
+	free(etap);
+	free(gdeta);
 	return;
-
 }
