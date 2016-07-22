@@ -33,7 +33,7 @@ void ofixed_check_overflow(obig *out, obig in) obliv {
 	obliv bool overflowed = false;
 	obliv if(!obig_ltz_signed(in)) {
 		obig_sub_signed(tempptr, in, max); // obig_cmp_signed is not yet implemented
-		overflowed = ~obig_ltz_signed(temp);
+		overflowed = (~obig_ltz_signed(temp)) & 1;
 		obliv if(overflowed) {
 			obig_copy(out, max);
 		}
@@ -79,12 +79,21 @@ void ofixed_mul(obig *out, obig a, obig b, size_t p) obliv {
 }
 
 obliv bool ofixed_div(obig *out, obig a, obig b, size_t p) obliv {
-	obig temp, temp2;
+	obig temp, temp2, *tempptr = &temp, *temp2ptr = &temp2;
+	obliv bool result;
 	~obliv() obig_init(&temp, a.digits + ceildiv(p,8));
 	~obliv() obig_init(&temp2, a.digits + ceildiv(p,8));
-	obig_shl_native_signed(&temp, a, p);
-	obliv bool result = obig_div_mod_signed(&temp2, NULL, temp, b);
-	ofixed_check_overflow(out, temp2);
+	obliv if(obig_eqz(b)) { // handle division by zero
+		obliv bool a_neg = obig_ltz_signed(a);
+		ofixed_max(out);
+		obliv if(a_neg) {
+			obig_neg(out, *out);
+		}
+	} else {
+		obig_shl_native_signed(tempptr, a, p);
+		result = obig_div_mod_signed(temp2ptr, NULL, temp, b);
+		ofixed_check_overflow(out, temp2);
+	}
 	~obliv() obig_free(&temp);
 	~obliv() obig_free(&temp2);
 	return result;
