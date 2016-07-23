@@ -88,6 +88,8 @@ void cgd(void *v) {
 	obig_init(&eta, FIXED_BIT_SIZE / 8);
 	obig gamma;
 	obig_init(&gamma, FIXED_BIT_SIZE / 8);
+	obig d_big;
+	obig_init(&d_big, FIXED_BIT_SIZE / 8);
 
 	int prec = ls->precision;
 
@@ -98,6 +100,7 @@ void cgd(void *v) {
 	for(size_t i = 0; i < d; i++) {
 		ofixed_sub(&g[i], g[i], b[i]);
 		obig_copy_signed(&p[i], g[i]);
+		obig_import_onative(&d_big, d);
 	}
 
 	// ng(:) = g'*g;
@@ -111,7 +114,8 @@ void cgd(void *v) {
 	for(size_t t = 0; !flag && t < ls->num_iterations; t++) {	
 		// pscl(:) = p;
 		for(size_t i = 0; i < d; i++) {
-			obig_copy_signed(&pscl[i], p[i]);
+			obig_mul_signed(&pscl[i], p[i], d_big);
+			//obig_copy_signed(&pscl[i], p[i]);
 		}
 		
 		// pA(:) = p'*A;
@@ -137,7 +141,7 @@ void cgd(void *v) {
 		// eta becomes zero
 		ofixed_div(&eta, q, ng, prec);
 
-		// etapscl(:) = eta*pscl;
+		// // etapscl(:) = eta*pscl;
 		// etapscl(:) = pscl / eta;
 		// x(:) = x - etapscl;
 		for(size_t i = 0; i < d; i++) {

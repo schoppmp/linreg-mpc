@@ -25,6 +25,11 @@ void ofixed_max(obig *a) obliv {
 // and sets 'out' to the respecitve limit if that's the case, and to 'in' 
 // otherwise
 void ofixed_check_overflow(obig *out, obig in) obliv {
+	obig_copy(out, in); 
+	return; // assume overflows don't happen
+/*	if(in.digits <= out->digits) {
+		return;
+	}
 	obig temp, max;
 	obig *tempptr = &temp;
 	~obliv() obig_init(&temp, in.digits);
@@ -35,20 +40,20 @@ void ofixed_check_overflow(obig *out, obig in) obliv {
 		obig_sub_signed(tempptr, in, max); // obig_cmp_signed is not yet implemented
 		overflowed = (~obig_ltz_signed(temp)) & 1;
 		obliv if(overflowed) {
-			obig_copy(out, max);
+			obig_copy_signed(out, max);
 		}
 	} else {
 		obig_add_signed(tempptr, in, max);
 		overflowed = obig_ltz_signed(temp);
 		obliv if(overflowed) {
-			obig_neg(out, max); // min = -max
+			obig_neg_signed(out, max); // min = -max
 		}
 	}
 	obliv if(!overflowed) {
-		obig_copy(out, in);
+		obig_copy_signed(out, in);
 	}
 	~obliv() obig_free(&temp);
-	~obliv() obig_free(&max);
+	~obliv() obig_free(&max); */
 }
 
 void ofixed_add(obig *out, obig a, obig b) obliv {
@@ -83,17 +88,17 @@ obliv bool ofixed_div(obig *out, obig a, obig b, size_t p) obliv {
 	obliv bool result;
 	~obliv() obig_init(&temp, a.digits + ceildiv(p,8));
 	~obliv() obig_init(&temp2, a.digits + ceildiv(p,8));
-	obliv if(obig_eqz(b)) { // handle division by zero
+/*	obliv if(obig_eqz(b)) { // handle division by zero
 		obliv bool a_neg = obig_ltz_signed(a);
 		ofixed_max(out);
 		obliv if(a_neg) {
 			obig_neg(out, *out);
 		}
-	} else {
+	} else {*/
 		obig_shl_native_signed(tempptr, a, p);
 		result = obig_div_mod_signed(temp2ptr, NULL, temp, b);
 		ofixed_check_overflow(out, temp2);
-	}
+/*	}*/
 	~obliv() obig_free(&temp);
 	~obliv() obig_free(&temp2);
 	return result;
