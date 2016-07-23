@@ -1,6 +1,7 @@
 import os
 import argparse
-from generate_tests import generate_lin_system_from_regression_problem, objective
+from generate_tests import (
+    generate_lin_system_from_regression_problem, objective)
 import paramiko
 import re
 import time
@@ -10,6 +11,8 @@ from math import sqrt, pow
 
 REMOTE_USER = 'ubuntu'
 KEY_FILE = '/home/ubuntu/.ssh/id_rsa'
+
+RUN_LOCALLY = False
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s %(message)s')
@@ -23,9 +26,13 @@ def update_and_compile(ip, remote_ip):
     logger.info('Connecting to {0}:'.format(ip))
     client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
 
-    cmd = 'cd secure-distributed-linear-regression; ' + \
-        'pwd; git checkout experiments_phase2; ' + \
-        'git pull; make clean; make OBLIVC_PATH=$(cd ../obliv-c && pwd) REMOTE_HOST={0}; killall -9 test_linear_system'.format(remote_ip)
+    cmd = 'git checkout master; ' + \
+        'cd obliv-c; make clean; ' + \
+        'cd secure-distributed-linear-regression; ' + \
+        'git pull; ' + \
+        'make clean; ' + \
+        'make OBLIVC_PATH=$(cd ../obliv-c && pwd) REMOTE_HOST={0}; ' + \
+        'killall -9 test_linear_system'.format(remote_ip)
     logger.info('Compiling in {0}:'.format(ip))
     logger.info('{0}'.format(cmd))
     stdin, stdout, stderr = client.exec_command(cmd)
@@ -87,7 +94,7 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
                     cgd_iter_objective_values.append(obj_val)
             # Reading intermediate time for cgd
             m = re.match('Iteration\s+([0-9]+)\s+time:\s*(.+)$', line)
-            if m: 
+            if m:
                 assert int(m.group(1)) == len(cgd_iter_times)
                 cgd_iter_times.append(float(m.group(2)))
             # Reading intermediate gate count for cgd
@@ -97,7 +104,7 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
                 cgd_iter_gate_sizes.append(int(m.group(2)))
         m = re.match('Algorithm:\s*(\S+)', line)
         if m:
-            pass#assert alg == m.group(1)
+            pass  # assert alg == m.group(1)
         m = re.match('Time\s+elapsed:\s*(\S+)', line)
         if m:
             time = float(m.group(1))
@@ -136,10 +143,10 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
                         cgd_iter_objective_values[i],
                         cgd_iter_times[i],
                         cgd_iter_gate_sizes[i],
-			ot_time))
+                        ot_time))
             f.write('\nsolution:')
             f.write('\n{0}'.format(d))
-	    f.write('\n{0}'.format(' '.join(map(str, solution))))
+            f.write('\n{0}'.format(' '.join(map(str, solution))))
             f.write('\nObjective function on solution:')
             f.write('\n{0}'.format(objective_value))
             f.write('\nresult:')
@@ -164,8 +171,8 @@ def run_instance_remotely(n, d, X, y, lambda_, alg, solution, condition_number,
     """
     key = paramiko.RSAKey.from_private_key_file(KEY_FILE)
     logger.info('Connecting to {}:'.format(ip))
-    #logger.info('Remote working directory: {}'.format(remote_working_dir))
-    #logger.info('Remote destination folder: {}'.format(remote_dest_folder))
+    # logger.info('Remote working directory: {}'.format(remote_working_dir))
+    # logger.info('Remote destination folder: {}'.format(remote_dest_folder))
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -173,6 +180,7 @@ def run_instance_remotely(n, d, X, y, lambda_, alg, solution, condition_number,
     sftp = client.open_sftp()
     # This function emulates mkdir -p, taken from
     # http://stackoverflow.com/questions/14819681/upload-files-using-sftp-in-python-but-create-directories-if-path-doesnt-exist
+
     def mkdir_p(sftp, remote_directory):
         """Change to this directory, recursively making new folders if needed.
         Returns True if any folders were created."""
@@ -234,9 +242,11 @@ if __name__ == "__main__":
         '\'python test/test_phase_2_aws.py remote_ip_1 remote_ip_2\'')
     parser.add_argument('remote_ip_1', help='First remote ip address')
     parser.add_argument('remote_ip_2', help='Second remote ip address')
+    parser.add_argument(
+        '--run_locally', action='store_true', help='Run locally')
 
     exec_file = 'bin/test_linear_system'
-    dest_folder = 'test/experiments/phase2/'
+    dest_folder = 'test/experiments/phase2_test/'
     assert os.path.exists(dest_folder), '{0} does not exist.'.format(
         dest_folder)
     assert not os.listdir(dest_folder), '{0} is not empty.'.format(
@@ -246,25 +256,30 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    RUN_LOCALLY = args.run_locally
+
     ips = [args.remote_ip_1, args.remote_ip_2]
-    update_and_compile(ips[0], ips[1])
-    update_and_compile(ips[1], ips[0])
+    if not RUN_LOCALLY:
+        update_and_compile(ips[0], ips[1])
+        update_and_compile(ips[1], ips[0])
 
     def get_n(d):
         cmax = 10.
         cmin = 1.2
         sigmaY = 0.1
         rand = np.random.random_sample()
-        z = (cmax - cmin) * rand  + cmin
-        print z
+        z = (cmax - cmin) * rand + cmin
         nmult_num = pow((z - 1) / (z + 1), 2)
-        nmult_den = pow(1 - sqrt(1 - (1 + 6 * pow(sigmaY, 2)) / pow((z + 1) / (z - 1), 2)), 2)
+        nmult_den = pow(
+            1 - sqrt(
+                1 - (1 + 6 * pow(sigmaY, 2)) / pow((z + 1) / (z - 1), 2)),
+            2)
         nmult = nmult_num / nmult_den
-        n = int(round(nmult * d))*150
+        n = int(round(nmult * d)) * 150
         return n
 
     # This code is to produce a set of tests with a variety of condition numbers,
-    # as in the scatter plot in the paper. Domething is wrong with it, 
+    # as in the scatter plot in the paper. Something is wrong with it, 
     # since it should be producing values of n in [1600, 200000]
     # and consition numbers evenly distributed in [1.2,10], but that is not the case
     # c_nums = []
@@ -331,17 +346,26 @@ if __name__ == "__main__":
                                 filepath_exec,
                                 '&' if party == 1 else '')
 
+                            if RUN_LOCALLY:
+                                out_filename = os.path.splitext(
+                                    filepath_exec)[0] + '.out'
+                                os.system(cmd)
+                                parse_output(n, d, X, y, lambda_,
+                                    alg, beta, condition_number,
+                                    objective_value,
+                                    out_filename, filepath_exec)
 
-                            remote_working_dir = 'secure-distributed-linear-regression/'
-                            run_instance_remotely(
-                                n, d, X, y, lambda_, alg, beta,
-                                condition_number,
-                                objective_value,
-                                remote_working_dir,
-                                dest_folder, dest_folder,
-                                filepath_in, filepath_exec,
-                                ips[party - 1], cmd, party == 2)
-                            time.sleep(.2)
+                            else:
+                                remote_working_dir = 'secure-distributed-linear-regression/'
+                                run_instance_remotely(
+                                    n, d, X, y, lambda_, alg, beta,
+                                    condition_number,
+                                    objective_value,
+                                    remote_working_dir,
+                                    dest_folder, dest_folder,
+                                    filepath_in, filepath_exec,
+                                    ips[party - 1], cmd, party == 2)
+                                time.sleep(.2)
 
                         # Remove instance (they get too big)
                         logger.info('Deleting file {0}'.format(filepath_in))
