@@ -111,6 +111,8 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
         m = re.match('Number\s+of\s+gates:\s*(\S+)', line)
         if m:
             gate_count = int(m.group(1))
+        else:
+            gate_count = -1
         m = re.match('Result:\s*(.+)', line)
         if m:
             result = map(float, m.group(1).split())
@@ -123,17 +125,17 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
             f.write('\n{0} {1} {2} {3} {4} {5} {6}'.format(n, d,
                 alg, ot_time, time, error, gate_count))
             if alg == 'cgd':
-                gate_count_after_iters =\
-                    gate_count - cgd_iter_gate_sizes[-1]
-                cgd_iter_gate_sizes = map(
-                    lambda x: x + gate_count_after_iters,
-                    cgd_iter_gate_sizes)
-                assert len(cgd_iter_gate_sizes) == len(
-                    cgd_iter_solutions), '{0}\n{1}\n{2}\n{3}'.format(
-                        len(cgd_iter_solutions),
-                        cgd_iter_solutions,
-                        len(cgd_iter_gate_sizes),
-                        cgd_iter_gate_sizes)
+               # gate_count_after_iters =\
+               #     gate_count - cgd_iter_gate_sizes[-1]
+               # cgd_iter_gate_sizes = map(
+               #     lambda x: x + gate_count_after_iters,
+               #     cgd_iter_gate_sizes)
+               # assert len(cgd_iter_gate_sizes) == len(
+               #     cgd_iter_solutions), '{0}\n{1}\n{2}\n{3}'.format(
+               #         len(cgd_iter_solutions),
+               #         cgd_iter_solutions,
+               #         len(cgd_iter_gate_sizes),
+               #         cgd_iter_gate_sizes)
                 f.write('\niter_i error_i obj_i time_i gate_count_i')
                 for i in range(len(cgd_iter_solutions)):
                     error_i = np.linalg.norm(
@@ -142,7 +144,7 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
                         i + 1, error_i,
                         cgd_iter_objective_values[i],
                         cgd_iter_times[i],
-                        cgd_iter_gate_sizes[i],
+                        -1,
                         ot_time))
             f.write('\nsolution:')
             f.write('\n{0}'.format(d))
@@ -242,15 +244,18 @@ if __name__ == "__main__":
         '\'python test/test_phase_2_aws.py remote_ip_1 remote_ip_2\'')
     parser.add_argument('remote_ip_1', help='First remote ip address')
     parser.add_argument('remote_ip_2', help='Second remote ip address')
+    parser.add_argument('--port', type=int, help='port', default=1234)
+    parser.add_argument('--instance_num_offset', type=int,
+        help='Offset in instance num in the .out files name', default=0)
     parser.add_argument(
         '--run_locally', action='store_true', help='Run locally')
 
     exec_file = 'bin/test_linear_system'
-    dest_folder = 'test/experiments/phase2_test/'
+    dest_folder = 'test/experiments/phase2_64_v2/'
     assert os.path.exists(dest_folder), '{0} does not exist.'.format(
         dest_folder)
-    assert not os.listdir(dest_folder), '{0} is not empty.'.format(
-        dest_folder)
+    #assert not os.listdir(dest_folder), '{0} is not empty.'.format(
+    #    dest_folder)
     num_iters_cgd = 15
     num_examples = 3
 
@@ -318,9 +323,9 @@ if __name__ == "__main__":
                     for n in [100000]:
                         logger.info(
                             'Running instance: n={0}, d={1}, sigma={2}, alg={3}, num_iters_cgd={4} run={5}'.
-                            format(n, d, sigma, alg, num_iters_cgd, i + 1))
+                            format(n, d, sigma, alg, num_iters_cgd, i + args.instance_num_offset))
                         filename_in = 'test_LS_{0}x{1}_{2}_{3}.in'.format(
-                            n, d, sigma, i)
+                            n, d, sigma, i + args.instance_num_offset)
                         filepath_in = os.path.join(
                             dest_folder, filename_in)
 
@@ -333,27 +338,29 @@ if __name__ == "__main__":
 
                         for party in [1, 2]:
                             filename_exec = 'test_LS_{0}x{1}_{2}_{3}_{4}_{5}_p{6}.exec'.format(
-                                n, d, sigma, i, alg, num_iters_cgd, party)
+                                n, d, sigma, i + args.instance_num_offset, alg, num_iters_cgd, party)
                             filepath_exec = os.path.join(
                                 dest_folder, filename_exec)
 
-                            cmd = '{0} 1234 {1} {2} {3} {4} > {5} {6}'.format(
+                            cmd = '{0} {7} {1} {2} {3} {4} > {5} {6}'.format(
                                 exec_file,
                                 party,
                                 filepath_in,
                                 alg,
                                 num_iters_cgd,
                                 filepath_exec,
-                                '&' if party == 1 else '')
+                                '&' if party == 1 else '',
+                                args.port)
 
                             if RUN_LOCALLY:
                                 out_filename = os.path.splitext(
                                     filepath_exec)[0] + '.out'
                                 os.system(cmd)
-                                parse_output(n, d, X, y, lambda_,
-                                    alg, beta, condition_number,
-                                    objective_value,
-                                    out_filename, filepath_exec)
+                                if party == 2:
+                                    parse_output(n, d, X, y, lambda_,
+                                        alg, beta, condition_number,
+                                        objective_value,
+                                        out_filename, filepath_exec)
 
                             else:
                                 remote_working_dir = 'secure-distributed-linear-regression/'
