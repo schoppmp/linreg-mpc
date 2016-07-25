@@ -291,7 +291,7 @@ def generate_benchmark(dest_folder):
                 os.system('mv {0} {1}'.format(tmp_filepath, filepath_in))
                 files.append(filepath_in)
 
-        done = all([count[i] == 10 for i in range(1, 11)])
+        done = all([count[i] == 10 for i in range(1, 11)])`
     logger.info('Done generating instances: {}'.format(files))
     return files
 
@@ -310,21 +310,44 @@ if __name__ == "__main__":
     parser.add_argument(
         '--run_accuracy_tests', action='store_true', help='Run accuracy tests')
     exec_file = 'bin/test_linear_system'
-    dest_folder = 'test/experiments/phase2_64_v2/'
+    dest_folder = 'test/experiments/phase2_scatter_data/'
     assert os.path.exists(dest_folder), '{0} does not exist.'.format(
         dest_folder)
     # assert not os.listdir(dest_folder), '{0} is not empty.'.format(
     #    dest_folder)
     args = parser.parse_args()
+    RUN_LOCALLY = args.run_locally
 
     if args.run_accuracy_tests:
-        filepaths = generate_benchmark('/tmp/')
+        assert RUN_LOCALLY, 'Accuracy tests can only be run locally.'
+        alg = 'cgd'
+        num_iters_cgd = 15
+        filepaths = generate_benchmark(dest_folder)
+        for filepath_in in filepaths:
+            for party in [1, 2]:
+                filename_exec = os.splitext(filepath)[0] + \
+                    '_p{}.exec'.format(party)
+                cmd = '{0} {7} {1} {2} {3} {4} > {5} {6}'.format(
+                    exec_file,
+                    party,
+                    filepath_in,
+                    alg,
+                    num_iters_cgd,
+                    filepath_exec,
+                    '&' if party == 1 else '',
+                    args.port)
+
+                out_filename = os.path.splitext(filepath_exec)[0] + '.out'
+                os.system(cmd)
+                if party == 2:
+                    parse_output(n, d, X, y, lambda_,
+                        alg, beta, condition_number,
+                        objective_value,
+                        out_filename, filepath_exec)
         sys.exit()
 
     num_iters_cgd = 15
     num_examples = 3
-
-    RUN_LOCALLY = args.run_locally
 
     ips = [args.remote_ip_1, args.remote_ip_2]
     if not RUN_LOCALLY:
@@ -392,4 +415,4 @@ if __name__ == "__main__":
 
                         # Remove instance (they get too big)
                         logger.info('Deleting file {0}'.format(filepath_in))
-                        os.system('rm {0}'.format(filepath_in))
+                        #os.system('rm {0}'.format(filepath_in))
