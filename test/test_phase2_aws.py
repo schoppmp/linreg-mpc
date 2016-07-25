@@ -7,6 +7,7 @@ import re
 import time
 import logging
 import numpy as np
+import sys
 from math import sqrt, pow
 
 REMOTE_USER = 'ubuntu'
@@ -237,6 +238,63 @@ def run_instance_remotely(n, d, X, y, lambda_, alg, solution, condition_number,
 
     return local_out_filepath if is_party_2 else None
 
+def generate_benchmark(dest_folder):
+    """
+    Writes 100 instances in dest_folder,
+    with condition numbers evenly distributed in the 
+    interval [1..11] and dimension 20.
+    """
+    assert os.path.exists(dest_folder), '{0} does not exist.'.format(
+        dest_folder)
+
+    def get_n(d, multiplier):
+        cmax = 20.
+        cmin = 1.
+        sigmaY = 0.1
+        rand = np.random.random_sample()
+        z = (cmax - cmin) * rand + cmin
+        nmult_num = pow((z - 1) / (z + 1), 2)
+        nmult_den = pow(
+            1 - sqrt(
+                1 - (1 + 6 * pow(sigmaY, 2)) / pow((z + 1) / (z - 1), 2)),
+            2)
+        nmult = nmult_num / nmult_den
+        n = int(round(nmult * d)) * multiplier
+        return n
+
+    files = []
+    count = dict([(i, 0) for i in range(1, 11)])
+    done = False
+    while not done:
+        d = 20
+        n = get_n(d, 2)
+        if n > 20000:
+            continue
+        sigma = 0.1
+        logger.info('Generating instance: n = {0}, d = {1}'.format(n, d))
+        tmp_filepath = '/tmp/instance.in'
+
+        (_, _, X, y, _, beta, condition_number, objective_value) = \
+            generate_lin_system_from_regression_problem(
+            n, d, sigma, tmp_filepath)
+
+        logger.info('Wrote instance in {3}: n = {0}, d = {1}, cd = {2}'.format(
+            n, d, condition_number, tmp_filepath))
+
+        for i in range(1, 11):
+            if count[i] < 10 and condition_number <= i + 1 and condition_number > i:
+                count[i] += 1
+                filename_in = 'test_LS_{0}x{1}_{2}_{3}.in'.format(
+                    n, d, condition_number, count[i])
+                filepath_in = os.path.join(
+                    dest_folder, filename_in)
+                os.system('mv {0} {1}'.format(tmp_filepath, filepath_in))
+                files.append(filepath_in)
+
+        done = all([count[i] == 10 for i in range(1, 11)])
+    logger.info('Done generating instances: {}'.format(files))
+    return files
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Runs phase 2 experiments. '
         'This script is meant to be run by one of our AWS ubuntu instances as'
@@ -249,17 +307,22 @@ if __name__ == "__main__":
         help='Offset in instance num in the .out files name', default=0)
     parser.add_argument(
         '--run_locally', action='store_true', help='Run locally')
-
+    parser.add_argument(
+        '--run_accuracy_tests', action='store_true', help='Run accuracy tests')
     exec_file = 'bin/test_linear_system'
     dest_folder = 'test/experiments/phase2_64_v2/'
     assert os.path.exists(dest_folder), '{0} does not exist.'.format(
         dest_folder)
-    #assert not os.listdir(dest_folder), '{0} is not empty.'.format(
+    # assert not os.listdir(dest_folder), '{0} is not empty.'.format(
     #    dest_folder)
+    args = parser.parse_args()
+
+    if args.run_accuracy_tests:
+        filepaths = generate_benchmark('/tmp/')
+        sys.exit()
+
     num_iters_cgd = 15
     num_examples = 3
-
-    args = parser.parse_args()
 
     RUN_LOCALLY = args.run_locally
 
@@ -268,54 +331,7 @@ if __name__ == "__main__":
         update_and_compile(ips[0], ips[1])
         update_and_compile(ips[1], ips[0])
 
-    def get_n(d):
-        cmax = 10.
-        cmin = 1.2
-        sigmaY = 0.1
-        rand = np.random.random_sample()
-        z = (cmax - cmin) * rand + cmin
-        nmult_num = pow((z - 1) / (z + 1), 2)
-        nmult_den = pow(
-            1 - sqrt(
-                1 - (1 + 6 * pow(sigmaY, 2)) / pow((z + 1) / (z - 1), 2)),
-            2)
-        nmult = nmult_num / nmult_den
-        n = int(round(nmult * d)) * 150
-        return n
-
-    # This code is to produce a set of tests with a variety of condition numbers,
-    # as in the scatter plot in the paper. Something is wrong with it, 
-    # since it should be producing values of n in [1600, 200000]
-    # and consition numbers evenly distributed in [1.2,10], but that is not the case
-    # c_nums = []
-    # for x in range(100):
-    #     d = 500
-    #     n = get_n(d)
-    #     sigma = 0.1
-    #     alg = 'cgd'
-    #     i = 0
-    #     print n
-    #     if n > 200000:
-    #         continue
-    #     #logger.info('Running instance: n={0}, d={1}, sigma={2}, alg={3}, num_iters_cgd={4} run={5}'.
-    #     #    format(n, d, sigma, alg, num_iters_cgd, i + 1))
-    #     filename_in = 'test_LS_{0}x{1}_{2}_{3}.in'.format(
-    #         n, d, sigma, i)
-    #     filepath_in = os.path.join(
-    #         dest_folder, filename_in)
-
-    #     (X, y, beta, condition_number) = \
-    #         generate_lin_system_from_regression_problem(
-    #         n, d, sigma, filepath_in)
-
-    #     #logger.info('Wrote instance in file {0}'.format(
-    #     #    filepath_in))
-    #     print n, condition_number
-    #     c_nums.append(condition_number)
-
-    #     #logger.info(condition_number)
-    # print sorted(c_nums)
-
+  
     for i in range(num_examples):
         for alg in ['cgd']:
             for sigma in [0.1]:
