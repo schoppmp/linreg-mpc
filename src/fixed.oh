@@ -6,4 +6,5 @@ void ofixed_add(obig *out, obig a, obig b) obliv;
 void ofixed_sub(obig *out, obig a, obig b) obliv;
 void ofixed_mul(obig *out, obig a, obig b, size_t p) obliv;
 obliv bool ofixed_div(obig *out, obig a, obig b, size_t p) obliv;
+obliv bool ofixed_div_overflow(obig *out, obig a, obig b, size_t p) obliv;
 void ofixed_sqrt(obig *out, obig a, size_t p) obliv;
