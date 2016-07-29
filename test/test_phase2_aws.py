@@ -262,7 +262,7 @@ def generate_benchmark(dest_folder):
         n = int(round(nmult * d)) * multiplier
         return n
 
-    files = []
+    instances = []
     count = dict([(i, 0) for i in range(1, 11)])
     done = False
     while not done:
@@ -274,7 +274,7 @@ def generate_benchmark(dest_folder):
         logger.info('Generating instance: n = {0}, d = {1}'.format(n, d))
         tmp_filepath = '/tmp/instance.in'
 
-        (_, _, X, y, _, beta, condition_number, objective_value) = \
+        (_, _, X, y, lambda_, beta, condition_number, objective_value) = \
             generate_lin_system_from_regression_problem(
             n, d, sigma, tmp_filepath)
 
@@ -289,11 +289,11 @@ def generate_benchmark(dest_folder):
                 filepath_in = os.path.join(
                     dest_folder, filename_in)
                 os.system('mv {0} {1}'.format(tmp_filepath, filepath_in))
-                files.append(filepath_in)
+                instances.append((n, d, X, y, lambda_, beta, condition_number, objective_value, filepath_in))
 
-        done = all([count[i] == 10 for i in range(1, 11)])`
-    logger.info('Done generating instances: {}'.format(files))
-    return files
+        done = all([count[i] == 10 for i in range(1, 11)])
+    logger.info('Done generating instances: {}'.format(map(lambda x: x[8], instances)))
+    return instances
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Runs phase 2 experiments. '
@@ -322,10 +322,10 @@ if __name__ == "__main__":
         assert RUN_LOCALLY, 'Accuracy tests can only be run locally.'
         alg = 'cgd'
         num_iters_cgd = 15
-        filepaths = generate_benchmark(dest_folder)
-        for filepath_in in filepaths:
+        instances = generate_benchmark(dest_folder)
+        for (n, d, X, y, lambda_, beta, condition_number, objective_value, filepath_in) in instances:
             for party in [1, 2]:
-                filename_exec = os.splitext(filepath)[0] + \
+                filepath_exec = os.path.splitext(filepath_in)[0] + \
                     '_p{}.exec'.format(party)
                 cmd = '{0} {7} {1} {2} {3} {4} > {5} {6}'.format(
                     exec_file,
@@ -336,6 +336,8 @@ if __name__ == "__main__":
                     filepath_exec,
                     '&' if party == 1 else '',
                     args.port)
+
+                logger.info('Running in party {0}: {1}'.format(party, cmd))
 
                 out_filename = os.path.splitext(filepath_exec)[0] + '.out'
                 os.system(cmd)
