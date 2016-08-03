@@ -137,7 +137,7 @@ void cgd(void *v) {
 			ofixed_add(&q, q, obigtemp);
 		}
 		obliv if(q_nonzero) {
-			q_nonzero = (~obig_eqz(q)) & 1;
+			q_nonzero = (~(obig_eqz(q) | obig_ltz_signed(q))) & 1;
 			obliv if(!q_nonzero) {
 				for(size_t i = 0; i < d; i++) {
 					obig_copy(&result[i], x[i]);
