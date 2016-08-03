@@ -88,8 +88,10 @@ void cholesky(void *v) {
 		obliv fixed64_t temp = obig_export_onative_signed(beta[i]);
 		revealOblivLLong(ls->beta.value + i, temp, 2);
 	}
-
-	ls->gates = yaoGateCount();
+	
+	if(!ocInDebugProto()) {
+		ls->gates = yaoGateCount();
+	}
 
 	obig_free(&temp);
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {

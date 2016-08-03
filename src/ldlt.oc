@@ -89,8 +89,10 @@ void ldlt(void *v) {
 		revealOblivLLong(ls->beta.value + i, temp, 2);
 		//revealOblivInt(ls->beta.value + i, b[i], 2);
 	}
-
-	ls->gates = yaoGateCount();
+	
+	if(!ocInDebugProto()) {
+		ls->gates = yaoGateCount();
+	}
 
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
 		obig_free(&a[ii]);
