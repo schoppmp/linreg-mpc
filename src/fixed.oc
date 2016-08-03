@@ -81,6 +81,24 @@ void ofixed_sub(obig *out, obig a, obig b) obliv {
 	~obliv() obig_free(&temp);
 }
 
+
+void ofixed_inner_product(obig *out, obig *a, obig *b, size_t p, size_t d) obliv {
+	obig temp1, temp2, temp3;
+	~obliv() obig_init(&temp1, a[0].digits + b[0].digits + d);
+	~obliv() obig_init(&temp2, a[0].digits + b[0].digits);
+	~obliv() obig_init(&temp3, a[0].digits + b[0].digits);
+	obig_zero(&temp1);
+	for(size_t i = 0; i < d; i++) {
+		obig_mul_signed(&temp2, a[i], b[i]);
+		ofixed_add(&temp1, temp1, temp2);
+	}
+	obig_shr_native_signed(&temp3, temp1, p);
+	obig_copy(out, temp3);
+	~obliv() obig_free(&temp1);
+	~obliv() obig_free(&temp2);
+	~obliv() obig_free(&temp3);
+}
+
 void ofixed_mul(obig *out, obig a, obig b, size_t p) obliv {
 	obig temp, temp2;
 	~obliv() obig_init(&temp, a.digits + b.digits);

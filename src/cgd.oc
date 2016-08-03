@@ -132,10 +132,11 @@ void cgd(void *v) {
 		
 		// q(:) = pA*pscl;
 		obig_zero(&q);
-		for(size_t i = 0; i < d; i++) {
-			ofixed_mul(&obigtemp, pA[i], pscl[i], prec);
-			ofixed_add(&q, q, obigtemp);
-		}
+		ofixed_inner_product(&q, pA, pscl, prec, d);
+		// for(size_t i = 0; i < d; i++) {
+		// 	ofixed_mul(&obigtemp, pA[i], pscl[i], prec);
+		// 	ofixed_add(&q, q, obigtemp);
+		// }
 		obliv if(q_nonzero) {
 			q_nonzero = (~obig_eqz(q)) & 1;
 			obliv if(!q_nonzero) {
@@ -227,6 +228,9 @@ void cgd(void *v) {
 		otemp = obig_export_onative_signed(q);
 		revealOblivLLong(&temp, otemp, 2);
 		if(ocCurrentParty() == 2) printf("\nq: %30.20f ", fixed_to_double(temp, prec));
+		otemp = obig_export_onative_signed(ng);
+		revealOblivLLong(&temp, otemp, 2);
+		if(ocCurrentParty() == 2) printf("\nng: %30.20f ", fixed_to_double(temp, prec));
 		if(ocCurrentParty() == 2) {
 			if(!ocInDebugProto())  {
 				printf("\nIteration %d gate count: %lld", t, yaoGateCount());
