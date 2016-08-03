@@ -131,7 +131,6 @@ void cgd(void *v) {
 		}
 		
 		// q(:) = pA*pscl;
-		obig_zero(&q);
 		ofixed_inner_product(&q, pA, pscl, prec, d);
 		// for(size_t i = 0; i < d; i++) {
 		// 	ofixed_mul(&obigtemp, pA[i], pscl[i], prec);
@@ -185,13 +184,11 @@ void cgd(void *v) {
 			// gdeta(:) = g * eta;
 			// gdq(:) = g/q;
 			// gamma(:) = gdeta'*gdq;
-			obig_zero(gamma_ptr);
 			for(size_t i = 0; i < d; i++) {
 				ofixed_mul(&gdeta[i], g[i], eta, prec);
 				ofixed_div_overflow(&gdq[i], g[i], q, prec);
-				ofixed_mul(obigtemp_ptr, gdeta[i], gdq[i], prec);
-				ofixed_add(gamma_ptr, gamma, obigtemp);
 			}
+			ofixed_inner_product(gamma_ptr, gdeta, gdq, prec, d);
 			
 	    // gammap(:) = gamma*p;
 			// p(:) = g + gammap;
@@ -201,11 +198,7 @@ void cgd(void *v) {
 			}
 			
 			// ng(:) = g'*g;
-			obig_zero(ng_ptr);
-			for(size_t i = 0; i < d; i++) {
-				ofixed_mul(obigtemp_ptr, g[i], g[i], prec);
-				ofixed_add(ng_ptr, ng, obigtemp);
-			}
+			ofixed_inner_product(ng_ptr, g, g, prec, d);
 //		}
 
 		if(ocCurrentParty() == 2) printf("Iteration %d:\n", t);
