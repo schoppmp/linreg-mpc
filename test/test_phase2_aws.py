@@ -4,6 +4,7 @@ from generate_tests import (
     generate_lin_system_from_regression_problem, objective)
 import paramiko
 import re
+import tempfile
 import time
 import logging
 import numpy as np
@@ -272,7 +273,9 @@ def generate_benchmark(dest_folder):
             continue
         sigma = 0.1
         logger.info('Generating instance: n = {0}, d = {1}'.format(n, d))
-        tmp_filepath = '/tmp/instance.in'
+        tmp_file = tempfile.NamedTemporaryFile()
+	tmp_filepath = tmp_file.name
+	tmp_file.close()
 
         (_, _, X, y, lambda_, beta, condition_number, objective_value) = \
             generate_lin_system_from_regression_problem(
@@ -282,7 +285,7 @@ def generate_benchmark(dest_folder):
             n, d, condition_number, tmp_filepath))
 
         for i in range(1, 11):
-            if count[i] < 10 and condition_number <= i + 1 and condition_number > i:
+            if count[i] < 3 and condition_number <= i + 1 and condition_number > i:
                 count[i] += 1
                 filename_in = 'test_LS_{0}x{1}_{2}_{3}.in'.format(
                     n, d, condition_number, count[i])
@@ -291,7 +294,7 @@ def generate_benchmark(dest_folder):
                 os.system('mv {0} {1}'.format(tmp_filepath, filepath_in))
                 instances.append((n, d, X, y, lambda_, beta, condition_number, objective_value, filepath_in))
 
-        done = all([count[i] == 10 for i in range(1, 11)])
+        done = all([count[i] == 3 for i in range(1, 11)])
     logger.info('Done generating instances: {}'.format(map(lambda x: x[8], instances)))
     return instances
 
