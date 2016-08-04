@@ -320,29 +320,29 @@ if __name__ == "__main__":
 
     if args.run_accuracy_tests:
         assert RUN_LOCALLY, 'Accuracy tests can only be run locally.'
-        alg = 'cgd'
         num_iters_cgd = 15
         instances = generate_benchmark(dest_folder)
         for (n, d, X, y, lambda_, beta, condition_number, objective_value, filepath_in) in instances:
-            for party in [1, 2]:
-                filepath_exec = os.path.splitext(filepath_in)[0] + \
-                    '_p{}.exec'.format(party)
-                cmd = '{0} {7} {1} {2} {3} {4} > {5} {6}'.format(
-                    exec_file,
-                    party,
-                    filepath_in,
-                    alg,
-                    num_iters_cgd,
-                    filepath_exec,
-                    '&' if party == 1 else '',
-                    args.port)
+            for alg in ['cgd', 'cholesky']:
+                for party in [1, 2]:
+                    filepath_exec = os.path.splitext(filepath_in)[0] + \
+                        '_{0}_p{1}.exec'.format(alg, party)
+                    cmd = '{0} {7} {1} {2} {3} {4} > {5} {6}'.format(
+                        exec_file,
+                        party,
+                        filepath_in,
+                        alg,
+                        num_iters_cgd,
+                        filepath_exec,
+                        '&' if party == 1 else '',
+                        args.port)
 
-                logger.info('Running in party {0}: {1}'.format(party, cmd))
+                    logger.info('Running in party {0}: {1}'.format(party, cmd))
 
-                out_filename = os.path.splitext(filepath_exec)[0] + '.out'
-                os.system(cmd)
-                if party == 2:
-                    parse_output(n, d, X, y, lambda_,
+                    out_filename = os.path.splitext(filepath_exec)[0] + '.out'
+                    os.system(cmd)
+                    if party == 2:
+                        parse_output(n, d, X, y, lambda_,
                         alg, beta, condition_number,
                         objective_value,
                         out_filename, filepath_exec)
