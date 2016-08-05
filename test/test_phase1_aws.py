@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
 
 
-        cmd_network_profiling = 'cd obliv-c; make clean; make CFLAGS=\"-DPROFILE_NETWORK\"; cd ..; ' +\
+        cmd_network_profiling = 'cd obliv-c; make clean; make RELEASE=1 CFLAGS=\"-DPROFILE_NETWORK\"; cd ..; ' +\
             'cd secure-distributed-linear-regression; ' +\
             'git stash; git checkout master; git pull; make clean;' +\
             'git submodule update --init --recursive;' +\
@@ -68,7 +68,7 @@ if __name__ == "__main__":
             'make OBLIVC_PATH=$(cd ../obliv-c && pwd) bin/secure_multiplication;' +\
             'killall -9 secure_multiplication'
 
-        cmd_compile = 'cd obliv-c; make clean; make; cd ..; ' +\
+        cmd_compile = 'cd obliv-c; make clean; make RELEASE=1; cd ..; ' +\
             'cd secure-distributed-linear-regression; ' +\
             'git stash; git checkout master; git pull; make clean;' +\
             'git submodule update --init --recursive;' +\
