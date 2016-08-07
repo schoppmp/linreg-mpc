@@ -15,6 +15,8 @@ REMOTE_USER = 'ubuntu'
 KEY_FILE = '/home/ubuntu/.ssh/id_rsa'
 
 RUN_LOCALLY = False
+COMPILE = True
+RECOMPUTE = False
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s %(message)s')
@@ -28,13 +30,19 @@ def update_and_compile(ip, remote_ip):
     logger.info('Connecting to {0}:'.format(ip))
     client.connect(hostname=ip, username=REMOTE_USER, pkey=key)
 
-    cmd = 'git checkout master; ' + \
-        'cd obliv-c; make clean; ' + \
-        'cd secure-distributed-linear-regression; ' + \
-        'git pull; ' + \
-        'make clean; ' + \
-        'make OBLIVC_PATH=$(cd ../obliv-c && pwd) REMOTE_HOST={0}; ' + \
-        'killall -9 test_linear_system'.format(remote_ip)
+    cmd_compile = 'cd obliv-c; make clean; make RELEASE=1; cd ..; ' +\
+        'cd secure-distributed-linear-regression; ' +\
+        'git stash; git checkout master; git pull; make clean; ' +\
+        'git submodule update --init; ' +\
+        'cd lib/absentminded-crypto-kit/; ' +\
+        'make OBLIVC_PATH=$(cd ../../../obliv-c && pwd); ' +\
+        'cd ../..; ' +\
+        'make OBLIVC_PATH=$(cd ../obliv-c && pwd) ' + \
+        'REMOTE_HOST={0} bin/test_linear_system; '.format(remote_ip) + \
+        'killall -9 test_linear_system'
+
+    cmd_dont_compile = 'killall -9 test_linear_system'
+    cmd = cmd_compile if COMPILE else cmd_dont_compile 
     logger.info('Compiling in {0}:'.format(ip))
     logger.info('{0}'.format(cmd))
     stdin, stdout, stderr = client.exec_command(cmd)
@@ -112,9 +120,8 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
             time = float(m.group(1))
         m = re.match('Number\s+of\s+gates:\s*(\S+)', line)
         if m:
+            print 'Total gate count: {0}'.format(int(m.group(1)))
             gate_count = int(m.group(1))
-        else:
-            gate_count = -1
         m = re.match('Result:\s*(.+)', line)
         if m:
             result = map(float, m.group(1).split())
@@ -127,17 +134,17 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
             f.write('\n{0} {1} {2} {3} {4} {5} {6}'.format(n, d,
                 alg, ot_time, time, error, gate_count))
             if alg == 'cgd':
-               # gate_count_after_iters =\
-               #     gate_count - cgd_iter_gate_sizes[-1]
-               # cgd_iter_gate_sizes = map(
-               #     lambda x: x + gate_count_after_iters,
-               #     cgd_iter_gate_sizes)
-               # assert len(cgd_iter_gate_sizes) == len(
-               #     cgd_iter_solutions), '{0}\n{1}\n{2}\n{3}'.format(
-               #         len(cgd_iter_solutions),
-               #         cgd_iter_solutions,
-               #         len(cgd_iter_gate_sizes),
-               #         cgd_iter_gate_sizes)
+                gate_count_after_iters =\
+                    gate_count - cgd_iter_gate_sizes[-1]
+                cgd_iter_gate_sizes = map(
+                    lambda x: x + gate_count_after_iters,
+                    cgd_iter_gate_sizes)
+                assert len(cgd_iter_gate_sizes) == len(
+                    cgd_iter_solutions), '{0}\n{1}\n{2}\n{3}'.format(
+                        len(cgd_iter_solutions),
+                        cgd_iter_solutions,
+                        len(cgd_iter_gate_sizes),
+                        cgd_iter_gate_sizes)
                 f.write('\niter_i error_i obj_i time_i gate_count_i')
                 for i in range(len(cgd_iter_solutions)):
                     error_i = np.linalg.norm(
@@ -146,7 +153,7 @@ def parse_output(n, d, X, y, lambda_, alg, solution, condition_number,
                         i + 1, error_i,
                         cgd_iter_objective_values[i],
                         cgd_iter_times[i],
-                        -1,
+                        cgd_iter_gate_sizes[i],
                         ot_time))
             f.write('\nsolution:')
             f.write('\n{0}'.format(d))
@@ -207,7 +214,11 @@ def run_instance_remotely(n, d, X, y, lambda_, alg, solution, condition_number,
         'secure-distributed-linear-regression', remote_dest_folder)
     mkdir_p(sftp, remote_dest_folder)
     input_filename = os.path.basename(local_input_filepath)
-    sftp.put(local_input_filepath, input_filename)
+    #sftp.put(local_input_filepath, input_filename)
+    logger.info('Copying {0} to {1}...'.format(local_input_filepath, ip))
+    scp_cmd = 'scp {0} {1}:{2}'.format(local_input_filepath, ip, remote_dest_folder)
+    logger.info(scp_cmd)
+    os.system(scp_cmd)
     logger.info('Executing in {0}:'.format(ip))
     logger.info('{0}'.format(cmd))
     stdin, stdout, stderr = client.exec_command(
@@ -234,7 +245,7 @@ def run_instance_remotely(n, d, X, y, lambda_, alg, solution, condition_number,
             local_out_filepath, local_exec_filepath)
 
     # Remove .in file from remote (they are too big)
-    sftp.remove(input_filename)
+    #sftp.remove(input_filename)
     client.close()
 
     return local_out_filepath if is_party_2 else None
@@ -313,10 +324,10 @@ if __name__ == "__main__":
     parser.add_argument(
         '--run_accuracy_tests', action='store_true', help='Run accuracy tests')
     exec_file = 'bin/test_linear_system'
-    dest_folder = 'test/experiments/phase2_scatter_data/'
+    dest_folder = 'test/experiments/phase2_d_plots/'
     assert os.path.exists(dest_folder), '{0} does not exist.'.format(
         dest_folder)
-    # assert not os.listdir(dest_folder), '{0} is not empty.'.format(
+    #assert not os.listdir(dest_folder), '{0} is not empty.'.format(
     #    dest_folder)
     args = parser.parse_args()
     RUN_LOCALLY = args.run_locally
@@ -352,7 +363,7 @@ if __name__ == "__main__":
         sys.exit()
 
     num_iters_cgd = 15
-    num_examples = 3
+    num_examples = 1
 
     ips = [args.remote_ip_1, args.remote_ip_2]
     if not RUN_LOCALLY:
@@ -361,7 +372,7 @@ if __name__ == "__main__":
 
   
     for i in range(num_examples):
-        for alg in ['cgd']:
+        for alg in ['cgd', 'cholesky']:
             for sigma in [0.1]:
                 for d in [10, 20, 50, 100, 200, 500]:
                     for n in [100000]:
@@ -395,6 +406,11 @@ if __name__ == "__main__":
                                 filepath_exec,
                                 '&' if party == 1 else '',
                                 args.port)
+
+                            out_filename = os.path.splitext(
+                                filepath_exec)[0] + '.out'
+                            if os.path.exists(out_filename) and not RECOMPUTE:
+                                logger.info('File {} exists. Skipping instance.'.format(out_filename))
 
                             if RUN_LOCALLY:
                                 out_filename = os.path.splitext(
