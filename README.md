@@ -1,63 +1,60 @@
 # Secure distributed linear regression
 
 A protocol for secure distributed linear regression.
-In order to successfully build, [Obliv-C](https://github.com/samee/obliv-c/) must be installed. 
-If the `oblivcc` executable is not in the user's `PATH`, the `OBLIVCC` variable must be set when calling `make`
+In order to successfully build, [Obliv-C](https://github.com/samee/obliv-c/) must be installed and the `OBLIVC_PATH` environment variable must point to its directory.
+
+Then, in order to compile, run
 ```
-make OBLIVCC=/path/to/oblivcc
+git submodule update --init && make
 ```
 
 ## Running experiments
-Currently, the main executable is `bin/test_linear_system`. It's used as follows.
+The protocol consists of two phases. `bin/main` is used to run both phases at once.
 ```
-Usage: bin/test_linear_system [Port] [Party] [Input file] [Algorithm] [Num. iterations CGD]
+Usage: bin/main [Input_file] [Precision] [Party] [Algorithm] [Num. iterations CGD]
 ```
-Here, `[Port]` is any free TCP port, `[Party]` is either 1 or 2, `[Algorithm]` is one of `cholesky`, `ldlt`, or `cgd`, `[Num. iterations CGD]` is the number of iterations to use if the algorithm is `cgd`. An example of an input file is
+`[Precision]` specifies the number of bits used for the fractional part of fixed-point encoded numbers.
+The role of the process is given by `[Party]`. 
+Values of 1 and 2 denote the CSP and Evaluator, respectively. 
+Higher values denote data providers.
+`[Algorithm]` is the algorithm used for phase 2 of the protocol and can be either `cholesky`, `ldlt`, or `cgd`.
+In the case of CGD, `[Num. iterations CGD]` gives the number of iterations used before terminating.
+An example input file is 
 ```
-8 8
-0.851447125526 0.0965869276121 -0.167866519707 0.0758683165702 0.052126333866 -0.124315546366 0.0241132623512 -0.04902811601 
-0.0965869276121 1.01824877393 -0.128795347953 -0.123182450954 -0.0336023472075 -0.051463268361 0.131561510783 0.0284940396008 
--0.167866519707 -0.128795347953 0.898418769748 0.0211685414555 0.0957060857581 0.181385908161 -0.153407930335 -0.0762503314954 
-0.0758683165702 -0.123182450954 0.0211685414555 0.932434046444 0.0799335461038 0.0923715997233 0.106194018749 -0.237349524061 
-0.052126333866 -0.0336023472075 0.0957060857581 0.0799335461038 1.12278460092 0.164622799084 0.0286953587736 -0.0344822795687 
--0.124315546366 -0.051463268361 0.181385908161 0.0923715997233 0.164622799084 0.787842405466 0.0990583977867 -0.105985137045 
-0.0241132623512 0.131561510783 -0.153407930335 0.106194018749 0.0286953587736 0.0990583977867 0.987266908629 -0.10984744972 
--0.04902811601 0.0284940396008 -0.0762503314954 -0.237349524061 -0.0344822795687 -0.105985137045 -0.10984744972 0.825145254223 
-8
-0.596257485514 0.310960858679 -1.04861414407 -0.727716967353 -1.12901485483 -1.05921194927 -0.471366796671 0.913373902227 
-8
-0.571828325968 0.065958003586 -0.820782164141 -0.422046020722 -0.794872994949 -0.691505010614 -0.404688627994 0.76546586242 
+10 5 3
+localhost:1234
+localhost:1235
+localhost:1236 0
+localhost:1237 1
+localhost:1238 2
+10 5
+-0.49490189906 0.204027068031 1.0 -0.0048744428595 0.101856000869 
+0.49217428514 0.233090721372 -0.0370213771185 0.657720359628 0.525310770733 
+0.39721227919 -0.470002959473 0.277398798616 0.726013362994 0.498046786861 
+-0.595183792269 -0.0827269428691 -0.227611333929 0.80744916955 0.543968791627 
+-0.419150270985 0.292994257369 -0.0232190555386 -0.108185527543 0.238913650953 
+-0.247990663017 -1.0 -0.0241769053355 -0.842345696475 -1.0 
+-1.0 0.437037219652 -0.140750839011 1.0 -0.0679355153937 
+0.777015345458 0.981488358907 0.2870338525 0.579832272908 -0.262265338898 
+-0.0431656936622 0.0910166551363 -0.0724090181375 -0.144008713528 0.202706144381 
+-0.470188350902 -0.261201944989 -0.0468243599479 0.944605903172 0.455480894023 
+10
+0.463624257142 1.03914869701 0.641866385451 -0.289962112725 -0.328203220996 -1.64668349374 -0.205128259075 2.13151959591 -0.129983842519 -0.0766970254399 
 ```
-It consists of 
-- The dimensions of matrix `A`
-- The matrix `A` itself
-- The length of vector `b`
-- The vector `b`
-- The length of `x`
-- The solution `x` of the linear system `Ax=b`
+It contains the number of samples, features and parties, followed by a network endpoint for each party. 
+The special roles CSP and Evaluator are defined by the first two lines. 
+Then, the data providers follow (3 in this example), each with a network endpoint and the starting index of its partition.
+Afterwards, the dimensions of `X` are specified, followed by `X` itself. 
+Finally, the length and values of `y` are given.
 
-The results of the computation are printed to the standard output:
+Running this example locally with
 ```
-bin/test_linear_system 1234 2 example.txt cholesky
-
-Algorithm: cholesky
-Time elapsed: 1.061934
-Number of gates: 812339
-Result:    0.571828544139862    0.065958380699158   -0.820781826972961   -0.422045469284058   -0.794872820377350   -0.691504597663879   -0.404688179492950    0.765466809272766 
+for party in {1..5}; do bin/main input_file 56 $party cholesky 1 & done
 ```
-
-Random input files can be generated using the script `generate_tests.py`:
+yields the following result
 ```
-usage: generate_tests.py [-h] [--verbose] n d dest_folder num_matrices
+OT time: 0.301697
+Time elapsed: 4.404333
+Number of gates: 3173835
+Result:    1.000359530238633    0.797558559108423    0.781463858861025    0.605140672557234    0.046213483377146 
 ```
-It generates `num_matrices` matrices `X` of dimensions `n, d`, as well as vectory `y` of length `n`, and writes matrices `A = X.T X` and vectors `b = A y` and `y` to files in `dest_folder`.
-
-Finally, the script `test_lin_reg.py` can be used to run an entire batch of experiments.
-```
-usage: test_lin_reg.py [-h] [--verbose]
-                       exec_path algorithm n d num_iters_cgd dest_folder
-                       num_examples port
-```
-`exec_path` is the path to the `test_linear_system` executable, `algorithm` is one of `cholesky`, `ldlt`, `cgd`, or `all`, `n` and `d` are the dimensions of the generated examples, `num_iters_cgd` is the number of iterations for algorithm `cgd`, `dest_folder` is the folder where examples and output data are stored, `num_examples` is the number of examples to run for each algorithm and `port` is the TCP port to use. 
-
-For each algorithm, two files are generated. One `.exec`-file, which contains the standard output of the call to `test_linear_system`, and one `.out`-file which contains aggregated statistics that can then be plotted.
