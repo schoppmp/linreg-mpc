@@ -43,6 +43,7 @@ void dcsSendIntArray(DualconS* dcs,const uint64_t* input,size_t n)
   honestOTExtRecv1Of2(dcs->r,buf,sel,nn,YAO_KEY_BYTES);
   // send keys to Evaluator
   osend(dcs->self->peer[1],0,buf,nn*YAO_KEY_BYTES);
+  flush(dcs->self->peer[1]);
   free(buf);
   free(sel);
 }
@@ -104,6 +105,7 @@ void dcrRecvBitArray(DualconR* dcr,OblivBit* dest,size_t n,int p)
       yaoKeyCopy(dest[i].yao.w,w0);
     }
     honestOTExtSend1Of2(dcr->s[p-3],buf0,buf1,n,YAO_KEY_BYTES);
+    flush(dcr->self->peer[p-1]);
     free(buf0);
     free(buf1);
   }
