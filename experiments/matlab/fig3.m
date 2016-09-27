@@ -6,9 +6,10 @@ bs = [0 32 64];
 R = 20;
 sigmaY = 0.1;
 ibits = 4;
-its = [15];
+ibits = 10;
+its = [20];
 
-fname = 'run3-1-%2d-sY-0.1.mat';
+fname = 'run3-2-%2d-sY-0.1.mat';
 
 all = struct('r',{},'d',{},'nmult',{},'n',{},'kappa',{},'b',{},'err',{});
 for r = 1:R

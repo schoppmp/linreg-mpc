@@ -6,9 +6,10 @@ bs = [0 32 64];
 R = 20;
 sigmaY = 0.1;
 ibits = 4;
+ibits = 10;
 it = 20;
 
-fname = 'run3-1-%2d-sY-0.1.mat';
+fname = 'run3-2-%2d-sY-0.1.mat';
 
 for r = 1:R
     results = struct('r',{},'d',{},'nmult',{},'n',{},'kappa',{},'b',{},'err',{});
@@ -49,8 +50,8 @@ for r = 1:R
                 end;
                 Afp = cast(A,'like',T);
                 bfp = cast(b,'like',T);
-                Xfp = cgdfp(Afp,bfp,it,T);
-                %Xfp = cgdfp3(Afp,bfp,it,T);
+                %Xfp = cgdfp(Afp,bfp,it,T);
+                Xfp = cgdfp8(Afp,bfp,it,T);
                 Xfp2db = double(Xfp);
                 err = [];
                 for i = 1:it

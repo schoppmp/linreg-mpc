@@ -1,0 +1,7 @@
+- Develop alternate solution based on explicit Lanczos + Tridiagonal solving
+For Tridiagonal solving, use cheap storage and solution
+Since we will use partial Lanczos, we then need to convert solution to original space
+To implement Lanczos we have several options, but in all we might want preconditioning
+- 2 term simple
+- 3 term simple
+- with full reorthonormalization (householder)

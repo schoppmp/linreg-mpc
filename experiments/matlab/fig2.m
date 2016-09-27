@@ -1,18 +1,18 @@
 clear;
 
 d = 500;
-cmin = 1.1;
-cmax = 15;
+cmin = 1.2;
+cmax = 10;
 bs = [0 32];
+ibit = 10;
 it = 15;
-its = [4 6 8 10 12];
-its = [4 5 6 10];
-R = 100;
+its = [4 8 15];
+R = 20;
 sigmaY = 0.1;
 
 %results = struct('r',{},'d',{},'nmult',{},'n',{},'kappa',{},'b',{},'err',{});
 
-fname = 'exp2-3-sY-0.1.mat';
+fname = 'exp2-5-sY-0.1.mat';
 foo = load(fname);
 all = foo.results;
 

@@ -47,6 +47,7 @@ function [X,P,G] = cgdfp7(A,b,it,T) %#codegen
 		p(:) = g + gammap;
 		%%% p = g + p * <g,g> / eta * q
 		ng(:) = g'*g;
+		display(sprintf('q=%.6e e=%.6e g=%.6e ng=%.6e np=%.6e',double(q),double(eta),double(gamma),double(ng),norm(double(p))^2));
 		X(:,i) = x;
 		P(:,i) = p;
 		G(:,i) = g;

@@ -4,14 +4,14 @@ d = 500;
 cmin = 1.2;
 cmax = 10;
 bs = [0 32];
-ibit = 4;
-it = 10;
-R = 100;
+ibit = 10;
+it = 15;
+R = 20;
 sigmaY = 0.1;
 
 results = struct('r',{},'d',{},'nmult',{},'n',{},'kappa',{},'b',{},'err',{});
 
-fname = 'exp2-3-sY-0.1.mat';
+fname = 'exp2-5-sY-0.1.mat';
 
 for r = 1:R
     z = (cmax-cmin)*rand()+cmin;
@@ -50,7 +50,8 @@ for r = 1:R
         Afp = cast(A,'like',T);
         bfp = cast(b,'like',T);
         %Xfp = cgdfp(Afp,bfp,it,T);
-        Xfp = cgdfp2(Afp,bfp,it,T);
+        %Xfp = cgdfp2(Afp,bfp,it,T);
+        Xfp = cgdfp8(Afp,bfp,it,T);
         Xfp2db = double(Xfp);
         err = [];
         for i = 1:it
