@@ -5,7 +5,7 @@
 #include "util.h"
 #include "check_error.h"
 
-const int precision = 56;
+const int precision = 30;
 
 int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	FILE *file = NULL;
@@ -119,6 +119,7 @@ int main(int argc, char **argv) {
 	}
 
 	execYaoProtocol(&pd, algorithms[alg_index], &ls);
+	//execDebugProtocol(&pd, algorithms[alg_index], &ls);
 
 	if(party == 2) {
 	  //check(ls.beta.len == d, "Computation error.");

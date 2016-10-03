@@ -43,7 +43,7 @@ void cholesky(void *v) {
 	// allocate output vector if not already done and we are party 2
 	if(!(ls->beta.value) && ocCurrentParty() == 2) {
 		ls->beta.len = d;
-		ls->beta.value = malloc(d * sizeof(fixed64_t));
+		ls->beta.value = malloc(d * sizeof(uint64_t));
 	}
 
 	if(ocCurrentParty() == 2) {printf("OT time: %f\n", wallClock() - time_start);}
@@ -85,8 +85,14 @@ void cholesky(void *v) {
 		}
 		ofixed_div(&beta[i], y[i], a[idx(i,i)], ls->precision);
 		//beta[i] = ofixed_div(y[i], a[idx(i,i)], ls->precision);
-		obliv fixed64_t temp = obig_export_onative_signed(beta[i]);
-		revealOblivLLong(ls->beta.value + i, temp, 2);
+	}
+
+	// return the result
+	obliv fixed64_t otemp;
+	for(size_t i = 0; i < d; i++) {
+		otemp = obig_export_onative_signed(beta[i]);
+		revealOblivLLong(ls->beta.value + i, otemp, 2); // <- is this right, or should it be &ls->beta.value[i]? <- isn't that the same?
+		//revealOblivInt(ls->beta.value + i, beta[i], 2);
 	}
 	
 	if(!ocInDebugProto()) {

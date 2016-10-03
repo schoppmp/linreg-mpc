@@ -47,7 +47,7 @@ void cgd(void *v) {
 	// allocate output vector if not already done and we are party 2
 	if(!(ls->beta.value) && ocCurrentParty() == 2) {
 		ls->beta.len = d;
-		ls->beta.value = malloc(d * sizeof(fixed64_t));
+		ls->beta.value = malloc(d * sizeof(uint64_t));
 	}
 	
 	obig *x = malloc(d * sizeof(obig));
@@ -222,6 +222,10 @@ void cgd(void *v) {
 	obig_free(&q);
 	obig_free(&eta);
 	obig_free(&gamma);
+	obig_free(&obigtemp);
+	obig_free(&gAp);
+	obig_free(&gp);
+
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
 		obig_free(&a[ii]);
 	}
@@ -235,12 +239,12 @@ void cgd(void *v) {
 		obig_free(&pA[ii]);
 	}
 	free(a);
-	free(b);
-	free(x);
-	free(ax);
-	free(p);
-	free(g);
-	free(gscl);
-	free(pA);
+    free(b);
+    free(x);
+    free(ax);
+    free(p);
+    free(g);
+    free(gscl);
+    free(pA);
 	return;
 }
