@@ -262,7 +262,7 @@ def run_instance_remotely(n, d, X, y, lambda_, alg, solution, condition_number,
             local_out_filepath, local_exec_filepath)
 
     # Remove .in file from remote (they are too big)
-    #sftp.remove(input_filename)
+    sftp.remove(input_filename)
     client.close()
 
     return local_out_filepath if is_party_2 else None
@@ -348,8 +348,8 @@ if __name__ == "__main__":
     dest_folder = 'experiments/phase2_time_new_cgd/'
     assert os.path.exists(dest_folder), '{0} does not exist.'.format(
         dest_folder)
-    assert not os.listdir(dest_folder), '{0} is not empty.'.format(
-        dest_folder)
+    #assert not os.listdir(dest_folder), '{0} is not empty.'.format(
+    #    dest_folder)
     args = parser.parse_args()
     RUN_LOCALLY = args.run_locally
 
@@ -385,6 +385,7 @@ if __name__ == "__main__":
 
     num_iters_cgd = 20
     num_examples = 3
+    precision = {32: 30, 64: 56}
 
     algs = ['cgd', 'cholesky']
     sigmas = [0.1]
@@ -394,18 +395,18 @@ if __name__ == "__main__":
     current_bit_width = bit_widths[0]
     confs = itertools.product(
         range(num_examples),
+        bit_widths,
         algs,
         sigmas,
         ds,
-        ns,
-        bit_widths)
+        ns)
 
     ips = [args.remote_ip_1, args.remote_ip_2]
     if not RUN_LOCALLY:
         update_and_compile(ips[0], ips[1])
         update_and_compile(ips[1], ips[0])
 
-    for (i, alg, sigma, d, n, bit_width) in confs:
+    for (i, bit_width, alg, sigma, d, n) in confs:
         # for i in range(num_examples):
         #    for alg in ['cgd', 'cholesky']:
         #        for sigma in [0.1]:
@@ -447,20 +448,22 @@ if __name__ == "__main__":
             filepath_exec = os.path.join(
                 dest_folder, filename_exec)
 
-            cmd = '{0} {7} {1} {2} {3} {4} > {5} {6}'.format(
+            cmd = '{0} {1} {2} {3} {4} {5} {6} > {7} {8}'.format(
                 exec_file,
+                args.port,
                 party,
                 filepath_in,
                 alg,
                 num_iters_cgd,
+                precision[bit_width],
                 filepath_exec,
-                '&' if party == 1 else '',
-                args.port)
+                '&' if party == 1 else '')
 
             out_filename = os.path.splitext(
                 filepath_exec)[0] + '.out'
             if os.path.exists(out_filename) and not RECOMPUTE:
                 logger.info('File {} exists. Skipping instance.'.format(out_filename))
+                continue
 
             if RUN_LOCALLY:
                 out_filename = os.path.splitext(

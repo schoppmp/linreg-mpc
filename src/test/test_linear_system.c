@@ -5,7 +5,7 @@
 #include "util.h"
 #include "check_error.h"
 
-const int precision = 30;
+int precision = 54;
 
 int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	FILE *file = NULL;
@@ -78,11 +78,15 @@ error:	// for some reason, oblivc removes this label if the stuff
 
 
 int main(int argc, char **argv) {
-	check(argc >= 5, "Usage: %s [Port] [Party] [Input file] [Algorithm] [Num. iterations CGD]", argv[0]);
+	check(argc != 6, "Usage: %s [Port] [Party] [Input file] [Algorithm] [Num. iterations CGD] [Precision]", argv[0]);
 	char *algorithm = argv[4];
 	check(!strcmp(algorithm, "cholesky") || !strcmp(algorithm, "ldlt")  || !strcmp(algorithm, "cgd"),
 	      "Algorithm must be cholesky, ldlt, or cgd.");
-	check(strcmp(algorithm, "cgd") || argc == 6, "Number of iterations for CGD must be provided");
+	//check(strcmp(algorithm, "cgd") || argc == 6, "Number of iterations for CGD must be provided");
+	char *end;
+	precision = (int) strtol(argv[6], &end, 10);
+	check(!errno, "strtol: %s", strerror(errno));
+	check(!*end, "Precision must be a number");
 	int party = 0;
 	if(!strcmp(argv[2], "1")) {
 		party = 1;
