@@ -39,7 +39,8 @@ def update_and_compile(ip, remote_ip, bit_width=64, compile_oblivc=True):
         'make OBLIVC_PATH=$(cd ../../../obliv-c && pwd); ' +\
         'cd ../..; '
 
-    cmd_compile_phase2 = 'make OBLIVC_PATH=$(cd ../obliv-c && pwd) ' + \
+    cmd_compile_phase2 = 'cd secure-distributed-linear-regression; ' +\
+        'make clean; make OBLIVC_PATH=$(cd ../obliv-c && pwd) ' + \
         'BIT_WIDTH_32={} '.format(1 if bit_width == 32 else 0) + \
         'REMOTE_HOST={0} bin/test_linear_system; '.format(remote_ip) + \
         'killall -9 test_linear_system' if COMPILE\
