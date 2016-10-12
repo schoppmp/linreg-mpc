@@ -1,5 +1,4 @@
 OBLIVCC=$(OBLIVC_PATH)/bin/oblivcc
-REMOTE_HOST=localhost
 
 binDir=bin
 objDir=obj
@@ -7,7 +6,8 @@ srcDir=src
 libDir=lib
 
 REMOTE_HOST=localhost
-CFLAGS=-O3 -g -Werror -I $(srcDir) -I $(OBLIVC_PATH)/src/ext/oblivc -std=c99 -D_POSIX_C_SOURCE=201605L
+BIT_WIDTH_32=0
+CFLAGS=-O3 -g -Werror -I $(srcDir) -I $(OBLIVC_PATH)/src/ext/oblivc -std=c99 -D_POSIX_C_SOURCE=201605L -DBIT_WIDTH_32=$(BIT_WIDTH_32)
 LFLAGS=-L$(HOME)/lib
 OCFLAGS=$(CFLAGS) -DREMOTE_HOST=$(REMOTE_HOST)
 
