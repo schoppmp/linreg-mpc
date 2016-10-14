@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
 	int status;
 
 	// parse arguments
-	check(argc > 5, "Usage: %s [Input_file] [Precision] [Party] [Algorithm] [Num. iterations CGD]", argv[0]);
+	check(argc > 6, "Usage: %s [Input_file] [Precision] [Party] [Algorithm] [Num. iterations CGD] [Lambda]", argv[0]);
 	char *end;
 	int precision = (int) strtol(argv[2], &end, 10);
 	check(!errno, "strtol: %s", strerror(errno));
@@ -63,6 +63,9 @@ int main(int argc, char **argv) {
 	check(!strcmp(algorithm, "cholesky") || !strcmp(algorithm, "ldlt")  || !strcmp(algorithm, "cgd"),
 	      "Algorithm must be cholesky, ldlt, or cgd.");
 	check(strcmp(algorithm, "cgd") || argc == 6, "Number of iterations for CGD must be provided");
+	double lambda = (double) strtod(argv[6], &end);
+	check(!errno, "strtod: %s", strerror(errno));
+	check(!*end, "lambda must be a number");
 
 	// read ls, we only need number of iterations
 	linear_system_t ls;
@@ -104,7 +107,15 @@ int main(int argc, char **argv) {
 	// if party = 2 then I am the Evaluator
 	// if party > 2 then
 	//   - I am a data provider
-  //   - share_A and share_b are my shares of the equation
+  	//   - share_A and share_b are my shares of the equation
+
+  	// The first data provider adds lambda to its share
+  	if(party == 3){
+  		fixed64_t lambda_fixed = double_to_fixed(lambda, precision);
+  		for(size_t i = 0; i < c->d; i++) {
+  			share_A[i*c->d + i] += lambda_fixed;
+		}
+  	}
 
 	// phase 2 starts here
 	if(party < 3){  // CSP and Evaluator
@@ -143,7 +154,7 @@ int main(int argc, char **argv) {
 		if(party == 2) {
 		  //check(ls.beta.len == d, "Computation error.");
 		  printf("Time elapsed: %f\n", wallClock() - time);
-		  printf("Number of gates: %d\n", ls.gates);
+		  printf("Number of gates: %lld\n", ls.gates);
 		  printf("Result: ");
 		  for(size_t i = 0; i < ls.beta.len; i++) {
 		    printf("%20.15f ", fixed_to_double(ls.beta.value[i], precision));
