@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
 	char *algorithm = argv[4];
 	check(!strcmp(algorithm, "cholesky") || !strcmp(algorithm, "ldlt")  || !strcmp(algorithm, "cgd"),
 	      "Algorithm must be cholesky, ldlt, or cgd.");
-	check(strcmp(algorithm, "cgd") || argc == 6, "Number of iterations for CGD must be provided");
+	check(strcmp(algorithm, "cgd") || argc == 7, "Number of iterations for CGD must be provided");
 	double lambda = (double) strtod(argv[6], &end);
 	check(!errno, "strtod: %s", strerror(errno));
 	check(!*end, "lambda must be a number");
@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
   	if(party == 3){
   		fixed64_t lambda_fixed = double_to_fixed(lambda, precision);
   		for(size_t i = 0; i < c->d; i++) {
-  			share_A[i*c->d + i] += lambda_fixed;
+  			share_A[idx(i,i)] += lambda_fixed;
 		}
   	}
 
