@@ -121,8 +121,8 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 		}
 	}
 
-/*
-	// Receive and combine shares from peers for testing; TODO: remove
+	/*
+	// Receive and combine shares from peers for testing;
 	uint64_t *share_A = NULL, *share_b = NULL;
 	size_t d = c->d;
 	share_A = calloc(d * (d + 1) / 2, sizeof(uint64_t));
@@ -144,15 +144,24 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 		secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
 
 	}
+
+	printf("A = \n");
 	for(size_t i = 0; i < c->d; i++) {
 		for(size_t j = 0; j <= i; j++) {
-			printf("%f ", fixed_to_double((fixed64_t) share_A[idx(i, j)], precision));
+			printf("%3.8f ", fixed_to_double((fixed64_t) share_A[idx(i, j)], precision));
 		}
 		printf("\n");
 	}
+
+	printf("b = \n");
+	for(size_t i = 0; i < c->d; i++) {
+		printf("%3.6f ", fixed_to_double((fixed64_t) share_b[i], precision));
+	}
+	printf("\n");
+
 	free(share_A);
 	free(share_b);
-*/
+	*/
 
 	free(x);
 	free(y);
@@ -310,8 +319,8 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 		}
 	}
 	
-/*
-	// send results to TI for testing; TODO: remove
+	/*
+	// send results to TI for testing;
 	free(pmsg_out.vector);
 	pmsg_out.vector = share_A;
 	pmsg_out.n_vector = d * (d + 1) / 2;
@@ -322,7 +331,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	status = send_pmsg(&pmsg_out, self->peer[0]);
 	check(!status, "Could not send share_b to TI");
 	pmsg_out.vector = NULL;
-*/
+	*/
 
 	free(data.value);
 	free(target.value);
