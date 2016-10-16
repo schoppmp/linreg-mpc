@@ -43,7 +43,7 @@ void cholesky(void *v) {
 	// allocate output vector if not already done and we are party 2
 	if(!(ls->beta.value) && ocCurrentParty() == 2) {
 		ls->beta.len = d;
-		ls->beta.value = malloc(d * sizeof(ufixed_t));
+		ls->beta.value = malloc(d * sizeof(uint64_t));
 	}
 
 	if(ocCurrentParty() == 2) {printf("OT time: %f\n", wallClock() - time_start);}
