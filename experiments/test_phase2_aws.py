@@ -16,7 +16,7 @@ REMOTE_USER = 'ubuntu'
 KEY_FILE = '/home/ubuntu/.ssh/id_rsa'
 
 RUN_LOCALLY = False
-COMPILE = True
+COMPILE = False
 RECOMPUTE = False
 
 logger = logging.getLogger(__name__)
@@ -43,10 +43,9 @@ def update_and_compile(ip, remote_ip, bit_width=64, compile_oblivc=True):
         'make clean; make OBLIVC_PATH=$(cd ../obliv-c && pwd) ' + \
         'BIT_WIDTH_32={} '.format(1 if bit_width == 32 else 0) + \
         'REMOTE_HOST={0} bin/test_linear_system; '.format(remote_ip) + \
-        'killall -9 test_linear_system' if COMPILE\
-            else 'killall -9 test_linear_system'
+        'killall -9 test_linear_system'
 
-    if compile_oblivc:
+    if COMPILE and compile_oblivc:
         logger.info(
             'Compiling obliv-c and absentminded-crypto-kit in {0}:'.format(ip))
         logger.info('{0}'.format(cmd_compile_oblivc))
@@ -342,7 +341,7 @@ if __name__ == "__main__":
     parser.add_argument('--instance_num_offset', type=int,
         help='Offset in instance num in the .out files name', default=0)
     parser.add_argument(
-        '--run_locally', action='store_true', help='Run locally')
+        '--run_locally', action='store_true', help='Run locally (ONLY for TESTING!)')
     parser.add_argument(
         '--run_accuracy_tests', action='store_true', help='Run accuracy tests')
     exec_file = 'bin/test_linear_system'
@@ -393,7 +392,7 @@ if __name__ == "__main__":
     ds = [10, 20, 50, 100, 200, 500]
     ns = [100000]
     bit_widths = [32, 64]
-    current_bit_width = bit_widths[0]
+    current_bit_width = None
     confs = itertools.product(
         range(num_examples),
         bit_widths,
@@ -403,9 +402,6 @@ if __name__ == "__main__":
         ns)
 
     ips = [args.remote_ip_1, args.remote_ip_2]
-    if not RUN_LOCALLY:
-        update_and_compile(ips[0], ips[1])
-        update_and_compile(ips[1], ips[0])
 
     for (i, bit_width, alg, sigma, d, n) in confs:
         # for i in range(num_examples):
@@ -424,6 +420,7 @@ if __name__ == "__main__":
                 update_and_compile(ips[1], ips[0],
                     bit_width=bit_width, compile_oblivc=False)
 
+
         logger.info(
             'Running instance: n={0}, d={1}, sigma={2}, alg={3}, num_iters_cgd={4}, run={5}, bitwidth={6}'.
             format(
@@ -434,6 +431,17 @@ if __name__ == "__main__":
         filepath_in = os.path.join(
             dest_folder, filename_in)
 
+        filename_exec_prefix = 'test_LS_{0}x{1}_{2}_{3}_{4}_{5}_{6}'.\
+                format(
+                    n, d, sigma, i + args.instance_num_offset,
+                    alg, bit_width, num_iters_cgd)
+        
+        out_filename = filepath_exec = os.path.join(
+            dest_folder, filename_exec_prefix + '_p2.out')
+        if os.path.exists(out_filename) and not RECOMPUTE:
+            logger.info('File {} exists. Skipping instance.'.format(out_filename))
+            continue
+
         (A, b, X, y, lambda_, beta, condition_number, objective_value) = \
             generate_lin_system_from_regression_problem(
                 n, d, sigma, filepath_in)
@@ -442,10 +450,7 @@ if __name__ == "__main__":
             filepath_in))
 
         for party in [1, 2]:
-            filename_exec = 'test_LS_{0}x{1}_{2}_{3}_{4}_{5}_{6}_p{7}.exec'.\
-                format(
-                    n, d, sigma, i + args.instance_num_offset,
-                    alg, bit_width, num_iters_cgd, party)
+            filename_exec = '{0}_p{1}.exec'.format(filename_exec_prefix, party)
             filepath_exec = os.path.join(
                 dest_folder, filename_exec)
 
@@ -459,13 +464,7 @@ if __name__ == "__main__":
                 precision[bit_width],
                 filepath_exec,
                 '&' if party == 1 else '')
-
-            out_filename = os.path.splitext(
-                filepath_exec)[0] + '.out'
-            if os.path.exists(out_filename) and not RECOMPUTE:
-                logger.info('File {} exists. Skipping instance.'.format(out_filename))
-                continue
-
+            
             if RUN_LOCALLY:
                 out_filename = os.path.splitext(
                     filepath_exec)[0] + '.out'
