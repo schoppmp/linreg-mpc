@@ -41,7 +41,7 @@ void ldlt(void *v) {
 	// allocate output vector if not already done and we are party 2
 	if(!(ls->beta.value) && ocCurrentParty() == 2) {
 		ls->beta.len = d;
-		ls->beta.value = malloc(d * sizeof(fixed64_t));
+		ls->beta.value = malloc(d * sizeof(fixed_t));
 	}
 
 	if(ocCurrentParty() == 2) {printf("OT time: %f\n", wallClock() - time_start);}
@@ -85,7 +85,7 @@ void ldlt(void *v) {
 			ofixed_sub(&b[i], b[i], otemp);
 			//b[i] -= ofixed_mul(a[idx(j,i)], b[j], ls->precision);
 		}
-		obliv fixed64_t temp = obig_export_onative_signed(b[i]);
+		obliv fixed_t temp = obig_export_onative_signed(b[i]);
 		revealOblivLLong(ls->beta.value + i, temp, 2);
 		//revealOblivInt(ls->beta.value + i, b[i], 2);
 	}

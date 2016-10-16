@@ -2,7 +2,7 @@
 #include "fixed.h"
 
 typedef struct protocolIO {
-	fixed64_t *inputs, result;
+	fixed_t *inputs, result;
 	size_t len, gates;
 	int p;
 } protocolIO;

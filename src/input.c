@@ -33,7 +33,7 @@ void dcsClose(DualconS* dcs)
   free(dcs);
 }
 static const int intsize = FIXED_BIT_SIZE;
-void dcsSendIntArray(DualconS* dcs,const uint64_t* input,size_t n)
+void dcsSendIntArray(DualconS* dcs,const ufixed_t* input,size_t n)
 {
   size_t i,j,nn = n*intsize;
   bool* sel = malloc(nn*sizeof(bool));

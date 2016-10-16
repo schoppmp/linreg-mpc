@@ -68,8 +68,8 @@ void cgd(void *v) {
 	}
 
 	// loop for a fixed number of iterations
-	fixed64_t temp;
-	obliv fixed64_t otemp;
+	fixed_t temp;
+	obliv fixed_t otemp;
 	obig obigtemp;
 	obig_init(&obigtemp, FIXED_BIT_SIZE / 8);
 	obig ng;

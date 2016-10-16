@@ -45,7 +45,7 @@ error:
 
 
 int main(int argc, char **argv) {
-	uint64_t *share_A = NULL, *share_b = NULL;
+	ufixed_t *share_A = NULL, *share_b = NULL;
 	config *c = NULL;
 	node *self = NULL;
 	int status;
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
 
   	// The first data provider adds lambda to its share
   	if(party == 3){
-  		fixed64_t lambda_fixed = double_to_fixed(lambda, precision);
+  		fixed_t lambda_fixed = double_to_fixed(lambda, precision);
   		for(size_t i = 0; i < c->d; i++) {
   			share_A[idx(i,i)] += lambda_fixed;
 		}

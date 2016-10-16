@@ -38,7 +38,7 @@ void test_fixed(void *v) {
 		ofixed_add(&c, c, t);
 	}
 	
-	obliv fixed64_t out = obig_export_onative_signed(c);
+	obliv fixed_t out = obig_export_onative_signed(c);
 	revealOblivLLong(&(args->result), out, 0);
 	args->gates = yaoGateCount();
 

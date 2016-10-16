@@ -33,11 +33,11 @@ const char *endpoint[3] = {
 
 static void random_vector_t(vector_t *vector){
 	for(size_t i = 0; i < vector->len; i++) {
-		gcry_randomize(&vector->value[i], sizeof(fixed64_t), GCRY_STRONG_RANDOM);
+		gcry_randomize(&vector->value[i], sizeof(fixed_t), GCRY_STRONG_RANDOM);
 	}
 }
 
-static int receive_msg(vector_t *vector, fixed64_t *value, void *sender) {
+static int receive_msg(vector_t *vector, fixed_t *value, void *sender) {
 	int *val = sender;
   	printf("Receiving msg...");
 	int status;
@@ -69,7 +69,7 @@ error:
 	return -1;
 }
 
-static int send_msg(vector_t *vector, fixed64_t value, void *recipient) {
+static int send_msg(vector_t *vector, fixed_t value, void *recipient) {
 	int status;
 	int *rec = recipient;
 	printf("Sending msg...\n");
@@ -163,13 +163,13 @@ int main(int argc, char **argv) {
 		// generate random vectors x,y and random number r
 		vector_t x;
 		x.len = d;
-		x.value = malloc(d * sizeof(fixed64_t));
+		x.value = malloc(d * sizeof(fixed_t));
 		random_vector_t(&x);
 		vector_t y;
 		y.len = d;
-		y.value = malloc(d * sizeof(fixed64_t));
+		y.value = malloc(d * sizeof(fixed_t));
 		random_vector_t(&y);
-		fixed64_t r = 0;
+		fixed_t r = 0;
 		gcry_randomize(&r, sizeof(r), GCRY_STRONG_RANDOM);
 		printf("Party %d:: r = %x\n", party, r);
 		printf("Party %d:: x = ", party);
@@ -194,12 +194,12 @@ int main(int argc, char **argv) {
 		// this is for testing purposes
 		// receive first share
 		vector_t dummy_vector;
-		fixed64_t share_1;
+		fixed_t share_1;
 		status = receive_msg(&dummy_vector, &share_1, socket[party - 1]);
 		check(status == 0, "Error receiving message");
 
 		// receive second share
-		fixed64_t share_2;
+		fixed_t share_2;
 		status = receive_msg(&dummy_vector, &share_2, socket[party - 1]);
 		check(status == 0, "Error receiving message");
 
@@ -208,7 +208,7 @@ int main(int argc, char **argv) {
 	} else {
 		vector_t input_fixed;
 		input_fixed.len = d;
-		input_fixed.value = malloc(d * sizeof(fixed64_t));
+		input_fixed.value = malloc(d * sizeof(fixed_t));
 		for(size_t i=0; i<input_fixed.len; ++i){
 			input_fixed.value[i] = double_to_fixed(input[i], precision);
 		}
@@ -225,8 +225,8 @@ int main(int argc, char **argv) {
 		printf("Party %d:: Expecting value in socket %d\n", party, party-1);
 		vector_t in_vector_1;
 		in_vector_1.len = d;
-		in_vector_1.value = malloc(d * sizeof(fixed64_t));
-		fixed64_t in_value_1;
+		in_vector_1.value = malloc(d * sizeof(fixed_t));
+		fixed_t in_value_1;
 		status = receive_msg(&in_vector_1, &in_value_1, socket[party-1]);
 		check(status == 0, "Error receiving message from TI");
 		printf("Party %d:: msg received\n", party);
@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
 		  	// send (b - y) to party 1
 		  	vector_t out_vector;
 		  	out_vector.len = d;
-			out_vector.value = malloc(d * sizeof(fixed64_t));
+			out_vector.value = malloc(d * sizeof(fixed_t));
 			for(size_t i=0; i<input_fixed.len; ++i){
 				out_vector.value[i] = input_fixed.value[i] - in_vector_1.value[i];
 			}
@@ -250,12 +250,12 @@ int main(int argc, char **argv) {
 			// receive msg from party 1
 			vector_t in_vector_2;
 			in_vector_2.len = d;
-			in_vector_2.value = malloc(d * sizeof(fixed64_t));
-			fixed64_t in_value_2;
+			in_vector_2.value = malloc(d * sizeof(fixed_t));
+			fixed_t in_value_2;
 			status = receive_msg(&in_vector_2, &in_value_2, socket[party-1]);
 			check(status == 0, "Error receiving messages from party %d", 1);
 
-			fixed64_t share = inner_product(&in_vector_2, &in_vector_1) + in_value_2 - in_value_1;
+			fixed_t share = inner_product(&in_vector_2, &in_vector_1) + in_value_2 - in_value_1;
 			printf("Party %d:: Share: %x\n", party, share);
 			// send share to TI (this is for testing purposes)
 			vector_t dummy_vector;
@@ -267,19 +267,19 @@ int main(int argc, char **argv) {
 			// receive (b -y, _) from party 2
 			vector_t in_vector_2;
 			in_vector_2.len = d;
-			in_vector_2.value = malloc(d * sizeof(fixed64_t));
-			fixed64_t in_value_2;
+			in_vector_2.value = malloc(d * sizeof(fixed_t));
+			fixed_t in_value_2;
 			status = receive_msg(&in_vector_2, &in_value_2, socket[party-1]);
 			check(status == 0, "Error receiving message from party %d", 2);
 
 			// generate random number u
-			fixed64_t u = 0;
+			fixed_t u = 0;
 			gcry_randomize(&u, sizeof(u), GCRY_STRONG_RANDOM);
 
 			// Send (a + x, <a, b - y> -u) to party 2
 			vector_t out_vector;
 		  	out_vector.len = d;
-			out_vector.value = malloc(d * sizeof(fixed64_t));
+			out_vector.value = malloc(d * sizeof(fixed_t));
 			for(size_t i=0; i<input_fixed.len; ++i){
 				out_vector.value[i] = input_fixed.value[i] + in_vector_1.value[i];
 			}
@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
 			check(status == 0, "Error sending message to party %d", 2);
 			printf("Party %d:: Msg sent to party %d\n", party, 2);
 
-			fixed64_t share = u - in_value_1;
+			fixed_t share = u - in_value_1;
 			printf("Party %d:: Share: %x\n", party, share);
 		    // send share to TI (this is for testing purposes)
 		    vector_t dummy_vector; 

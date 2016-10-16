@@ -5,12 +5,12 @@
 
 typedef struct {
 	size_t d[2];
-	fixed64_t *value;
+	fixed_t *value;
 } matrix_t;
 
 typedef struct {
 	size_t len;
-	fixed64_t *value;
+	fixed_t *value;
 } vector_t;
 
 typedef struct {
@@ -28,7 +28,7 @@ typedef struct {
 size_t idx(size_t i, size_t j);
 
 // inner product of two vectors of the same length
-fixed64_t inner_product(vector_t *, vector_t *);
+fixed_t inner_product(vector_t *, vector_t *);
 
 // functions to solve LSs
 void cholesky(void *);

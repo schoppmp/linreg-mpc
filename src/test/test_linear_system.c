@@ -25,8 +25,8 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	check(!res, "Could not read b.");
 
 	// generate random masks
-	A_mask.value = calloc(A.d[0] * A.d[1] , sizeof(fixed64_t));
-	b_mask.value = calloc(b.len , sizeof(fixed64_t));
+	A_mask.value = calloc(A.d[0] * A.d[1] , sizeof(fixed_t));
+	b_mask.value = calloc(b.len , sizeof(fixed_t));
 	A_mask.d[0] = A.d[0];
 	A_mask.d[1] = A.d[1];
 	b_mask.len = b.len;
@@ -59,7 +59,7 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	} else {
 		ls->a = A_mask;
 		ls->b = b_mask;
-		ls->beta.value = malloc(A_mask.d[1]*sizeof(fixed64_t));
+		ls->beta.value = malloc(A_mask.d[1]*sizeof(fixed_t));
 		ls->beta.len = A_mask.d[1];
 		free(A.value);
 		free(b.value);

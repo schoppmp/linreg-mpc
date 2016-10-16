@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
 	io.p = precision;
 	//io.len = argc - 3;
 	io.len = len;
-	io.inputs = malloc(io.len * sizeof(fixed64_t));
+	io.inputs = malloc(io.len * sizeof(fixed_t));
 	for(int i = 0; i < io.len; i++) {
 		double d = (double)rand() / RAND_MAX;
 		// double d;

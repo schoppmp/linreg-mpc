@@ -20,8 +20,8 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obig *
 	for(int i = 0; i < d; i++) {
 		obig_zero(&a[i]);
 	}
-	obliv uint64_t *share_a = malloc((d*(d + 1)/2) * sizeof(obliv uint64_t));
-	obliv uint64_t *share_b = malloc(d * sizeof(obliv uint64_t));
+	obliv ufixed_t *share_a = malloc((d*(d + 1)/2) * sizeof(obliv ufixed_t));
+	obliv ufixed_t *share_b = malloc(d * sizeof(obliv ufixed_t));
 
 	obig obigtemp;
 	obig_init(&obigtemp, FIXED_BIT_SIZE/8);

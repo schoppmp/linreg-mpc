@@ -27,7 +27,8 @@ native=$(objDir)/$(1)_c.o
 obliv=$(objDir)/$(1)_o.o
 both=$(call native,$(1)) $(call obliv,$(1))
 
-all: $(binDir)/test_multiplication $(binDir)/test_linear_system $(binDir)/test_inner_product $(binDir)/secure_multiplication $(binDir)/main $(binDir)/test_fixed
+# all: $(binDir)/test_multiplication $(binDir)/test_linear_system $(binDir)/test_inner_product $(binDir)/secure_multiplication $(binDir)/main $(binDir)/test_fixed
+all: $(binDir)/test_linear_system $(binDir)/secure_multiplication $(binDir)/main $(binDir)/test_fixed
 
 $(binDir)/main: $(objDir)/main.o $(objDir)/secure_multiplication/node.o $(objDir)/secure_multiplication/config.o $(objDir)/secure_multiplication/phase1.o $(objDir)/secure_multiplication/secure_multiplication.pb-c.o $(call both,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd) $(call native,input)
 	$(link_obliv) -lprotobuf-c -lm
@@ -62,9 +63,19 @@ $(objDir)/%_o.o: $(srcDir)/%.oc
 $(objDir)/%.o: $(srcDir)/%.c
 	$(compile)
 
+ifeq ($(BIT_WIDTH_32), 1)
 $(srcDir)/%.pb-c.c: $(srcDir)/%.proto
-	cd $(<D) && protoc-c $(<F) --c_out=.
+	cd $(<D) && protoc-c secure_multiplication_bitwidth_32.proto --c_out=. &&\
+	mv secure_multiplication_bitwidth_32.pb-c.c secure_multiplication.pb-c.c &&\
+	cp secure_multiplication_bitwidth_32.pb-c.h secure_multiplication.pb-c.h 	
+else
+$(srcDir)/%.pb-c.c: $(srcDir)/%.proto
+	cd $(<D) && protoc-c secure_multiplication_bitwidth_64.proto --c_out=. &&\
+	mv secure_multiplication_bitwidth_64.pb-c.c secure_multiplication.pb-c.c &&\
+	cp secure_multiplication_bitwidth_64.pb-c.h secure_multiplication.pb-c.h
+endif
 
 clean:
 	rm -rf $(binDir) $(objDir)
 	cd $(libDir)/absentminded-crypto-kit && make clean
+

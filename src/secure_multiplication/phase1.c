@@ -6,8 +6,8 @@
 #include "obliv_common.h"
 
 // computes inner product in Z_{2^64}
-static uint64_t inner_prod_64(uint64_t *x, uint64_t *y, size_t n, size_t stride_x, size_t stride_y) {
-	uint64_t xy = 0;
+static ufixed_t inner_prod_64(ufixed_t *x, ufixed_t *y, size_t n, size_t stride_x, size_t stride_y) {
+	ufixed_t xy = 0;
 	for(size_t i = 0; i < n; i++) {
 		xy += x[i*stride_x] * y[i*stride_y];
 	}
@@ -80,8 +80,8 @@ error:
 int run_trusted_initializer(node *self, config *c, int precision) {
 	BCipherRandomGen *gen = newBCipherRandomGen();
 	int status;
-	uint64_t *x = calloc(c->n , sizeof(uint64_t));
-	uint64_t *y = calloc(c->n , sizeof(uint64_t));
+	ufixed_t *x = calloc(c->n , sizeof(ufixed_t));
+	ufixed_t *y = calloc(c->n , sizeof(ufixed_t));
 	check(x && y, "malloc: %s", strerror(errno));
 	SecureMultiplication__Msg pmsg_a, pmsg_b;
 	secure_multiplication__msg__init(&pmsg_a);
@@ -103,11 +103,11 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 			}
 
 			// generate random vectors x, y and value r
-			uint64_t r = 0;
-			randomizeBuffer(gen, (char *)x, c->n * sizeof(uint64_t));
-			randomizeBuffer(gen, (char *)y, c->n * sizeof(uint64_t));
-			randomizeBuffer(gen, (char *)&r, sizeof(uint64_t));
-			uint64_t xy = inner_prod_64(x, y, c->n, 1, 1);
+			ufixed_t r = 0;
+			randomizeBuffer(gen, (char *)x, c->n * sizeof(ufixed_t));
+			randomizeBuffer(gen, (char *)y, c->n * sizeof(ufixed_t));
+			randomizeBuffer(gen, (char *)&r, sizeof(ufixed_t));
+			ufixed_t xy = inner_prod_64(x, y, c->n, 1, 1);
 
 			// create protobuf message
 			pmsg_a.value = xy-r;
@@ -176,7 +176,7 @@ error:
 }
 
 
-int run_party(node *self, config *c, int precision, struct timespec *wait_total, uint64_t **res_A, uint64_t **res_b) {
+int run_party(node *self, config *c, int precision, struct timespec *wait_total, ufixed_t **res_A, ufixed_t **res_b) {
 	matrix_t data; // TODO: maybe use dedicated type for finite field matrices here
 	vector_t target;
 	data.value = target.value = NULL;
@@ -190,8 +190,8 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 				  pmsg_out;
 	secure_multiplication__msg__init(&pmsg_out);
 	pmsg_out.n_vector = c->n;
-	pmsg_out.vector = malloc(c->n * sizeof(uint64_t));
-	uint64_t *share_A = NULL, *share_b = NULL;
+	pmsg_out.vector = malloc(c->n * sizeof(ufixed_t));
+	ufixed_t *share_A = NULL, *share_b = NULL;
 	check(pmsg_out.vector, "malloc: %s", strerror(errno));
 
 	// read inputs and allocate result buffer
@@ -203,35 +203,35 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	check(c->n == target.len && d == c->d && c->n == data.d[0],
 		"Input dimensions invalid: (%zd, %zd), %zd",
 		data.d[0], data.d[1], target.len);
-	share_A = calloc(d * (d + 1) / 2, sizeof(uint64_t));
-	share_b = calloc(d, sizeof(uint64_t));
+	share_A = calloc(d * (d + 1) / 2, sizeof(ufixed_t));
+	share_b = calloc(d, sizeof(ufixed_t));
 
 	for(size_t i = 0; i < c->n; i++) {
 		for(size_t j = 0; j < c->d; j++) {
 			// rescale in advance
-			data.value[i*c->d+j] = (fixed64_t) round(data.value[i*c->d+j] /
+			data.value[i*c->d+j] = (fixed_t) round(data.value[i*c->d+j] /
 				(sqrt(pow(2,precision) * c->d * c->n)));
 		}
-		target.value[i] = (fixed64_t) round(target.value[i] /
+		target.value[i] = (fixed_t) round(target.value[i] /
 			(sqrt(pow(2,precision) * c->d * c->n)));
 	}
 
 	for(size_t i = 0; i <= c->d; i++) {
-		uint64_t *row_start_i, *row_start_j;
+		ufixed_t *row_start_i, *row_start_j;
 		size_t stride_i, stride_j;
 		if(i < c->d) { // row of input matrix
-			row_start_i = (uint64_t *) data.value + i;
+			row_start_i = (ufixed_t *) data.value + i;
 			stride_i = d;
 		} else { // row is target vector
-			row_start_i = (uint64_t *) target.value;
+			row_start_i = (ufixed_t *) target.value;
 			stride_i = 1;
 		}
 		for(size_t j = 0; j <= i && j < c->d; j++) {
 			if(j < c->d) { // row of input matrix
-				row_start_j = (uint64_t *) data.value + j;
+				row_start_j = (ufixed_t *) data.value + j;
 				stride_j = d;
 			} else { // row is target vector
-				row_start_j = (uint64_t *) target.value;
+				row_start_j = (ufixed_t *) target.value;
 				stride_j = 1;
 			}
 			int owner_i = get_owner(i, c);
@@ -239,7 +239,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 			check(owner_i >= 2, "Invalid owner %d for row %zd", owner_i, i);
 			check(owner_j >= 2, "Invalid owner %d for row %zd", owner_j, j);
 
-			uint64_t share;
+			ufixed_t share;
 			// if we own neither i or j, skip.
 			if(owner_i != c->party-1 && owner_j != c->party-1) {
 				continue;
