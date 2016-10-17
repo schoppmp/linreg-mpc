@@ -36,5 +36,5 @@ void ldlt(void *);
 void cgd(void *);
 
 // IO helpers
-int read_matrix(FILE *, matrix_t *, int);
-int read_vector(FILE *, vector_t *, int);
+int read_matrix(FILE *, matrix_t *, int, bool, double);
+int read_vector(FILE *, vector_t *, int, bool, double);
