@@ -7,6 +7,10 @@ Then, in order to compile, run
 ```
 git submodule update --init && make
 ```
+By default, computations are performed using 64 bit fixed-point arithmetic. 
+To enable 32 bit computations at compile time, the additional flag `BIT_WIDTH_32=1` must be passed to `make`.
+This will increase computation speed, but may also reduce the accuracy of the results in some cases.
+
 
 ## Running experiments
 The protocol consists of two phases. `bin/main` is used to run both phases at once.
