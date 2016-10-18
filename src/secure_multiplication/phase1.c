@@ -3,9 +3,12 @@
 
 #include "phase1.h"
 #include "bcrandom.h"
+#include "obliv.h"
 #include "obliv_common.h"
+#include "obliv_types.h"
+#include "obliv_bits.h"
 
-// computes inner product in Z_{2^64}
+// computes inner product in Z_{2^64} locally
 static ufixed_t inner_prod_64(ufixed_t *x, ufixed_t *y, size_t n, size_t stride_x, size_t stride_y) {
 	ufixed_t xy = 0;
 	for(size_t i = 0; i < n; i++) {
@@ -26,6 +29,91 @@ static int get_owner(int row, config *conf) {
 error:
 	return -1;
 }
+
+
+typedef struct {
+	int i;
+	ufixed_t b;
+} multiplication_args;
+
+void multiplication_correlator(char *a, const char *b, int _ignored, void *vargs) {
+	multiplication_args *args = vargs;
+	ufixed_t *result = (ufixed_t *) a;
+	ufixed_t s_i = *((ufixed_t *) b);
+	*result = (((ufixed_t) 1) << args->i) * args->b + s_i;
+}
+
+ufixed_t inner_product_ot_sender(struct HonestOTExtSender *s, ufixed_t *x, size_t n, size_t stride_x) {
+	ufixed_t result = 0;
+	for(size_t k = 0; k < n; k++) {
+		// multiply b = x[k] and y[k] (from other peer) using OT
+		multiplication_args args = {.b = x[k * stride_x]};
+		for(args.i = 0; args.i < FIXED_BIT_SIZE; args.i++) {
+			ufixed_t s_i, t_i; // t_i = 2^i b + s_i
+			honestCorrelatedOTExtSend1Of2(s, 
+				(char *) &s_i, 
+				(char *) &t_i, 
+				1,
+				sizeof(ufixed_t),
+				multiplication_correlator,
+				&args
+			);
+			result -= s_i;
+		}
+	}
+	return result;
+}
+
+ufixed_t inner_product_ot_recver(struct HonestOTExtRecver *r, ufixed_t *x, size_t n, size_t stride_x) {
+	ufixed_t result = 0;
+	for(size_t k = 0; k < n; k++) {
+		ufixed_t a = x[k * stride_x];
+		for(int i = 0; i < FIXED_BIT_SIZE; i++) {
+			bool sel = (a >> i) % 2;
+			ufixed_t t_i;
+			honestCorrelatedOTExtRecv1Of2(r, 
+				(char *) &t_i,
+				&sel,
+				1,
+				sizeof(ufixed_t)
+			);
+			result += t_i;
+		}
+	}
+}
+
+// computes inner product _without_ the CSP using Oblivious Transfers 
+ufixed_t inner_product_ot(
+	node *self, 
+	config *c, 
+	struct timespec *wait_total,
+	ufixed_t *row_start_i,
+	size_t stride_i,
+	ufixed_t *row_start_j,
+	size_t stride_j,
+	int owner_i, int owner_j
+) {
+	ufixed_t result;
+	struct timespec wait_start, wait_end;
+	clock_gettime(CLOCK_MONOTONIC, &wait_start);
+  dhRandomInit(); // needed or else Obliv-C segfaults
+	if(owner_i == c->party-1) { // we own row i, but not j => we are sender
+		struct HonestOTExtSender *s = honestOTExtSenderNew(self->peer[owner_j], 0);
+		result = inner_product_ot_sender(s, row_start_i, c->n, stride_i);
+		honestOTExtSenderRelease(s);
+	} else {
+		struct HonestOTExtRecver *r = honestOTExtRecverNew(self->peer[owner_i], 0);
+		result = inner_product_ot_recver(r, row_start_j, c->n, stride_j);
+		honestOTExtRecverRelease(r);
+	}
+	clock_gettime(CLOCK_MONOTONIC, &wait_end);
+	if(wait_total) {
+		wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
+		wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
+	}
+	return result;
+}
+
 
 // receives a message from peer, storing it in pmsg
 // the result should be freed by the caller after use
@@ -76,8 +164,102 @@ error:
 	return 1;
 }
 
+// computes inner product using the TI
+ufixed_t inner_product_ti(
+	node *self, 
+	config *c, 
+	struct timespec *wait_total,
+	ufixed_t *row_start_i,
+	size_t stride_i,
+	ufixed_t *row_start_j,
+	size_t stride_j,
+	int owner_i, int owner_j
+) {
+	int status;
+	ufixed_t share;
+	struct timespec wait_start, wait_end; // count how long we wait for other parties
+	SecureMultiplication__Msg *pmsg_ti = NULL,
+					*pmsg_in = NULL,
+					pmsg_out;
+	secure_multiplication__msg__init(&pmsg_out);
+	pmsg_out.n_vector = c->n;
+	pmsg_out.vector = malloc(c->n * sizeof(ufixed_t));
+	check(pmsg_out.vector, "malloc: %s", strerror(errno));
+	
+	// receive random values from TI
+	status = recv_pmsg(&pmsg_ti, self->peer[0]);
+	check(!status, "Could not receive message from TI");
+
+	if(owner_i == c->party-1) { // if we own i but not j, we are party a
+		int party_b = owner_j;
+
+		// receive (b', _) from party b
+		clock_gettime(CLOCK_MONOTONIC, &wait_start);
+		status = recv_pmsg(&pmsg_in, self->peer[party_b]);
+		clock_gettime(CLOCK_MONOTONIC, &wait_end);
+		if(wait_total) {
+			wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
+			wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
+		}
+		check(!status, "Could not receive message from party B (%d)", party_b);
+
+		// Send (a - y, _) to party b
+		pmsg_out.value = 0;
+		for(size_t k = 0; k < c->n; k++) {
+			pmsg_out.vector[k] = row_start_i[k*stride_i] - pmsg_ti->vector[k];
+		}
+		status = send_pmsg(&pmsg_out, self->peer[party_b]);
+		check(!status, "Could not send message to party B (%d)", party_b);
+
+		// compute share as (b + x)y - (xy - r)
+		share = inner_prod_64(pmsg_in->vector, pmsg_ti->vector, c->n, 1, 1);
+		share -= pmsg_ti->value;
+
+	} else { // if we own j but not i, we are party b
+		int party_a = owner_i;
+
+		// send (b + y, _) to party a
+		pmsg_out.value = 0;
+		for(size_t k = 0; k < c->n; k++) {
+			pmsg_out.vector[k] = row_start_j[k*stride_j] + pmsg_ti->vector[k];
+			//assert(pmsg_out.vector[k] == 1023);
+		}
+		status = send_pmsg(&pmsg_out, self->peer[party_a]);
+		check(!status, "Could not send message to party A (%d)", party_a);
+
+		// receive (a', _) from party a
+		clock_gettime(CLOCK_MONOTONIC, &wait_start);
+		status = recv_pmsg(&pmsg_in, self->peer[party_a]);
+		clock_gettime(CLOCK_MONOTONIC, &wait_end);
+		if(wait_total) {
+			wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
+			wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
+		}
+		check(!status, "Could not receive message from party A (%d)", party_a);
+
+		// set our share to b(a - y) - r
+		share = inner_prod_64(pmsg_in->vector, row_start_j, c->n, 1, stride_j);
+		share -= pmsg_ti->value;
+
+	}
+	secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
+	secure_multiplication__msg__free_unpacked(pmsg_ti, NULL);
+	pmsg_ti = pmsg_in = NULL;
+	free(pmsg_out.vector);
+	return share;
+	
+	error:
+	secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
+	secure_multiplication__msg__free_unpacked(pmsg_ti, NULL);
+	pmsg_ti = pmsg_in = NULL;
+	free(pmsg_out.vector);
+}
+
+
+
 
 int run_trusted_initializer(node *self, config *c, int precision) {
+	return 0;
 	BCipherRandomGen *gen = newBCipherRandomGen();
 	int status;
 	ufixed_t *x = calloc(c->n , sizeof(ufixed_t));
@@ -176,23 +358,16 @@ error:
 }
 
 
+
 int run_party(node *self, config *c, int precision, struct timespec *wait_total, ufixed_t **res_A, ufixed_t **res_b) {
 	matrix_t data; // TODO: maybe use dedicated type for finite field matrices here
 	vector_t target;
 	data.value = target.value = NULL;
 	int status;
-	struct timespec wait_start, wait_end; // count how long we wait for other parties
 	if(wait_total) {
 		wait_total->tv_sec = wait_total->tv_nsec = 0;
 	}
-	SecureMultiplication__Msg *pmsg_ti = NULL,
-				  *pmsg_in = NULL,
-				  pmsg_out;
-	secure_multiplication__msg__init(&pmsg_out);
-	pmsg_out.n_vector = c->n;
-	pmsg_out.vector = malloc(c->n * sizeof(ufixed_t));
 	ufixed_t *share_A = NULL, *share_b = NULL;
-	check(pmsg_out.vector, "malloc: %s", strerror(errno));
 
 	// read inputs and allocate result buffer
 	status = read_matrix(c->input, &data, precision);
@@ -248,67 +423,12 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 				share = inner_prod_64(row_start_i, row_start_j,
 					c->n, stride_i, stride_j);
 			} else {
-				// receive random values from TI
-				status = recv_pmsg(&pmsg_ti, self->peer[0]);
-				check(!status, "Could not receive message from TI; %zd %zd", i, j);
-
-				if(owner_i == c->party-1) { // if we own i but not j, we are party a
-					int party_b = get_owner(j, c);
-					check(party_b >= 2, "Invalid owner %d for row %zd", party_b, j);
-
-					// receive (b', _) from party b
-					clock_gettime(CLOCK_MONOTONIC, &wait_start);
-					status = recv_pmsg(&pmsg_in, self->peer[party_b]);
-					clock_gettime(CLOCK_MONOTONIC, &wait_end);
-					if(wait_total) {
-						wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
-						wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
-					}
-					check(!status, "Could not receive message from party B (%d)", party_b);
-
-					// Send (a - y, _) to party b
-					pmsg_out.value = 0;
-					for(size_t k = 0; k < c->n; k++) {
-						pmsg_out.vector[k] = row_start_i[k*stride_i] - pmsg_ti->vector[k];
-					}
-					status = send_pmsg(&pmsg_out, self->peer[party_b]);
-					check(!status, "Could not send message to party B (%d)", party_b);
-
-					// compute share as (b + x)y - (xy - r)
-					share = inner_prod_64(pmsg_in->vector, pmsg_ti->vector, c->n, 1, 1);
-					share -= pmsg_ti->value;
-
-				} else { // if we own j but not i, we are party b
-					int party_a = get_owner(i, c);
-					check(party_a >= 2, "Invalid owner %d for row %zd", party_a, i);
-
-					// send (b + y, _) to party a
-					pmsg_out.value = 0;
-					for(size_t k = 0; k < c->n; k++) {
-						pmsg_out.vector[k] = row_start_j[k*stride_j] + pmsg_ti->vector[k];
-						//assert(pmsg_out.vector[k] == 1023);
-					}
-					status = send_pmsg(&pmsg_out, self->peer[party_a]);
-					check(!status, "Could not send message to party A (%d)", party_a);
-
-					// receive (a', _) from party a
-					clock_gettime(CLOCK_MONOTONIC, &wait_start);
-					status = recv_pmsg(&pmsg_in, self->peer[party_a]);
-					clock_gettime(CLOCK_MONOTONIC, &wait_end);
-					if(wait_total) {
-						wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
-						wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
-					}
-					check(!status, "Could not receive message from party A (%d)", party_a);
-
-					// set our share to b(a - y) - r
-					share = inner_prod_64(pmsg_in->vector, row_start_j, c->n, 1, stride_j);
-					share -= pmsg_ti->value;
-
-				}
-				secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
-				secure_multiplication__msg__free_unpacked(pmsg_ti, NULL);
-				pmsg_ti = pmsg_in = NULL;
+				share = inner_product_ot(
+					self, c, wait_total,
+					row_start_i, stride_i,
+					row_start_j, stride_j,
+					owner_i, owner_j
+				);
 			}
 			// save our share
 			if(i < c->d) {
@@ -335,7 +455,6 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 
 	free(data.value);
 	free(target.value);
-	free(pmsg_out.vector);
 	if(res_A){
 		*res_A = share_A;
 	} else {
@@ -351,7 +470,6 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 error:
 	free(data.value);
 	free(target.value);
-	free(pmsg_out.vector);
 	if(res_A){
 		*res_A = NULL;
 	}
@@ -360,7 +478,5 @@ error:
 	}
 	free(share_A);
 	free(share_b);
-	if(pmsg_ti) secure_multiplication__msg__free_unpacked(pmsg_ti, NULL);
-	if(pmsg_in) secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
 	return 1;
 }
