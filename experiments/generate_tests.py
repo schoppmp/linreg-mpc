@@ -44,6 +44,7 @@ def write_lr_instance(X, y, solution, filepath, num_parties=1, endpoints=None):
         #f.write('// TI's endpoint\n')
         if not endpoints:
             f.write('localhost:{0}\n'.format(1234))
+            f.write('localhost:{0}\n'.format(1235))
         else:
             f.write('{0}\n'.format(endpoints[0]))
             f.write('{0}\n'.format(endpoints[1]))
@@ -166,4 +167,3 @@ def generate_lin_regression(n, d, sigma):
     e = numpy.array(random.normal(0, sigma, n))
     y = X.dot(beta) + e.T
     return (X, y, beta, e)
-
