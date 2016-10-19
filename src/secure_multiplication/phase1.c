@@ -33,8 +33,16 @@ error:
 
 // callback function for OT-based inner product
 // see Two Party RSA Key Generation. CRYPTO 1999: 116-129, section 4.1
-void multiplication_correlator(char *x, const char *y, int i, void *vargs) {
-	uintptr_t b = (uintptr_t) vargs;
+typedef struct {
+	ufixed_t *x;
+	size_t n;
+	size_t stride_x;
+} inner_product_args;
+void inner_product_correlator(char *x, const char *y, int ni, void *vargs) {
+	inner_product_args *args = vargs;
+	size_t k = ni / FIXED_BIT_SIZE;
+	int i = ni % FIXED_BIT_SIZE;
+	ufixed_t b = args->x[k * args->stride_x];
 	ufixed_t *result = (ufixed_t *) x;
 	ufixed_t s_i = *((ufixed_t *) y);
 	*result = (((ufixed_t) 1) << i) * b + s_i;
@@ -42,22 +50,19 @@ void multiplication_correlator(char *x, const char *y, int i, void *vargs) {
 
 ufixed_t inner_product_ot_sender(struct HonestOTExtSender *sender, ufixed_t *x, size_t n, size_t stride_x) {
 	ufixed_t result = 0;
-	ufixed_t *s = malloc(FIXED_BIT_SIZE * sizeof(s));
-	ufixed_t *t = malloc(FIXED_BIT_SIZE * sizeof(t));
-	for(size_t k = 0; k < n; k++) {
-		// multiply b = x[k] and y[k] (from other peer) using OT
-		uintptr_t b = x[k * stride_x];
-		honestCorrelatedOTExtSend1Of2(sender, 
-			(char *) s, 
-			(char *) t, 
-			FIXED_BIT_SIZE,
-			sizeof(ufixed_t),
-			multiplication_correlator,
-			(void *) b
-		);
-		for(int i = 0; i < FIXED_BIT_SIZE; i++) {
-			result -= s[i];
-		}
+	ufixed_t *s = malloc(n * FIXED_BIT_SIZE * sizeof(s));
+	ufixed_t *t = malloc(n * FIXED_BIT_SIZE * sizeof(t));
+	inner_product_args args = {.x = x, .n = n, .stride_x = stride_x};
+	honestCorrelatedOTExtSend1Of2(sender, 
+		(char *) s, 
+		(char *) t, 
+		FIXED_BIT_SIZE * n,
+		sizeof(ufixed_t),
+		inner_product_correlator,
+		&args
+	);
+	for(int i = 0; i < n * FIXED_BIT_SIZE; i++) {
+		result -= s[i];
 	}
 	free(s);
 	free(t);
@@ -66,22 +71,22 @@ ufixed_t inner_product_ot_sender(struct HonestOTExtSender *sender, ufixed_t *x, 
 
 ufixed_t inner_product_ot_recver(struct HonestOTExtRecver *recvr, ufixed_t *x, size_t n, size_t stride_x) {
 	ufixed_t result = 0;
-	ufixed_t *t = malloc(FIXED_BIT_SIZE * sizeof(t));
-	bool *sel = malloc(FIXED_BIT_SIZE * sizeof(sel));
+	ufixed_t *t = malloc(n * FIXED_BIT_SIZE * sizeof(t));
+	bool *sel = malloc(n * FIXED_BIT_SIZE * sizeof(sel));
 	for(size_t k = 0; k < n; k++) {
 		ufixed_t a = x[k * stride_x];
 		for(int i = 0; i < FIXED_BIT_SIZE; i++) {
-			sel[i] = (a >> i) & 1;
+			sel[k * FIXED_BIT_SIZE + i] = (a >> i) & 1;
 		}
-		honestCorrelatedOTExtRecv1Of2(recvr, 
-			(char *) t,
-			sel,
-			FIXED_BIT_SIZE,
-			sizeof(ufixed_t)
-		);
-		for(int i = 0; i < FIXED_BIT_SIZE; i++) {
-			result += t[i];
-		}
+	}
+	honestCorrelatedOTExtRecv1Of2(recvr, 
+		(char *) t,
+		sel,
+		FIXED_BIT_SIZE * n,
+		sizeof(ufixed_t)
+	);
+	for(int i = 0; i < n * FIXED_BIT_SIZE; i++) {
+		result += t[i];
 	}
 	free(t);
 	free(sel);
