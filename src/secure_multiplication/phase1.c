@@ -50,8 +50,8 @@ void inner_product_correlator(char *x, const char *y, int ni, void *vargs) {
 
 ufixed_t inner_product_ot_sender(struct HonestOTExtSender *sender, ufixed_t *x, size_t n, size_t stride_x) {
 	ufixed_t result = 0;
-	ufixed_t *s = malloc(n * FIXED_BIT_SIZE * sizeof(s));
-	ufixed_t *t = malloc(n * FIXED_BIT_SIZE * sizeof(t));
+	ufixed_t *s = malloc(n * FIXED_BIT_SIZE * sizeof(ufixed_t));
+	ufixed_t *t = malloc(n * FIXED_BIT_SIZE * sizeof(ufixed_t));
 	inner_product_args args = {.x = x, .n = n, .stride_x = stride_x};
 	honestCorrelatedOTExtSend1Of2(sender, 
 		(char *) s, 
@@ -71,8 +71,8 @@ ufixed_t inner_product_ot_sender(struct HonestOTExtSender *sender, ufixed_t *x, 
 
 ufixed_t inner_product_ot_recver(struct HonestOTExtRecver *recvr, ufixed_t *x, size_t n, size_t stride_x) {
 	ufixed_t result = 0;
-	ufixed_t *t = malloc(n * FIXED_BIT_SIZE * sizeof(t));
-	bool *sel = malloc(n * FIXED_BIT_SIZE * sizeof(sel));
+	ufixed_t *t = malloc(n * FIXED_BIT_SIZE * sizeof(ufixed_t));
+	bool *sel = malloc(n * FIXED_BIT_SIZE * sizeof(bool));
 	for(size_t k = 0; k < n; k++) {
 		ufixed_t a = x[k * stride_x];
 		for(int i = 0; i < FIXED_BIT_SIZE; i++) {
