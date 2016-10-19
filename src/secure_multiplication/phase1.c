@@ -31,55 +31,61 @@ error:
 }
 
 
-typedef struct {
-	int i;
-	ufixed_t b;
-} multiplication_args;
-
-void multiplication_correlator(char *a, const char *b, int _ignored, void *vargs) {
-	multiplication_args *args = vargs;
-	ufixed_t *result = (ufixed_t *) a;
-	ufixed_t s_i = *((ufixed_t *) b);
-	*result = (((ufixed_t) 1) << args->i) * args->b + s_i;
+// callback function for OT-based inner product
+// see Two Party RSA Key Generation. CRYPTO 1999: 116-129, section 4.1
+void multiplication_correlator(char *x, const char *y, int i, void *vargs) {
+	uintptr_t b = (uintptr_t) vargs;
+	ufixed_t *result = (ufixed_t *) x;
+	ufixed_t s_i = *((ufixed_t *) y);
+	*result = (((ufixed_t) 1) << i) * b + s_i;
 }
 
-ufixed_t inner_product_ot_sender(struct HonestOTExtSender *s, ufixed_t *x, size_t n, size_t stride_x) {
+ufixed_t inner_product_ot_sender(struct HonestOTExtSender *sender, ufixed_t *x, size_t n, size_t stride_x) {
 	ufixed_t result = 0;
+	ufixed_t *s = malloc(FIXED_BIT_SIZE * sizeof(s));
+	ufixed_t *t = malloc(FIXED_BIT_SIZE * sizeof(t));
 	for(size_t k = 0; k < n; k++) {
 		// multiply b = x[k] and y[k] (from other peer) using OT
-		multiplication_args args = {.b = x[k * stride_x]};
-		for(args.i = 0; args.i < FIXED_BIT_SIZE; args.i++) {
-			ufixed_t s_i, t_i; // t_i = 2^i b + s_i
-			honestCorrelatedOTExtSend1Of2(s, 
-				(char *) &s_i, 
-				(char *) &t_i, 
-				1,
-				sizeof(ufixed_t),
-				multiplication_correlator,
-				&args
-			);
-			result -= s_i;
+		uintptr_t b = x[k * stride_x];
+		honestCorrelatedOTExtSend1Of2(sender, 
+			(char *) s, 
+			(char *) t, 
+			FIXED_BIT_SIZE,
+			sizeof(ufixed_t),
+			multiplication_correlator,
+			(void *) b
+		);
+		for(int i = 0; i < FIXED_BIT_SIZE; i++) {
+			result -= s[i];
 		}
 	}
+	free(s);
+	free(t);
 	return result;
 }
 
-ufixed_t inner_product_ot_recver(struct HonestOTExtRecver *r, ufixed_t *x, size_t n, size_t stride_x) {
+ufixed_t inner_product_ot_recver(struct HonestOTExtRecver *recvr, ufixed_t *x, size_t n, size_t stride_x) {
 	ufixed_t result = 0;
+	ufixed_t *t = malloc(FIXED_BIT_SIZE * sizeof(t));
+	bool *sel = malloc(FIXED_BIT_SIZE * sizeof(sel));
 	for(size_t k = 0; k < n; k++) {
 		ufixed_t a = x[k * stride_x];
 		for(int i = 0; i < FIXED_BIT_SIZE; i++) {
-			bool sel = (a >> i) % 2;
-			ufixed_t t_i;
-			honestCorrelatedOTExtRecv1Of2(r, 
-				(char *) &t_i,
-				&sel,
-				1,
-				sizeof(ufixed_t)
-			);
-			result += t_i;
+			sel[i] = (a >> i) & 1;
+		}
+		honestCorrelatedOTExtRecv1Of2(recvr, 
+			(char *) t,
+			sel,
+			FIXED_BIT_SIZE,
+			sizeof(ufixed_t)
+		);
+		for(int i = 0; i < FIXED_BIT_SIZE; i++) {
+			result += t[i];
 		}
 	}
+	free(t);
+	free(sel);
+	return result;
 }
 
 // computes inner product _without_ the CSP using Oblivious Transfers 
@@ -98,12 +104,16 @@ ufixed_t inner_product_ot(
 	clock_gettime(CLOCK_MONOTONIC, &wait_start);
   dhRandomInit(); // needed or else Obliv-C segfaults
 	if(owner_i == c->party-1) { // we own row i, but not j => we are sender
+		orecv(self->peer[owner_j], 0, 0, 0);
 		struct HonestOTExtSender *s = honestOTExtSenderNew(self->peer[owner_j], 0);
 		result = inner_product_ot_sender(s, row_start_i, c->n, stride_i);
+		orecv(self->peer[owner_j], 0, 0, 0);
 		honestOTExtSenderRelease(s);
 	} else {
+		orecv(self->peer[owner_i], 0, 0, 0);
 		struct HonestOTExtRecver *r = honestOTExtRecverNew(self->peer[owner_i], 0);
 		result = inner_product_ot_recver(r, row_start_j, c->n, stride_j);
+		orecv(self->peer[owner_i], 0, 0, 0);
 		honestOTExtRecverRelease(r);
 	}
 	clock_gettime(CLOCK_MONOTONIC, &wait_end);
@@ -259,7 +269,7 @@ ufixed_t inner_product_ti(
 
 
 int run_trusted_initializer(node *self, config *c, int precision) {
-	return 0;
+
 	BCipherRandomGen *gen = newBCipherRandomGen();
 	int status;
 	ufixed_t *x = calloc(c->n , sizeof(ufixed_t));
@@ -272,6 +282,7 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 	pmsg_b.n_vector = c->n;
 	pmsg_a.vector = y;
 	pmsg_b.vector = x;
+	/*
 	for(size_t i = 0; i <= c->d; i++) {
 		for(size_t j = 0; j <= i && j < c->d; j++) {
 			// get parties a and b
@@ -302,8 +313,8 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 			check(!status, "Could not send message to party B (%d)", party_b);
 		}
 	}
-
-	/*
+*/
+	
 	// Receive and combine shares from peers for testing;
 	uint64_t *share_A = NULL, *share_b = NULL;
 	size_t d = c->d;
@@ -330,20 +341,20 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 	printf("A = \n");
 	for(size_t i = 0; i < c->d; i++) {
 		for(size_t j = 0; j <= i; j++) {
-			printf("%3.8f ", fixed_to_double((fixed64_t) share_A[idx(i, j)], precision));
+			printf("%3.8f ", fixed_to_double((fixed_t) share_A[idx(i, j)], precision));
 		}
 		printf("\n");
 	}
 
 	printf("b = \n");
 	for(size_t i = 0; i < c->d; i++) {
-		printf("%3.6f ", fixed_to_double((fixed64_t) share_b[i], precision));
+		printf("%3.6f ", fixed_to_double((fixed_t) share_b[i], precision));
 	}
 	printf("\n");
 
 	free(share_A);
 	free(share_b);
-	*/
+	
 
 	free(x);
 	free(y);
@@ -439,9 +450,10 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 		}
 	}
 	
-	/*
+	
 	// send results to TI for testing;
-	free(pmsg_out.vector);
+	SecureMultiplication__Msg pmsg_out;
+	secure_multiplication__msg__init(&pmsg_out);
 	pmsg_out.vector = share_A;
 	pmsg_out.n_vector = d * (d + 1) / 2;
 	status = send_pmsg(&pmsg_out, self->peer[0]);
@@ -451,7 +463,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	status = send_pmsg(&pmsg_out, self->peer[0]);
 	check(!status, "Could not send share_b to TI");
 	pmsg_out.vector = NULL;
-	*/
+	
 
 	free(data.value);
 	free(target.value);
