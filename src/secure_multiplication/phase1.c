@@ -386,9 +386,10 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	ufixed_t *share_A = NULL, *share_b = NULL;
 
 	// read inputs and allocate result buffer
-	status = read_matrix(c->input, &data, precision);
+	double normalizer = sqrt(pow(2,precision) * c->d * c->n);
+	status = read_matrix(c->input, &data, precision, true, normalizer);
 	check(!status, "Could not read data");
-	status = read_vector(c->input, &target, precision);
+	status = read_vector(c->input, &target, precision, true, normalizer);
 	check(!status, "Could not read target");
 	size_t d = data.d[1];
 	check(c->n == target.len && d == c->d && c->n == data.d[0],
@@ -397,6 +398,9 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 	share_A = calloc(d * (d + 1) / 2, sizeof(ufixed_t));
 	share_b = calloc(d, sizeof(ufixed_t));
 
+	/*
+	This is now done in floating point in the 
+	read_matrix and read_vector functions
 	for(size_t i = 0; i < c->n; i++) {
 		for(size_t j = 0; j < c->d; j++) {
 			// rescale in advance
@@ -405,7 +409,7 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 		}
 		target.value[i] = (fixed_t) round(target.value[i] /
 			(sqrt(pow(2,precision) * c->d * c->n)));
-	}
+	}*/
 
 	for(size_t i = 0; i <= c->d; i++) {
 		ufixed_t *row_start_i, *row_start_j;

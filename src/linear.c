@@ -24,7 +24,8 @@ fixed_t inner_product(vector_t *vector_1, vector_t *vector_2){
 }
 
 
-int read_matrix(FILE *file, matrix_t *matrix, int precision) {
+int read_matrix(FILE *file, matrix_t *matrix, int precision,
+		bool normalize, double normalizer) {
 	int n, m, res;
 	check(matrix && file, "Arguments may not be null.");
 	matrix->value = NULL;
@@ -43,6 +44,9 @@ int read_matrix(FILE *file, matrix_t *matrix, int precision) {
 		for(size_t j = 0; j < m; j++) {
 			double val;
 			res = fscanf(file, "%lf", &val);
+			if(normalize){
+				val /= normalizer;
+			}
 			check(res == 1, "fscanf: %s.", strerror(errno));
 			matrix->value[i*m+j] = double_to_fixed(val, precision);
 //			printf("%f ", val);
@@ -61,7 +65,8 @@ error:
 	return 1;	
 }
 
-int read_vector(FILE *file, vector_t *vector, int precision) {
+int read_vector(FILE *file, vector_t *vector,
+		int precision, bool normalize, double normalizer) {
 	int l, res;
 	check(vector && file, "Arguments may not be null.");
 
@@ -75,6 +80,9 @@ int read_vector(FILE *file, vector_t *vector, int precision) {
 	for(size_t i = 0; i < l; i++) {
 		double val;
 		res = fscanf(file, "%lf", &val);
+		if (normalize){
+			val /= normalizer;
+		}
 		check(res == 1, "fscanf: %s.", strerror(errno));
 		vector->value[i] = double_to_fixed(val, precision);
 //		printf("%f ", val);

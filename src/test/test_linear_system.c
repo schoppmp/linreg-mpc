@@ -19,9 +19,9 @@ int read_ls_from_file(int party, const char *filepath, linear_system_t *ls) {
 	//check(file, "Could not open file: %s.", strerror(errno));
 
 	// Read linear system from file
-	res = read_matrix(file, &A, precision);
+	res = read_matrix(file, &A, precision, false, 0);
 	check(!res, "Could not read A.");
-	res = read_vector(file, &b, precision);
+	res = read_vector(file, &b, precision, false, 0);
 	check(!res, "Could not read b.");
 
 	// generate random masks
