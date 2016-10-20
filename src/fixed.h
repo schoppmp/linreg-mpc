@@ -1,4 +1,4 @@
-
+#pragma once
 #include <stdint.h>
 
 #if BIT_WIDTH_32

@@ -3,7 +3,6 @@
 #include "linear.oh"
 #include "fixed.h"
 #include "fixed.oh"
-#include "obig.oh"
 #include "util.h"
 
 
@@ -15,22 +14,22 @@ void cholesky(void *v) {
 	linear_system_t *ls = v;
 	// allocate space for obliv values and read inputs
 	size_t d = ls->a.d[0];
-	obig *a = malloc(((d * (d+1)) / 2) * sizeof(obig));
+	ofixed_t *a = malloc(((d * (d+1)) / 2) * sizeof(ofixed_t));
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
-		obig_init(&a[ii], FIXED_BIT_SIZE/8);
+		ofixed_init(&a[ii]);
 	}
 
-	obig *b = malloc(d * sizeof(obig));
-	obig *y = malloc(d * sizeof(obig));
-	obig *beta = malloc(d * sizeof(obig));
+	ofixed_t *b = malloc(d * sizeof(ofixed_t));
+	ofixed_t *y = malloc(d * sizeof(ofixed_t));
+	ofixed_t *beta = malloc(d * sizeof(ofixed_t));
 	for (size_t ii = 0; ii < d; ii++) {
-		obig_init(&b[ii], FIXED_BIT_SIZE/8);
-		obig_init(&y[ii], FIXED_BIT_SIZE/8);
-		obig_init(&beta[ii], FIXED_BIT_SIZE/8);
+		ofixed_init(&b[ii]);
+		ofixed_init(&y[ii]);
+		ofixed_init(&beta[ii]);
 	}
 
-	obig temp;
-	obig_init(&temp, FIXED_BIT_SIZE/8);
+	ofixed_t temp;
+	ofixed_init(&temp);
 
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
@@ -90,7 +89,7 @@ void cholesky(void *v) {
 	// return the result
 	obliv fixed_t otemp;
 	for(size_t i = 0; i < d; i++) {
-		otemp = obig_export_onative_signed(beta[i]);
+		otemp = ofixed_export(beta[i]);
 		revealOblivLLong(ls->beta.value + i, otemp, 2); // <- is this right, or should it be &ls->beta.value[i]? <- isn't that the same?
 		//revealOblivInt(ls->beta.value + i, beta[i], 2);
 	}
@@ -99,14 +98,14 @@ void cholesky(void *v) {
 		ls->gates = yaoGateCount();
 	}
 
-	obig_free(&temp);
+	ofixed_free(&temp);
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
-		obig_free(&a[ii]);
+		ofixed_free(&a[ii]);
 	}
 	for (size_t ii = 0; ii < d; ii++) {
-		obig_free(&b[ii]);
-		obig_free(&y[ii]);
-		obig_free(&beta[ii]);
+		ofixed_free(&b[ii]);
+		ofixed_free(&y[ii]);
+		ofixed_free(&beta[ii]);
 	}
 	free(a);
 	free(b);

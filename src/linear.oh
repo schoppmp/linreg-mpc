@@ -1,6 +1,6 @@
 #pragma once
 #include <obliv.oh>
 #include "linear.h"
-#include "obig.oh"
+#include "fixed.oh"
 
-int read_symmetric_linear_system(linear_system_t *ls, obig *a, obig *b);
+int read_symmetric_linear_system(linear_system_t *ls, ofixed_t *a, ofixed_t *b);

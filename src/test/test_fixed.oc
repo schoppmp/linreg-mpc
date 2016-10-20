@@ -21,29 +21,29 @@ void test_fixed(void *v) {
 	} 
 	
 	// compute the dot product of a and b
-	obig c, x, y, t;
-	obig_init(&c, 4);
-	obig_init(&x, 4);
-	obig_init(&y, 4);
-	obig_init(&t, 4);
+	ofixed_t c, x, y, t;
+	ofixed_init(&c);
+	ofixed_init(&x);
+	ofixed_init(&y);
+	ofixed_init(&t);
 	double start_time = wallClock();
 	for(size_t i = 0; i < args->len; i++) {
 		if(i % 1000 == 0 && ocCurrentParty() == 2) {
 			printf("%zd\t%f\n", i, wallClock() - start_time);
 		}
 		// assuming sizeof(int) == sizeof(fixed32_t)
-		obig_import_onative_signed(&x, feedOblivLLong(args->inputs[i], 1));
-		obig_import_onative_signed(&y, feedOblivLLong(args->inputs[i], 2));
+		ofixed_import(&x, feedOblivLLong(args->inputs[i], 1));
+		ofixed_import(&y, feedOblivLLong(args->inputs[i], 2));
 		ofixed_mul(&t, x, y, args->p);
 		ofixed_add(&c, c, t);
 	}
 	
-	obliv fixed_t out = obig_export_onative_signed(c);
+	obliv fixed_t out = ofixed_export(c);
 	revealOblivLLong(&(args->result), out, 0);
 	args->gates = yaoGateCount();
 
-	obig_free(&c);
-	obig_free(&x);
-	obig_free(&y);
-	obig_free(&t);
+	ofixed_free(&c);
+	ofixed_free(&x);
+	ofixed_free(&y);
+	ofixed_free(&t);
 }

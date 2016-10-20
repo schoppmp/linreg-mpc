@@ -1,17 +1,13 @@
 #include <obliv.oh>
 #include "fixed.oh"
 
-// returns a mask of the lowest (FIXED_BIT_SIZE + p) bits.
-// saves garbled gates for some operations
-//static int64_t fixed_mask(int p) {
-//	return ((1ll << (FIXED_BIT_SIZE + p)) - 1);
-//}
 
 size_t ceildiv(size_t dividend, size_t divisor) {
 	return (dividend + divisor - 1) / divisor;
 }
 
-void ofixed_max(obig *a) obliv {
+#if !(BIT_WIDTH_32)
+void obig_max(obig *a) obliv {
 	for(size_t i = 0; i < a->digits; i++) {
 		if(i < a->digits - 1) {
 			a->data[i] = (uint8_t) 0xFF;
@@ -20,11 +16,21 @@ void ofixed_max(obig *a) obliv {
 		}
 	}
 }
+#endif
 
 // checks if 'in' is greater than ofixed_max or less than -ofixed_max
 // and sets 'out' to the respecitve limit if that's the case, and to 'in' 
 // otherwise
-void ofixed_check_overflow(obig *out, obig in) obliv {
+void ofixed_check_overflow(ofixed_t *out, ofixed_t in) obliv {
+#if BIT_WIDTH_32
+	obliv if(in > (obliv int64_t) INT32_MAX) {
+		*out = INT32_MAX;
+	} else obliv if(in < (obliv int64_t) INT32_MIN) {
+		*out = INT32_MIN;
+	} else {
+		*out = in;
+	}
+#else
 //	obig_copy(out, in); 
 //	return; // assume overflows don't happen
 	if(in.digits <= out->digits) {
@@ -35,7 +41,7 @@ void ofixed_check_overflow(obig *out, obig in) obliv {
 	obig *tempptr = &temp;
 	~obliv() obig_init(&temp, in.digits);
 	~obliv() obig_init(&max, out->digits);
-	ofixed_max(&max);
+	obig_max(&max);
 	obliv bool overflowed = false;
 	obliv if(!obig_ltz_signed(in)) {
 		// check overflows by checking if higher bytes are all zero
@@ -63,26 +69,66 @@ void ofixed_check_overflow(obig *out, obig in) obliv {
 	}
 	~obliv() obig_free(&temp);
 	~obliv() obig_free(&max);
+#endif
 }
 
-void ofixed_add(obig *out, obig a, obig b) obliv {
+
+
+
+obliv int8_t ofixed_cmp(ofixed_t a, ofixed_t b) obliv {
+#if BIT_WIDTH_32
+	obliv int8_t result = 0;
+	obliv if(a < b) result = -1;
+	obliv if(a > b) result = 1;
+	return result;
+#else
+	return obig_cmp(a, b);
+#endif
+	
+}
+
+void ofixed_abs(ofixed_t *out, ofixed_t a) obliv {
+#if BIT_WIDTH_32
+	obliv if(a < 0) *out = 0-a; // unary minus not defined for "obliv" types?
+	else *out = a;
+#else
+	obig_abs(out, a);
+#endif
+}
+
+void ofixed_add(ofixed_t *out, ofixed_t a, ofixed_t b) obliv {
+#if BIT_WIDTH_32
+	*out = a + b;
+#else
 	obig temp;
 	~obliv() obig_init(&temp, (a.digits > b.digits ? a : b).digits + 1);
 	obig_add_signed(&temp, a, b);	
 	obig_copy(out, temp);
 	~obliv() obig_free(&temp);
+#endif
 }
 
-void ofixed_sub(obig *out, obig a, obig b) obliv {
+void ofixed_sub(ofixed_t *out, ofixed_t a, ofixed_t b) obliv {
+#if BIT_WIDTH_32
+	*out = a - b;
+#else
 	obig temp;
 	~obliv() obig_init(&temp, (a.digits > b.digits ? a : b).digits + 1);
 	obig_sub_signed(&temp, a, b);	
 	obig_copy(out, temp);
 	~obliv() obig_free(&temp);
+#endif
 }
 
 
-void ofixed_inner_product(obig *out, obig *a, obig *b, size_t p, size_t d) obliv {
+void ofixed_inner_product(ofixed_t *out, ofixed_t *a, ofixed_t *b, size_t p, size_t d) obliv {
+#if BIT_WIDTH_32
+	obliv int64_t temp;
+	for(size_t i = 0; i < d; i++) {
+		temp += (obliv int64_t) a[i] * (obliv int64_t) b[i];
+	}
+	*out = temp >> p;
+#else
 	obig temp1, temp2, temp3;
 	~obliv() obig_init(&temp1, a[0].digits + b[0].digits + d);
 	~obliv() obig_init(&temp2, a[0].digits + b[0].digits);
@@ -97,9 +143,13 @@ void ofixed_inner_product(obig *out, obig *a, obig *b, size_t p, size_t d) obliv
 	~obliv() obig_free(&temp1);
 	~obliv() obig_free(&temp2);
 	~obliv() obig_free(&temp3);
+#endif
 }
 
-void ofixed_mul(obig *out, obig a, obig b, size_t p) obliv {
+void ofixed_mul(ofixed_t *out, ofixed_t a, ofixed_t b, size_t p) obliv {
+#if BIT_WIDTH_32
+	*out = ((obliv int64_t) a * (obliv int64_t) b) >> p;
+#else
 	obig temp, temp2;
 	~obliv() obig_init(&temp, a.digits + b.digits);
 	~obliv() obig_init(&temp2, a.digits + b.digits);
@@ -108,9 +158,14 @@ void ofixed_mul(obig *out, obig a, obig b, size_t p) obliv {
 	obig_copy(out, temp2);
 	~obliv() obig_free(&temp);
 	~obliv() obig_free(&temp2);
+#endif
 }
 
-obliv bool ofixed_div(obig *out, obig a, obig b, size_t p) obliv {
+obliv bool ofixed_div(ofixed_t *out, ofixed_t a, ofixed_t b, size_t p) obliv {
+#if BIT_WIDTH_32
+	*out = ((obliv int64_t) a << p) / (obliv int64_t) b;
+	return true;
+#else
 	obig temp, temp2, *tempptr = &temp, *temp2ptr = &temp2;
 	obliv bool result;
 	~obliv() obig_init(&temp, a.digits + ceildiv(p,8));
@@ -129,9 +184,15 @@ obliv bool ofixed_div(obig *out, obig a, obig b, size_t p) obliv {
 	~obliv() obig_free(&temp);
 	~obliv() obig_free(&temp2);
 	return result;
+#endif
 }
 
-obliv bool ofixed_div_overflow(obig *out, obig a, obig b, size_t p) obliv {
+obliv bool ofixed_div_overflow(ofixed_t *out, ofixed_t a, ofixed_t b, size_t p) obliv {
+#if BIT_WIDTH_32
+	obliv int64_t temp = ((obliv int64_t) a << p) / (obliv int64_t) b;
+	ofixed_check_overflow(out, temp);
+	return true;
+#else
 	obig temp, temp2, *tempptr = &temp, *temp2ptr = &temp2;
 	obliv bool result;
 	~obliv() obig_init(&temp, a.digits + ceildiv(p,8));
@@ -150,12 +211,82 @@ obliv bool ofixed_div_overflow(obig *out, obig a, obig b, size_t p) obliv {
 	~obliv() obig_free(&temp);
 	~obliv() obig_free(&temp2);
 	return result;
+#endif
 }
 
-void ofixed_sqrt(obig *out, obig a, size_t p) obliv {
+#if BIT_WIDTH_32
+// returns a mask of the lowest (FIXED_BIT_SIZE + p) bits.
+// saves garbled gates for some operations
+static int64_t fixed_mask(int p) {
+	return ((1ll << (FIXED_BIT_SIZE + p)) - 1);
+}
+#endif
+
+void ofixed_sqrt(ofixed_t *out, ofixed_t a, size_t p) obliv {
+#if BIT_WIDTH_32
+	// limit number of bits
+	int64_t mask;
+	~obliv() mask = fixed_mask(p);
+	obliv int64_t x = ((obliv int64_t) a << p) & mask;
+	obliv int64_t r = 0;
+	for(int64_t e = mask + 1; e != 0; e >>= 2) {
+		obliv if((x & mask) >= ((r + e) & mask)) {
+			x -= r + e;
+			r = ((r >> 1) + e) & mask;
+		} else {
+			r = r >> 1;
+		}
+	}
+	*out = r;
+#else
 	obig temp;
 	~obliv() obig_init(&temp, a.digits + ceildiv(p,8));
 	obig_shl_native_signed(&temp, a, p);
 	obig_sqrt(out, temp);
 	~obliv() obig_free(&temp);
+#endif
+}
+
+
+
+
+
+void ofixed_init(ofixed_t *a) {
+#if BIT_WIDTH_32
+	return;
+#else
+	obig_init(a, FIXED_BIT_SIZE / 8);
+#endif
+}
+
+void ofixed_free(ofixed_t *a) {
+#if BIT_WIDTH_32
+	return;
+#else
+	obig_free(a);
+#endif
+}
+
+void ofixed_import(ofixed_t *a, obliv fixed_t b) {
+#if BIT_WIDTH_32
+	*a = b;
+#else
+	obig_import_onative_signed(a, b);
+#endif
+}
+
+obliv fixed_t ofixed_export(ofixed_t a) {
+#if BIT_WIDTH_32
+	return a;
+#else
+	return obig_export_onative_signed(a);
+#endif
+}
+
+void ofixed_copy(ofixed_t *a, ofixed_t b) obliv {
+#if BIT_WIDTH_32
+	*a = b;
+#else
+	obig_copy_signed(a, b);
+#endif
 }

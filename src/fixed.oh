@@ -2,10 +2,27 @@
 #include "fixed.h"
 #include "obig.oh"
 
-void ofixed_add(obig *out, obig a, obig b) obliv;
-void ofixed_sub(obig *out, obig a, obig b) obliv;
-void ofixed_mul(obig *out, obig a, obig b, size_t p) obliv;
-void ofixed_inner_product(obig *out, obig *a, obig *b, size_t p, size_t d) obliv;
-obliv bool ofixed_div(obig *out, obig a, obig b, size_t p) obliv;
-obliv bool ofixed_div_overflow(obig *out, obig a, obig b, size_t p) obliv;
-void ofixed_sqrt(obig *out, obig a, size_t p) obliv;
+#if BIT_WIDTH_32
+    typedef obliv fixed_t ofixed_t;
+#else
+    typedef obig ofixed_t;
+#endif
+
+// comparison only works for unsigned numbers for now
+obliv int8_t ofixed_cmp(ofixed_t a, ofixed_t b) obliv;
+
+void ofixed_abs(ofixed_t *out, ofixed_t in) obliv;
+void ofixed_add(ofixed_t *out, ofixed_t a, ofixed_t b) obliv;
+void ofixed_sub(ofixed_t *out, ofixed_t a, ofixed_t b) obliv;
+void ofixed_mul(ofixed_t *out, ofixed_t a, ofixed_t b, size_t p) obliv;
+void ofixed_inner_product(ofixed_t *out, ofixed_t *a, ofixed_t *b, size_t p, size_t d) obliv;
+obliv bool ofixed_div(ofixed_t *out, ofixed_t a, ofixed_t b, size_t p) obliv;
+obliv bool ofixed_div_overflow(ofixed_t *out, ofixed_t a, ofixed_t b, size_t p) obliv;
+void ofixed_sqrt(ofixed_t *out, ofixed_t a, size_t p) obliv;
+
+// these functions do nothing in 32 bit mode, but are needed for obig
+void ofixed_init(ofixed_t *out);
+void ofixed_free(ofixed_t *out);
+void ofixed_import(ofixed_t *out, obliv fixed_t a);
+obliv fixed_t ofixed_export(ofixed_t a);
+void ofixed_copy(ofixed_t *out, ofixed_t a) obliv;

@@ -15,20 +15,20 @@ void ldlt(void *v) {
 	// allocate space for obliv values and read inputs
 	// we can do most computations in-place in this case
 	size_t d = ls->a.d[0];
-	obig *a = malloc(((d * (d+1)) / 2) * sizeof(obig));
+	ofixed_t *a = malloc(((d * (d+1)) / 2) * sizeof(ofixed_t));
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
-		obig_init(&a[ii], FIXED_BIT_SIZE/8);
+		ofixed_init(&a[ii]);
 	}
 
-	obig *b = malloc(d * sizeof(obig));
+	ofixed_t *b = malloc(d * sizeof(ofixed_t));
 	for (size_t ii = 0; ii < d; ii++) {
-		obig_init(&b[ii], FIXED_BIT_SIZE/8);
+		ofixed_init(&b[ii]);
 	}
 
-	obig a_jk_kk;
-	obig_init(&a_jk_kk, FIXED_BIT_SIZE/8);
-	obig otemp;
-	obig_init(&otemp, FIXED_BIT_SIZE/8);
+	ofixed_t a_jk_kk;
+	ofixed_init(&a_jk_kk);
+	ofixed_t otemp;
+	ofixed_init(&otemp);
 
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
@@ -85,7 +85,7 @@ void ldlt(void *v) {
 			ofixed_sub(&b[i], b[i], otemp);
 			//b[i] -= ofixed_mul(a[idx(j,i)], b[j], ls->precision);
 		}
-		obliv fixed_t temp = obig_export_onative_signed(b[i]);
+		obliv fixed_t temp = ofixed_export(b[i]);
 		revealOblivLLong(ls->beta.value + i, temp, 2);
 		//revealOblivInt(ls->beta.value + i, b[i], 2);
 	}
@@ -95,13 +95,13 @@ void ldlt(void *v) {
 	}
 
 	for (size_t ii = 0; ii < ((d * (d+1)) / 2); ii++) {
-		obig_free(&a[ii]);
+		ofixed_free(&a[ii]);
 	}
 	for (size_t ii = 0; ii < d; ii++) {
-		obig_free(&b[ii]);
+		ofixed_free(&b[ii]);
 	}
-	obig_free(&a_jk_kk);
-	obig_free(&otemp);
+	ofixed_free(&a_jk_kk);
+	ofixed_free(&otemp);
 	free(a);
 	free(b);
 	return;

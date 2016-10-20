@@ -6,7 +6,7 @@
 #include "util.h"
 #include <time.h>
 
-int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obig *a, obig *b) {
+int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, ofixed_t *a, ofixed_t *b) {
 	// This function must only be executed by the parties that run the GC protocol: CSP and Evaluator,
 	// with is'd 1 and 2 and c->party = 0 and 1, respectively.
 	int num_parties = ls->self->num_parties;
@@ -15,16 +15,16 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obig *
 	size_t d = ls->a.d[0];
 
 	for(int ij = 0; ij < d * (d+1) / 2; ij++) {
-		obig_zero(&a[ij]);
+		ofixed_import(&a[ij], 0);
 	}
 	for(int i = 0; i < d; i++) {
-		obig_zero(&a[i]);
+		ofixed_import(&a[i], 0);
 	}
 	obliv ufixed_t *share_a = malloc((d*(d + 1)/2) * sizeof(obliv ufixed_t));
 	obliv ufixed_t *share_b = malloc(d * sizeof(obliv ufixed_t));
 
-	obig obigtemp;
-	obig_init(&obigtemp, FIXED_BIT_SIZE/8);
+	ofixed_t obigtemp;
+	ofixed_init(&obigtemp);
 	struct timespec time_start, time_end;
 	clock_gettime(CLOCK_MONOTONIC, &time_start);
 	for(int k = 3; k <= num_parties; k++) {
@@ -32,15 +32,15 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obig *
 		dcrRecvIntArray(conn, share_a, d*(d + 1)/2, k);
 		printf("%s received A from party %d\n", ocCurrentParty()==1?"CSP":"Evaluator",k);
 		for(int ij = 0; ij < d * (d+1) / 2; ij++) {
-			obig_import_onative(&obigtemp, share_a[ij]);
-			obig_add(&a[ij], a[ij], obigtemp);
+			ofixed_import(&obigtemp, share_a[ij]);
+			ofixed_add(&a[ij], a[ij], obigtemp);
 		}
 		printf("%s receiving b from party %d\n", ocCurrentParty()==1?"CSP":"Evaluator",k);
 		dcrRecvIntArray(conn, share_b, d, k);
 		printf("%s received b from party %d\n", ocCurrentParty()==1?"CSP":"Evaluator",k);
 		for(int i = 0; i < d; i++) {
-			obig_import_onative(&obigtemp, share_b[i]);
-			obig_add(&b[i], b[i], obigtemp);
+			ofixed_import(&obigtemp, share_b[i]);
+			ofixed_add(&b[i], b[i], obigtemp);
 		}
 	}
 	clock_gettime(CLOCK_MONOTONIC, &time_end);
@@ -52,11 +52,11 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, obig *
 	return 0;
 }
 
-int read_symmetric_linear_system_from_ls(linear_system_t *ls, obig *a, obig *b) {
+int read_symmetric_linear_system_from_ls(linear_system_t *ls, ofixed_t *a, ofixed_t *b) {
 	// party 1 inputs matrix A and vector b, party 2 inputs the masks.
 	//obliv fixed32_t *mask_a, *mask_b;
-	obig mask;
-	obig_init(&mask, FIXED_BIT_SIZE/8);
+	ofixed_t mask;
+	ofixed_init(&mask);
 
 	size_t d;
 	// check inputs for validity
@@ -75,17 +75,17 @@ int read_symmetric_linear_system_from_ls(linear_system_t *ls, obig *a, obig *b) 
 	// since A is symmetric, we only need to read half the matrix!
 	for(size_t i = 0; i < d; i++) {
 		for(size_t j = 0; j <= i; j++) {
-			obig_import_onative(&mask, feedOblivLLong(ls->a.value[i*d+j], 2));
-			obig_import_onative_signed(&a[idx(i, j)], feedOblivLLong(ls->a.value[i*d+j], 1));
+			ofixed_import(&mask, feedOblivLLong(ls->a.value[i*d+j], 2));
+			ofixed_import(&a[idx(i, j)], feedOblivLLong(ls->a.value[i*d+j], 1));
 
-			obig_add(&a[idx(i,j)], a[idx(i,j)], mask);
+			ofixed_add(&a[idx(i,j)], a[idx(i,j)], mask);
 		}
-		obig_import_onative(&mask, feedOblivLLong(ls->b.value[i], 2));
-		obig_import_onative_signed(&b[i], feedOblivLLong(ls->b.value[i], 1));
-		obig_add(&b[i], b[i], mask);
+		ofixed_import(&mask, feedOblivLLong(ls->b.value[i], 2));
+		ofixed_import(&b[i], feedOblivLLong(ls->b.value[i], 1));
+		ofixed_add(&b[i], b[i], mask);
 	}
 
-	obig_free(&mask);
+	ofixed_free(&mask);
 	return 0;
 
 error:
@@ -93,7 +93,7 @@ error:
 	return -1;
 }
 
-int read_symmetric_linear_system(linear_system_t *ls, obig *a, obig *b) {
+int read_symmetric_linear_system(linear_system_t *ls, ofixed_t *a, ofixed_t *b) {
 	// This distinction is to maintain compatibility to our tests of phase 2 only
 	if(!ls->self){
 		return read_symmetric_linear_system_from_ls(ls, a, b);
