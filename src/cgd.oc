@@ -165,7 +165,7 @@ void cgd(void *v) {
 			ofixed_sub(&p[i], gscl[i], obigtemp);
 		}
 
-		if(ocCurrentParty() == 2) printf("Iteration %d (x):\n", t);
+		if(ocCurrentParty() == 2) printf("Iteration %zd (x):\n", t);
 		for(size_t i = 0; i < d; i++) {
 			bool q_nonzero_revealed;
 			revealOblivBool(&q_nonzero_revealed, q_nonzero, 0);
@@ -196,9 +196,9 @@ void cgd(void *v) {
 		if(ocCurrentParty() == 2) printf("\nng: %30.20f ", fixed_to_double(temp, prec));
 		if(ocCurrentParty() == 2) {
 			if(!ocInDebugProto())  {
-				printf("\nIteration %d gate count: %lld", t, yaoGateCount());
+				printf("\nIteration %zd gate count: %lld", t, yaoGateCount());
 			}
-			printf("\nIteration %d time: %f\n", t, wallClock() - time_start);
+			printf("\nIteration %zd time: %f\n", t, wallClock() - time_start);
 		}
 
 		flag = ocBroadcastBool(flag, 1) || ocBroadcastBool(flag, 2);
