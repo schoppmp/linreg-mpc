@@ -253,6 +253,7 @@ void ofixed_sqrt(ofixed_t *out, ofixed_t a, size_t p) obliv {
 
 void ofixed_init(ofixed_t *a) {
 #if BIT_WIDTH_32
+	*a = 0;
 	return;
 #else
 	obig_init(a, FIXED_BIT_SIZE / 8);

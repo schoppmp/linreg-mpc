@@ -50,13 +50,13 @@ void cgd(void *v) {
 		ls->beta.value = malloc(d * sizeof(uint64_t));
 	}
 	
-	ofixed_t *x = malloc(d * sizeof(obig));
-	ofixed_t *ax = malloc(d * sizeof(obig));
-	ofixed_t *p = malloc(d * sizeof(obig));
-	ofixed_t *g = malloc(d * sizeof(obig));
-	ofixed_t *gscl = malloc(d * sizeof(obig));
-	ofixed_t *pA = malloc(d * sizeof(obig));
-	ofixed_t *result = malloc(d * sizeof(obig));
+	ofixed_t *x = malloc(d * sizeof(ofixed_t));
+	ofixed_t *ax = malloc(d * sizeof(ofixed_t));
+	ofixed_t *p = malloc(d * sizeof(ofixed_t));
+	ofixed_t *g = malloc(d * sizeof(ofixed_t));
+	ofixed_t *gscl = malloc(d * sizeof(ofixed_t));
+	ofixed_t *pA = malloc(d * sizeof(ofixed_t));
+	ofixed_t *result = malloc(d * sizeof(ofixed_t));
 	for (size_t ii = 0; ii < d; ii++) {
 		ofixed_init(&x[ii]);
 		ofixed_init(&ax[ii]);
@@ -237,14 +237,16 @@ void cgd(void *v) {
 		ofixed_free(&g[ii]);
 		ofixed_free(&gscl[ii]);
 		ofixed_free(&pA[ii]);
+		ofixed_free(&result[ii]);
 	}
 	free(a);
-    free(b);
-    free(x);
-    free(ax);
-    free(p);
-    free(g);
-    free(gscl);
-    free(pA);
+  free(b);
+  free(x);
+  free(ax);
+  free(p);
+  free(g);
+  free(gscl);
+  free(pA);
+  free(result);
 	return;
 }
