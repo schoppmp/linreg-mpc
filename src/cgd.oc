@@ -171,7 +171,7 @@ void cgd(void *v) {
 			revealOblivBool(&q_nonzero_revealed, q_nonzero, 0);
 			otemp = ofixed_export( // print the correct value
 				q_nonzero_revealed ? x[i] : result[i]);
-			revealOblivLLong(&temp, otemp, 2);
+			ofixed_reveal(&temp, otemp, 2);
 			//p[i] = g[i] + ofixed_mul(gamma, p[i], prec);
 			//revealOblivInt(&temp, beta[i], 2);
 			if(ocCurrentParty() == 2) printf("%20.15f ", fixed_to_double(temp, prec));
@@ -183,16 +183,16 @@ void cgd(void *v) {
 			if(ocCurrentParty() == 2) printf("%20.15f ", fixed_to_double(temp, prec));
 		}*/
 		otemp = ofixed_export(gamma);
-		revealOblivLLong(&temp, otemp, 2);
+		ofixed_reveal(&temp, otemp, 2);
 		if(ocCurrentParty() == 2) printf("\nGamma: %30.20f ", fixed_to_double(temp, prec));
 		otemp = ofixed_export(eta);
-		revealOblivLLong(&temp, otemp, 2);
+		ofixed_reveal(&temp, otemp, 2);
 		if(ocCurrentParty() == 2) printf("\nEta: %30.20f ", fixed_to_double(temp, prec));
 		otemp = ofixed_export(q);
-		revealOblivLLong(&temp, otemp, 2);
+		ofixed_reveal(&temp, otemp, 2);
 		if(ocCurrentParty() == 2) printf("\nq: %30.20f ", fixed_to_double(temp, prec));
 		otemp = ofixed_export(ng);
-		revealOblivLLong(&temp, otemp, 2);
+		ofixed_reveal(&temp, otemp, 2);
 		if(ocCurrentParty() == 2) printf("\nng: %30.20f ", fixed_to_double(temp, prec));
 		if(ocCurrentParty() == 2) {
 			if(!ocInDebugProto())  {
@@ -212,7 +212,7 @@ void cgd(void *v) {
 	// return the result
 	for(size_t i = 0; i < d; i++) {
 		otemp = ofixed_export(result[i]);
-		revealOblivLLong(ls->beta.value + i, otemp, 2); // <- is this right, or should it be &ls->beta.value[i]? <- isn't that the same?
+		ofixed_reveal(ls->beta.value + i, otemp, 2); // <- is this right, or should it be &ls->beta.value[i]? <- isn't that the same?
 		//revealOblivInt(ls->beta.value + i, beta[i], 2);
 	}
 	if(!ocInDebugProto()) {

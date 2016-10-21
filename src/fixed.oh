@@ -23,6 +23,8 @@ void ofixed_sqrt(ofixed_t *out, ofixed_t a, size_t p) obliv;
 // these functions do nothing in 32 bit mode, but are needed for obig
 void ofixed_init(ofixed_t *out);
 void ofixed_free(ofixed_t *out);
+void ofixed_copy(ofixed_t *out, ofixed_t a) obliv;
+
 void ofixed_import(ofixed_t *out, obliv fixed_t a);
 obliv fixed_t ofixed_export(ofixed_t a);
-void ofixed_copy(ofixed_t *out, ofixed_t a) obliv;
+void ofixed_reveal(fixed_t *out, ofixed_t a, int party);

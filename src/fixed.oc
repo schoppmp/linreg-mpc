@@ -291,3 +291,12 @@ void ofixed_copy(ofixed_t *a, ofixed_t b) obliv {
 	obig_copy_signed(a, b);
 #endif
 }
+
+void ofixed_reveal(fixed_t *out, ofixed_t a, int party) {
+	obliv fixed_t temp = ofixed_export(a);
+#if BIT_WIDTH_32
+	revealOblivInt(out, temp, party);
+#else
+	revealOblivLLong(out, temp, party);
+#endif
+}
