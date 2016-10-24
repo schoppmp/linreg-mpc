@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
 	int status;
 
 	// parse arguments
-	check(argc > 6, "Usage: %s [Input_file] [Precision] [Party] [Algorithm] [Num. iterations CGD] [Lambda]", argv[0]);
+	check(argc > 6, "Usage: %s [Input_file] [Precision] [Party] [Algorithm] [Num. iterations CGD] [Lambda] [Options]\nOptions: --use_ot: Enables the OT-based phase 1 protocol", argv[0]);
 	char *end;
 	int precision = (int) strtol(argv[2], &end, 10);
 	check(!errno, "strtol: %s", strerror(errno));
@@ -62,10 +62,18 @@ int main(int argc, char **argv) {
 	char *algorithm = argv[4];
 	check(!strcmp(algorithm, "cholesky") || !strcmp(algorithm, "ldlt")  || !strcmp(algorithm, "cgd"),
 	      "Algorithm must be cholesky, ldlt, or cgd.");
-	check(strcmp(algorithm, "cgd") || argc == 7, "Number of iterations for CGD must be provided");
+	check(strcmp(algorithm, "cgd") || argc >= 7, "Number of iterations for CGD must be provided");
 	double lambda = (double) strtod(argv[6], &end);
 	check(!errno, "strtod: %s", strerror(errno));
 	check(!*end, "lambda must be a number");
+	
+	// parse options
+	bool use_ot = false;
+	for(int i = 7; i < argc; i++) {
+		if(!strcmp(argv[i], "--use_ot")) {
+			use_ot = true;
+		}
+	}
 
 	// read ls, we only need number of iterations
 	linear_system_t ls;
@@ -89,11 +97,11 @@ int main(int argc, char **argv) {
 
 	if(party == 1) {
 		//printf("Party %d running as TI\n", party);
-		status = run_trusted_initializer(self, c, precision);
+		status = run_trusted_initializer(self, c, precision, use_ot);
 		check(!status, "Error while running trusted initializer");
 	} else if(party > 2){
 		//printf("Party %d running as DP\n", party);
-		status = run_party(self, c, precision, NULL, &share_A, &share_b);
+		status = run_party(self, c, precision, NULL, &share_A, &share_b, use_ot);
 		check(!status, "Error while running party %d", party);
 	}
 

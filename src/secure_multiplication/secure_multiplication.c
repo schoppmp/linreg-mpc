@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
 	wait_total.tv_sec = wait_total.tv_nsec = 0;
 
 	// parse arguments
-	check(argc > 3, "Usage: %s file precision party", argv[0]);
+	check(argc > 3, "Usage: %s file precision party [options]\nOptions: --use_ot: Enables the OT-based phase 1 protocol", argv[0]);
 	char *end;
 	int precision = (int) strtol(argv[2], &end, 10);
 	check(!errno, "strtol: %s", strerror(errno));
@@ -55,6 +55,15 @@ int main(int argc, char **argv) {
 	int party = (int) strtol(argv[3], &end, 10);
 	check(!errno, "strtol: %s", strerror(errno));
 	check(!*end, "Party must be a number");
+
+	
+	// parse options
+	bool use_ot = false;
+	for(int i = 4; i < argc; i++) {
+		if(!strcmp(argv[i], "--use_ot")) {
+			use_ot = true;
+		}
+	}
 
 	// read config
 	status = config_new(&c, argv[1]);
@@ -74,10 +83,10 @@ int main(int argc, char **argv) {
 	clock_gettime(CLOCK_MONOTONIC, &realtime_start);
 
 	if(c->party == 1) {
-		status = run_trusted_initializer(self, c, precision);
+		status = run_trusted_initializer(self, c, precision, use_ot);
 		check(!status, "Error while running trusted initializer");
 	} else if(c->party > 2) {
-		status = run_party(self, c, precision, &wait_total, NULL, NULL);
+		status = run_party(self, c, precision, &wait_total, NULL, NULL, use_ot);
 		check(!status, "Error while running party %d", c->party);
 	}
 

@@ -273,7 +273,7 @@ ufixed_t inner_product_ti(
 
 
 
-int run_trusted_initializer(node *self, config *c, int precision) {
+int run_trusted_initializer(node *self, config *c, int precision, bool use_ot) {
 
 	BCipherRandomGen *gen = newBCipherRandomGen();
 	int status;
@@ -287,38 +287,39 @@ int run_trusted_initializer(node *self, config *c, int precision) {
 	pmsg_b.n_vector = c->n;
 	pmsg_a.vector = y;
 	pmsg_b.vector = x;
-	/*
-	for(size_t i = 0; i <= c->d; i++) {
-		for(size_t j = 0; j <= i && j < c->d; j++) {
-			// get parties a and b
-			int party_a = get_owner(i, c);
-			int party_b = get_owner(j, c);
-			check(party_a >= 2, "Invalid owner %d for row %zd", party_a, i);
-			check(party_b >= 2, "Invalid owner %d for row %zd", party_b, j);
-			// if parties are identical, skip; will be computed locally
-			if(party_a == party_b) {
-				continue;
+	
+	if(!use_ot) {
+		for(size_t i = 0; i <= c->d; i++) {
+			for(size_t j = 0; j <= i && j < c->d; j++) {
+				// get parties a and b
+				int party_a = get_owner(i, c);
+				int party_b = get_owner(j, c);
+				check(party_a >= 2, "Invalid owner %d for row %zd", party_a, i);
+				check(party_b >= 2, "Invalid owner %d for row %zd", party_b, j);
+				// if parties are identical, skip; will be computed locally
+				if(party_a == party_b) {
+					continue;
+				}
+
+				// generate random vectors x, y and value r
+				ufixed_t r = 0;
+				randomizeBuffer(gen, (char *)x, c->n * sizeof(ufixed_t));
+				randomizeBuffer(gen, (char *)y, c->n * sizeof(ufixed_t));
+				randomizeBuffer(gen, (char *)&r, sizeof(ufixed_t));
+				ufixed_t xy = inner_prod_64(x, y, c->n, 1, 1);
+
+				// create protobuf message
+				pmsg_a.value = xy-r;
+				pmsg_b.value = r;
+				//assert(pmsg_b.value == 0);
+
+				status = send_pmsg(&pmsg_a, self->peer[party_a]);
+				check(!status, "Could not send message to party A (%d)", party_a);
+				status = send_pmsg(&pmsg_b, self->peer[party_b]);
+				check(!status, "Could not send message to party B (%d)", party_b);
 			}
-
-			// generate random vectors x, y and value r
-			ufixed_t r = 0;
-			randomizeBuffer(gen, (char *)x, c->n * sizeof(ufixed_t));
-			randomizeBuffer(gen, (char *)y, c->n * sizeof(ufixed_t));
-			randomizeBuffer(gen, (char *)&r, sizeof(ufixed_t));
-			ufixed_t xy = inner_prod_64(x, y, c->n, 1, 1);
-
-			// create protobuf message
-			pmsg_a.value = xy-r;
-			pmsg_b.value = r;
-			//assert(pmsg_b.value == 0);
-
-			status = send_pmsg(&pmsg_a, self->peer[party_a]);
-			check(!status, "Could not send message to party A (%d)", party_a);
-			status = send_pmsg(&pmsg_b, self->peer[party_b]);
-			check(!status, "Could not send message to party B (%d)", party_b);
 		}
 	}
-*/
 	
 	// Receive and combine shares from peers for testing;
 	uint64_t *share_A = NULL, *share_b = NULL;
@@ -375,7 +376,15 @@ error:
 
 
 
-int run_party(node *self, config *c, int precision, struct timespec *wait_total, ufixed_t **res_A, ufixed_t **res_b) {
+int run_party(
+	node *self, 
+	config *c, 
+	int precision, 
+	struct timespec *wait_total, 
+	ufixed_t **res_A, 
+	ufixed_t **res_b,
+	bool use_ot
+) {
 	matrix_t data; // TODO: maybe use dedicated type for finite field matrices here
 	vector_t target;
 	data.value = target.value = NULL;
@@ -442,8 +451,15 @@ int run_party(node *self, config *c, int precision, struct timespec *wait_total,
 			} else if(owner_i == c->party-1 && owner_i == owner_j) {
 				share = inner_prod_64(row_start_i, row_start_j,
 					c->n, stride_i, stride_j);
-			} else {
+			} else if(use_ot) {
 				share = inner_product_ot(
+					self, c, wait_total,
+					row_start_i, stride_i,
+					row_start_j, stride_j,
+					owner_i, owner_j
+				);
+			} else {
+				share = inner_product_ti(
 					self, c, wait_total,
 					row_start_i, stride_i,
 					row_start_j, stride_j,
