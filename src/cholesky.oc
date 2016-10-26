@@ -87,10 +87,8 @@ void cholesky(void *v) {
 	}
 
 	// return the result
-	obliv fixed_t otemp;
 	for(size_t i = 0; i < d; i++) {
-		otemp = ofixed_export(beta[i]);
-		ofixed_reveal(ls->beta.value + i, otemp, 2); // <- is this right, or should it be &ls->beta.value[i]? <- isn't that the same?
+		ofixed_reveal(ls->beta.value + i, beta[i], 2); // <- is this right, or should it be &ls->beta.value[i]? <- isn't that the same?
 		//revealOblivInt(ls->beta.value + i, beta[i], 2);
 	}
 	

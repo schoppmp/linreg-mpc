@@ -85,8 +85,7 @@ void ldlt(void *v) {
 			ofixed_sub(&b[i], b[i], otemp);
 			//b[i] -= ofixed_mul(a[idx(j,i)], b[j], ls->precision);
 		}
-		obliv fixed_t temp = ofixed_export(b[i]);
-		ofixed_reveal(ls->beta.value + i, temp, 2);
+		ofixed_reveal(ls->beta.value + i, b[i], 2);
 		//revealOblivInt(ls->beta.value + i, b[i], 2);
 	}
 	
