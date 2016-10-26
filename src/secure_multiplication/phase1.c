@@ -8,8 +8,8 @@
 #include "obliv_types.h"
 #include "obliv_bits.h"
 
-// computes inner product in Z_{2^64} locally
-static ufixed_t inner_prod_64(ufixed_t *x, ufixed_t *y, size_t n, size_t stride_x, size_t stride_y) {
+// computes inner product locally
+static ufixed_t inner_product_local(ufixed_t *x, ufixed_t *y, size_t n, size_t stride_x, size_t stride_y) {
 	ufixed_t xy = 0;
 	for(size_t i = 0; i < n; i++) {
 		xy += x[i*stride_x] * y[i*stride_y];
@@ -227,7 +227,7 @@ ufixed_t inner_product_ti(
 		check(!status, "Could not send message to party B (%d)", party_b);
 
 		// compute share as (b + x)y - (xy - r)
-		share = inner_prod_64(pmsg_in->vector, pmsg_ti->vector, c->n, 1, 1);
+		share = inner_product_local(pmsg_in->vector, pmsg_ti->vector, c->n, 1, 1);
 		share -= pmsg_ti->value;
 
 	} else { // if we own j but not i, we are party b
@@ -253,7 +253,7 @@ ufixed_t inner_product_ti(
 		check(!status, "Could not receive message from party A (%d)", party_a);
 
 		// set our share to b(a - y) - r
-		share = inner_prod_64(pmsg_in->vector, row_start_j, c->n, 1, stride_j);
+		share = inner_product_local(pmsg_in->vector, row_start_j, c->n, 1, stride_j);
 		share -= pmsg_ti->value;
 
 	}
@@ -306,7 +306,7 @@ int run_trusted_initializer(node *self, config *c, int precision, bool use_ot) {
 				randomizeBuffer(gen, (char *)x, c->n * sizeof(ufixed_t));
 				randomizeBuffer(gen, (char *)y, c->n * sizeof(ufixed_t));
 				randomizeBuffer(gen, (char *)&r, sizeof(ufixed_t));
-				ufixed_t xy = inner_prod_64(x, y, c->n, 1, 1);
+				ufixed_t xy = inner_product_local(x, y, c->n, 1, 1);
 
 				// create protobuf message
 				pmsg_a.value = xy-r;
@@ -449,7 +449,7 @@ int run_party(
 				continue;
 			// if we own both, compute locally
 			} else if(owner_i == c->party-1 && owner_i == owner_j) {
-				share = inner_prod_64(row_start_i, row_start_j,
+				share = inner_product_local(row_start_i, row_start_j,
 					c->n, stride_i, stride_j);
 			} else if(use_ot) {
 				share = inner_product_ot(
