@@ -396,9 +396,9 @@ void *run_party_ot_thread(void *vargs) {
 	
 	if(self->party-1 == args->peer) {
 		// do stuff locally
-		size_t max = self->party < self->num_parties-1 ? c->index_owned[self->party+1] : c->d;
-		for(size_t i = args->c->index_owned[self->party]; i < max; i++) {
-			for(size_t j = args->c->index_owned[self->party]; j <= i; j++) {
+		size_t max = self->party-1 < self->num_parties-1 ? c->index_owned[self->party] : c->d;
+		for(size_t i = args->c->index_owned[self->party-1]; i < max; i++) {
+			for(size_t j = args->c->index_owned[self->party-1]; j <= i; j++) {
 				share = inner_product_local(args->data->value + i, args->data->value + j, c->n, c->d, c->d);
 				atomic_store(&(args->res_A)[idx(i,j)], share);
 			}
