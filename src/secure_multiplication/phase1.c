@@ -1,5 +1,7 @@
 #include <math.h>
 #include <errno.h>
+#include <stdatomic.h>
+#include <pthread.h>
 
 #include "phase1.h"
 #include "bcrandom.h"
@@ -375,6 +377,106 @@ error:
 }
 
 
+typedef struct {
+	node *self;
+	config *c;
+	int precision;
+	struct timespec wait_total;
+	int peer; // the party we communicate with in this thread
+	matrix_t *data;
+	vector_t *target;
+	_Atomic ufixed_t *res_A;
+	_Atomic ufixed_t *res_b;
+} ot_thread_args;
+void *run_party_ot_thread(void *vargs) {
+	ot_thread_args *args = vargs;
+	node *self = args->self;
+	config *c = args->c;
+	ufixed_t share;
+	
+	if(self->party-1 == args->peer) {
+		// do stuff locally
+		size_t max = self->party < self->num_parties-1 ? c->index_owned[self->party+1] : c->d;
+		for(size_t i = args->c->index_owned[self->party]; i < max; i++) {
+			for(size_t j = args->c->index_owned[self->party]; j <= i; j++) {
+				share = inner_product_local(args->data->value + i, args->data->value + j, c->n, c->d, c->d);
+				atomic_store(&(args->res_A)[idx(i,j)], share);
+			}
+			if(self->party-1 == self->num_parties-1) {
+				// we own the target vector
+				share = inner_product_local(args->data->value + i, args->target->value, c->n, c->d, 1);
+				atomic_store(&(args->res_b)[i], share);
+			}
+		}
+		return NULL;
+	}	
+	
+	int party_i, party_j;
+	struct HonestOTExtSender *s = NULL;
+	struct HonestOTExtRecver *r = NULL;
+	orecv(self->peer[args->peer], 0, 0, 0); // flush
+	// we are sender if the party IDs are congruent mod 2 and our ID is smaller
+  dhRandomInit(); // needed or else Obliv-C segfaults
+	if(((self->party-1) % 2 == args->peer % 2) == (self->party-1 < args->peer)) {
+		party_i = self->party-1; party_j = args->peer;
+		s = honestOTExtSenderNew(self->peer[args->peer], 0);
+	} else {
+		party_j = self->party-1; party_i = args->peer;
+		r = honestOTExtRecverNew(self->peer[args->peer], 0);
+	}
+	size_t i_max = party_i < self->num_parties-1 ? c->index_owned[party_i+1] : c->d;
+	size_t j_max = party_j < self->num_parties-1 ? c->index_owned[party_j+1] : c->d;
+	
+	struct timespec wait_start, wait_end;
+	clock_gettime(CLOCK_MONOTONIC, &wait_start);
+	for(size_t i = args->c->index_owned[party_i]; i < i_max; i++){
+		for(size_t j = args->c->index_owned[party_j]; j < j_max; j++) {
+			// do inner product for (i, j)
+			orecv(self->peer[args->peer], 0, 0, 0); // flush again
+			if(s) {
+				share = inner_product_ot_sender(s, args->data->value + i, c->n, c->d);
+			} else {
+				share = inner_product_ot_recver(r, args->data->value + j, c->n, c->d);
+			}
+			atomic_store(&(args->res_A)[idx(i,j)], share);
+		}
+		if(party_j == self->num_parties - 1) {
+			// do inner product for (i, target)
+			orecv(self->peer[args->peer], 0, 0, 0); // flush again
+			if(s) {
+				share = inner_product_ot_sender(s, args->data->value + i, c->n, c->d);
+			} else {
+				share = inner_product_ot_recver(r, args->target->value, c->n, 1);
+			}
+			atomic_store(&(args->res_b)[i], share);
+		}
+	}
+	if(party_i == self->num_parties - 1) {
+		// party i owns the target vector
+		for(size_t j = args->c->index_owned[party_j]; j < j_max; j++) {
+			// do inner product for (target, j)
+			orecv(self->peer[args->peer], 0, 0, 0); // flush again
+			if(s) {
+				share = inner_product_ot_sender(s, args->target->value, c->n, 1);
+			} else {
+				share = inner_product_ot_recver(r, args->data->value + j, c->n, c->d);
+			}
+			atomic_store(&(args->res_b)[j], share);
+		}
+	}
+	orecv(self->peer[args->peer], 0, 0, 0); // flush again
+	if(s) {
+		honestOTExtSenderRelease(s);
+	} else {
+		honestOTExtRecverRelease(r);
+	}
+	clock_gettime(CLOCK_MONOTONIC, &wait_end);
+	args->wait_total.tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
+	args->wait_total.tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
+	
+	return 0;
+}
+
 
 int run_party(
 	node *self, 
@@ -420,57 +522,90 @@ int run_party(
 			(sqrt(pow(2,precision) * c->d * c->n)));
 	}*/
 
-	for(size_t i = 0; i <= c->d; i++) {
-		ufixed_t *row_start_i, *row_start_j;
-		size_t stride_i, stride_j;
-		if(i < c->d) { // row of input matrix
-			row_start_i = (ufixed_t *) data.value + i;
-			stride_i = d;
-		} else { // row is target vector
-			row_start_i = (ufixed_t *) target.value;
-			stride_i = 1;
+	if(use_ot) {
+		_Atomic ufixed_t *atomic_share_A = calloc(d * (d + 1) / 2, sizeof(_Atomic ufixed_t));
+		_Atomic ufixed_t *atomic_share_b = calloc(d, sizeof(_Atomic ufixed_t));
+		pthread_t *peer_thread = malloc((self->num_parties-2) * sizeof(pthread_t));
+		ot_thread_args *targs = malloc((self->num_parties-2) * sizeof(ot_thread_args));
+		for(int peer = 2; peer < self->num_parties; peer++) {
+			// spawn one thread per party (including ourselves)
+			targs[peer-2] = (ot_thread_args) {
+				.self = self, .c = c, .precision = precision, .wait_total = {0, 0},
+				.peer = peer, .data = &data, .target = &target, .res_A = atomic_share_A,
+				.res_b = atomic_share_b
+			};
+			pthread_create(&peer_thread[peer-2], NULL, run_party_ot_thread, &targs[peer-2]);
 		}
-		for(size_t j = 0; j <= i && j < c->d; j++) {
-			if(j < c->d) { // row of input matrix
-				row_start_j = (ufixed_t *) data.value + j;
-				stride_j = d;
+		for(int peer = 2; peer < self->num_parties; peer++) {
+			status = pthread_join(peer_thread[peer-2], NULL);
+			if(wait_total) {
+				wait_total->tv_sec += targs[peer-2].wait_total.tv_sec;
+				wait_total->tv_nsec += targs[peer-2].wait_total.tv_nsec;
+			}
+		}
+		for(size_t i = 0; i < d * (d+1) / 2; i++) {
+			share_A[i] = atomic_share_A[i];
+		}
+		for(size_t i = 0; i < d; i++) {
+			share_b[i] = atomic_share_b[i];
+		}
+		free(atomic_share_A);
+		free(atomic_share_b);
+		free(peer_thread);
+		free(targs);
+	} else {
+		for(size_t i = 0; i <= c->d; i++) {
+			ufixed_t *row_start_i, *row_start_j;
+			size_t stride_i, stride_j;
+			if(i < c->d) { // row of input matrix
+				row_start_i = (ufixed_t *) data.value + i;
+				stride_i = d;
 			} else { // row is target vector
-				row_start_j = (ufixed_t *) target.value;
-				stride_j = 1;
+				row_start_i = (ufixed_t *) target.value;
+				stride_i = 1;
 			}
-			int owner_i = get_owner(i, c);
-			int owner_j = get_owner(j, c);
-			check(owner_i >= 2, "Invalid owner %d for row %zd", owner_i, i);
-			check(owner_j >= 2, "Invalid owner %d for row %zd", owner_j, j);
+			for(size_t j = 0; j <= i && j < c->d; j++) {
+				if(j < c->d) { // row of input matrix
+					row_start_j = (ufixed_t *) data.value + j;
+					stride_j = d;
+				} else { // row is target vector
+					row_start_j = (ufixed_t *) target.value;
+					stride_j = 1;
+				}
+				int owner_i = get_owner(i, c);
+				int owner_j = get_owner(j, c);
+				check(owner_i >= 2, "Invalid owner %d for row %zd", owner_i, i);
+				check(owner_j >= 2, "Invalid owner %d for row %zd", owner_j, j);
 
-			ufixed_t share;
-			// if we own neither i or j, skip.
-			if(owner_i != c->party-1 && owner_j != c->party-1) {
-				continue;
-			// if we own both, compute locally
-			} else if(owner_i == c->party-1 && owner_i == owner_j) {
-				share = inner_product_local(row_start_i, row_start_j,
-					c->n, stride_i, stride_j);
-			} else if(use_ot) {
-				share = inner_product_ot(
-					self, c, wait_total,
-					row_start_i, stride_i,
-					row_start_j, stride_j,
-					owner_i, owner_j
-				);
-			} else {
-				share = inner_product_ti(
-					self, c, wait_total,
-					row_start_i, stride_i,
-					row_start_j, stride_j,
-					owner_i, owner_j
-				);
-			}
-			// save our share
-			if(i < c->d) {
-				share_A[idx(i, j)] = share;
-			} else {
-				share_b[j] = share;
+				ufixed_t share;
+				// if we own neither i or j, skip.
+				if(owner_i != c->party-1 && owner_j != c->party-1) {
+					continue;
+				// if we own both, compute locally
+				} else if(owner_i == c->party-1 && owner_i == owner_j) {
+					share = inner_product_local(row_start_i, row_start_j,
+						c->n, stride_i, stride_j);
+				} else if(use_ot) {
+					share = inner_product_ot(
+						self, c, wait_total,
+						row_start_i, stride_i,
+						row_start_j, stride_j,
+						owner_i, owner_j
+					);
+				} else {
+					share = inner_product_ti(
+						self, c, wait_total,
+						row_start_i, stride_i,
+						row_start_j, stride_j,
+						owner_i, owner_j
+					);
+				}
+				// save our share
+				if(i < c->d) {
+					share_A[idx(i, j)] = share;
+				} else {
+					share_b[j] = share;
+				}
 			}
 		}
 	}
