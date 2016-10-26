@@ -7,7 +7,7 @@ libDir=lib
 
 REMOTE_HOST=localhost
 BIT_WIDTH_32=0
-CFLAGS=-O3 -g -Werror -I $(srcDir) -I $(OBLIVC_PATH)/src/ext/oblivc -std=c99 -D_POSIX_C_SOURCE=201605L -DBIT_WIDTH_32=$(BIT_WIDTH_32)
+CFLAGS=-O3 -g -Werror -I $(srcDir) -I $(OBLIVC_PATH)/src/ext/oblivc -std=c11 -D_POSIX_C_SOURCE=201605L -DBIT_WIDTH_32=$(BIT_WIDTH_32)
 LFLAGS=-L$(HOME)/lib
 OCFLAGS=$(CFLAGS) -DREMOTE_HOST=$(REMOTE_HOST)
 
@@ -78,4 +78,3 @@ endif
 clean:
 	rm -rf $(binDir) $(objDir)
 	cd $(libDir)/absentminded-crypto-kit && make clean
-
