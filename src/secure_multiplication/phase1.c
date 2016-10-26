@@ -55,9 +55,9 @@ ufixed_t inner_product_ot_sender(struct HonestOTExtSender *sender, ufixed_t *x, 
 	ufixed_t *s = malloc(n * FIXED_BIT_SIZE * sizeof(ufixed_t));
 	ufixed_t *t = malloc(n * FIXED_BIT_SIZE * sizeof(ufixed_t));
 	inner_product_args args = {.x = x, .n = n, .stride_x = stride_x};
-	honestCorrelatedOTExtSend1Of2(sender, 
-		(char *) s, 
-		(char *) t, 
+	honestCorrelatedOTExtSend1Of2(sender,
+		(char *) s,
+		(char *) t,
 		FIXED_BIT_SIZE * n,
 		sizeof(ufixed_t),
 		inner_product_correlator,
@@ -81,7 +81,7 @@ ufixed_t inner_product_ot_recver(struct HonestOTExtRecver *recvr, ufixed_t *x, s
 			sel[k * FIXED_BIT_SIZE + i] = (a >> i) & 1;
 		}
 	}
-	honestCorrelatedOTExtRecv1Of2(recvr, 
+	honestCorrelatedOTExtRecv1Of2(recvr,
 		(char *) t,
 		sel,
 		FIXED_BIT_SIZE * n,
@@ -95,10 +95,10 @@ ufixed_t inner_product_ot_recver(struct HonestOTExtRecver *recvr, ufixed_t *x, s
 	return result;
 }
 
-// computes inner product _without_ the CSP using Oblivious Transfers 
+// computes inner product _without_ the CSP using Oblivious Transfers
 ufixed_t inner_product_ot(
-	node *self, 
-	config *c, 
+	node *self,
+	config *c,
 	struct timespec *wait_total,
 	ufixed_t *row_start_i,
 	size_t stride_i,
@@ -109,7 +109,7 @@ ufixed_t inner_product_ot(
 	ufixed_t result;
 	struct timespec wait_start, wait_end;
 	clock_gettime(CLOCK_MONOTONIC, &wait_start);
-  dhRandomInit(); // needed or else Obliv-C segfaults
+	dhRandomInit(); // needed or else Obliv-C segfaults
 	if(owner_i == c->party-1) { // we own row i, but not j => we are sender
 		orecv(self->peer[owner_j], 0, 0, 0);
 		struct HonestOTExtSender *s = honestOTExtSenderNew(self->peer[owner_j], 0);
@@ -183,8 +183,8 @@ error:
 
 // computes inner product using the TI
 ufixed_t inner_product_ti(
-	node *self, 
-	config *c, 
+	node *self,
+	config *c,
 	struct timespec *wait_total,
 	ufixed_t *row_start_i,
 	size_t stride_i,
@@ -202,7 +202,7 @@ ufixed_t inner_product_ti(
 	pmsg_out.n_vector = c->n;
 	pmsg_out.vector = malloc(c->n * sizeof(ufixed_t));
 	check(pmsg_out.vector, "malloc: %s", strerror(errno));
-	
+
 	// receive random values from TI
 	status = recv_pmsg(&pmsg_ti, self->peer[0]);
 	check(!status, "Could not receive message from TI");
@@ -264,7 +264,7 @@ ufixed_t inner_product_ti(
 	pmsg_ti = pmsg_in = NULL;
 	free(pmsg_out.vector);
 	return share;
-	
+
 	error:
 	secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
 	secure_multiplication__msg__free_unpacked(pmsg_ti, NULL);
@@ -289,7 +289,7 @@ int run_trusted_initializer(node *self, config *c, int precision, bool use_ot) {
 	pmsg_b.n_vector = c->n;
 	pmsg_a.vector = y;
 	pmsg_b.vector = x;
-	
+
 	if(!use_ot) {
 		for(size_t i = 0; i <= c->d; i++) {
 			for(size_t j = 0; j <= i && j < c->d; j++) {
@@ -322,7 +322,7 @@ int run_trusted_initializer(node *self, config *c, int precision, bool use_ot) {
 			}
 		}
 	}
-	
+
 	// Receive and combine shares from peers for testing;
 	uint64_t *share_A = NULL, *share_b = NULL;
 	size_t d = c->d;
@@ -362,7 +362,7 @@ int run_trusted_initializer(node *self, config *c, int precision, bool use_ot) {
 
 	free(share_A);
 	free(share_b);
-	
+
 
 	free(x);
 	free(y);
@@ -393,12 +393,12 @@ void *run_party_ot_thread(void *vargs) {
 	node *self = args->self;
 	config *c = args->c;
 	ufixed_t share;
-	
+
 	if(self->party-1 == args->peer) {
 		// do stuff locally
 		size_t max = self->party-1 < self->num_parties-1 ? c->index_owned[self->party] : c->d;
 		for(size_t i = args->c->index_owned[self->party-1]; i < max; i++) {
-			for(size_t j = args->c->index_owned[self->party-1]; j <= i; j++) {
+			for(size_t j = args->c->index_owned[self->party-1y]; j <= i; j++) {
 				share = inner_product_local(args->data->value + i, args->data->value + j, c->n, c->d, c->d);
 				atomic_store(&(args->res_A)[idx(i,j)], share);
 			}
@@ -409,14 +409,14 @@ void *run_party_ot_thread(void *vargs) {
 			}
 		}
 		return NULL;
-	}	
-	
+	}
+
 	int party_i, party_j;
 	struct HonestOTExtSender *s = NULL;
 	struct HonestOTExtRecver *r = NULL;
 	orecv(self->peer[args->peer], 0, 0, 0); // flush
 	// we are sender if the party IDs are congruent mod 2 and our ID is smaller
-  dhRandomInit(); // needed or else Obliv-C segfaults
+	dhRandomInit(); // needed or else Obliv-C segfaults
 	if(((self->party-1) % 2 == args->peer % 2) == (self->party-1 < args->peer)) {
 		party_i = self->party-1; party_j = args->peer;
 		s = honestOTExtSenderNew(self->peer[args->peer], 0);
@@ -426,7 +426,7 @@ void *run_party_ot_thread(void *vargs) {
 	}
 	size_t i_max = party_i < self->num_parties-1 ? c->index_owned[party_i+1] : c->d;
 	size_t j_max = party_j < self->num_parties-1 ? c->index_owned[party_j+1] : c->d;
-	
+
 	struct timespec wait_start, wait_end;
 	clock_gettime(CLOCK_MONOTONIC, &wait_start);
 	for(size_t i = args->c->index_owned[party_i]; i < i_max; i++){
@@ -473,17 +473,17 @@ void *run_party_ot_thread(void *vargs) {
 	clock_gettime(CLOCK_MONOTONIC, &wait_end);
 	args->wait_total.tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
 	args->wait_total.tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
-	
+
 	return 0;
 }
 
 
 int run_party(
-	node *self, 
-	config *c, 
-	int precision, 
-	struct timespec *wait_total, 
-	ufixed_t **res_A, 
+	node *self,
+	config *c,
+	int precision,
+	struct timespec *wait_total,
+	ufixed_t **res_A,
 	ufixed_t **res_b,
 	bool use_ot
 ) {
@@ -510,7 +510,7 @@ int run_party(
 	share_b = calloc(d, sizeof(ufixed_t));
 
 	/*
-	This is now done in floating point in the 
+	This is now done in floating point in the
 	read_matrix and read_vector functions
 	for(size_t i = 0; i < c->n; i++) {
 		for(size_t j = 0; j < c->d; j++) {
@@ -609,8 +609,8 @@ int run_party(
 			}
 		}
 	}
-	
-	
+
+
 	// send results to TI for testing;
 	SecureMultiplication__Msg pmsg_out;
 	secure_multiplication__msg__init(&pmsg_out);
@@ -623,7 +623,7 @@ int run_party(
 	status = send_pmsg(&pmsg_out, self->peer[0]);
 	check(!status, "Could not send share_b to TI");
 	pmsg_out.vector = NULL;
-	
+
 
 	free(data.value);
 	free(target.value);
