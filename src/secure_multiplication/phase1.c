@@ -1,6 +1,5 @@
 #include <math.h>
 #include <errno.h>
-#include <stdatomic.h>
 #include <pthread.h>
 
 #include "phase1.h"
@@ -383,10 +382,10 @@ typedef struct {
 	int precision;
 	struct timespec wait_total;
 	int peer; // the party we communicate with in this thread
-	matrix_t *data;
-	vector_t *target;
-	_Atomic ufixed_t *res_A;
-	_Atomic ufixed_t *res_b;
+	ufixed_t *data;
+	ufixed_t *target;
+	ufixed_t *res_A;
+	ufixed_t *res_b;
 } ot_thread_args;
 void *run_party_ot_thread(void *vargs) {
 	ot_thread_args *args = vargs;
@@ -398,14 +397,14 @@ void *run_party_ot_thread(void *vargs) {
 		// do stuff locally
 		size_t max = self->party-1 < self->num_parties-1 ? c->index_owned[self->party] : c->d;
 		for(size_t i = args->c->index_owned[self->party-1]; i < max; i++) {
-			for(size_t j = args->c->index_owned[self->party-1y]; j <= i; j++) {
-				share = inner_product_local(args->data->value + i, args->data->value + j, c->n, c->d, c->d);
-				atomic_store(&(args->res_A)[idx(i,j)], share);
+			for(size_t j = args->c->index_owned[self->party-1]; j <= i; j++) {
+				share = inner_product_local(args->data + i, args->data + j, c->n, c->d, c->d);
+				args->res_A[idx(i,j)] = share;
 			}
 			if(self->party-1 == self->num_parties-1) {
 				// we own the target vector
-				share = inner_product_local(args->data->value + i, args->target->value, c->n, c->d, 1);
-				atomic_store(&(args->res_b)[i], share);
+				share = inner_product_local(args->data + i, args->target, c->n, c->d, 1);
+				args->res_b[i] = share;
 			}
 		}
 		return NULL;
@@ -434,21 +433,21 @@ void *run_party_ot_thread(void *vargs) {
 			// do inner product for (i, j)
 			orecv(self->peer[args->peer], 0, 0, 0); // flush again
 			if(s) {
-				share = inner_product_ot_sender(s, args->data->value + i, c->n, c->d);
+				share = inner_product_ot_sender(s, args->data + i, c->n, c->d);
 			} else {
-				share = inner_product_ot_recver(r, args->data->value + j, c->n, c->d);
+				share = inner_product_ot_recver(r, args->data + j, c->n, c->d);
 			}
-			atomic_store(&(args->res_A)[idx(i,j)], share);
+			args->res_A[idx(i,j)] = share;
 		}
 		if(party_j == self->num_parties - 1) {
 			// do inner product for (i, target)
 			orecv(self->peer[args->peer], 0, 0, 0); // flush again
 			if(s) {
-				share = inner_product_ot_sender(s, args->data->value + i, c->n, c->d);
+				share = inner_product_ot_sender(s, args->data + i, c->n, c->d);
 			} else {
-				share = inner_product_ot_recver(r, args->target->value, c->n, 1);
+				share = inner_product_ot_recver(r, args->target, c->n, 1);
 			}
-			atomic_store(&(args->res_b)[i], share);
+			args->res_b[i] = share;
 		}
 	}
 	if(party_i == self->num_parties - 1) {
@@ -457,11 +456,11 @@ void *run_party_ot_thread(void *vargs) {
 			// do inner product for (target, j)
 			orecv(self->peer[args->peer], 0, 0, 0); // flush again
 			if(s) {
-				share = inner_product_ot_sender(s, args->target->value, c->n, 1);
+				share = inner_product_ot_sender(s, args->target, c->n, 1);
 			} else {
-				share = inner_product_ot_recver(r, args->data->value + j, c->n, c->d);
+				share = inner_product_ot_recver(r, args->data + j, c->n, c->d);
 			}
-			atomic_store(&(args->res_b)[j], share);
+			args->res_b[j] = share;
 		}
 	}
 	orecv(self->peer[args->peer], 0, 0, 0); // flush again
@@ -523,34 +522,38 @@ int run_party(
 	}*/
 
 	if(use_ot) {
-		_Atomic ufixed_t *atomic_share_A = calloc(d * (d + 1) / 2, sizeof(_Atomic ufixed_t));
-		_Atomic ufixed_t *atomic_share_b = calloc(d, sizeof(_Atomic ufixed_t));
+		ufixed_t **share_A_peer = malloc((self->num_parties-2) * sizeof(ufixed_t *));
+		ufixed_t **share_b_peer = malloc((self->num_parties-2) * sizeof(ufixed_t *));
 		pthread_t *peer_thread = malloc((self->num_parties-2) * sizeof(pthread_t));
 		ot_thread_args *targs = malloc((self->num_parties-2) * sizeof(ot_thread_args));
 		for(int peer = 2; peer < self->num_parties; peer++) {
 			// spawn one thread per party (including ourselves)
+			share_A_peer[peer-2] = calloc(d * (d + 1) / 2, sizeof(ufixed_t));
+			share_b_peer[peer-2] = calloc(d, sizeof(ufixed_t));
 			targs[peer-2] = (ot_thread_args) {
 				.self = self, .c = c, .precision = precision, .wait_total = {0, 0},
-				.peer = peer, .data = &data, .target = &target, .res_A = atomic_share_A,
-				.res_b = atomic_share_b
+				.peer = peer, .data = data.value, .target = target.value, 
+				.res_A = share_A_peer[peer-2], .res_b = share_b_peer[peer-2] 
 			};
 			pthread_create(&peer_thread[peer-2], NULL, run_party_ot_thread, &targs[peer-2]);
 		}
 		for(int peer = 2; peer < self->num_parties; peer++) {
 			status = pthread_join(peer_thread[peer-2], NULL);
+			for(size_t i = 0; i < d * (d+1) / 2; i++) {
+				share_A[i] += share_A_peer[peer-2][i];
+			}
+			free(share_A_peer[peer-2]);
+			for(size_t i = 0; i < d; i++) {
+				share_b[i] += share_b_peer[peer-2][i];
+			}
+			free(share_b_peer[peer-2]);
 			if(wait_total) {
 				wait_total->tv_sec += targs[peer-2].wait_total.tv_sec;
 				wait_total->tv_nsec += targs[peer-2].wait_total.tv_nsec;
 			}
 		}
-		for(size_t i = 0; i < d * (d+1) / 2; i++) {
-			share_A[i] = atomic_share_A[i];
-		}
-		for(size_t i = 0; i < d; i++) {
-			share_b[i] = atomic_share_b[i];
-		}
-		free(atomic_share_A);
-		free(atomic_share_b);
+		free(share_A_peer);
+		free(share_b_peer);
 		free(peer_thread);
 		free(targs);
 	} else {
