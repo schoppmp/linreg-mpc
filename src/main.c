@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
 	status = config_new(&c, argv[1]);
 	check(!status, "Could not read config");
 	c->party = party;
-
+	double time = wallClock();
 	if(party == 2) {
 		printf("{\"n\":\"%zd\", \"d\":\"%zd\" \"p\":\"%d\"}\n", c->n, c->d, c->num_parties - 1);
 	}
@@ -141,7 +141,6 @@ int main(int argc, char **argv) {
 		// Run garbled circuit
 		// We'll modify linear.oc so that the inputs are read from a ls if the provided one is not NULL
 		// else we'l use dcrRcvdIntArray...
-		double time = wallClock();
 		if(party == 2) {
 		      printf("\n");
 		      printf("Algorithm: %s\n", algorithm);
