@@ -9,7 +9,7 @@ REMOTE_HOST=localhost
 BIT_WIDTH_32=0
 CPPFLAGS += -O3 -g -Werror -I $(srcDir) -I $(OBLIVC_PATH)/src/ext/oblivc -DBIT_WIDTH_32=$(BIT_WIDTH_32)
 CFLAGS += $(CPPFLAGS) -std=c11 -D_POSIX_C_SOURCE=201605L
-LFLAGS += -L$(HOME)/lib
+LFLAGS += -L$(HOME)/lib -Wl,-rpath $(LIBDIR) -L$(LIBDIR)
 OCFLAGS=$(CFLAGS) -DREMOTE_HOST=$(REMOTE_HOST)
 
 ackLibDir=$(libDir)/absentminded-crypto-kit/build/lib
