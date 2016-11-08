@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
     cerr << "Version must be 1 or 2\n";
   }
   
-  NetIO io(party==ALICE ? nullptr:"127.0.0.1", port);
+  NetIO io(party==ALICE ? nullptr:argv[5], port);
   Malicious2PC<RTCktOpt::off> mal(&io, party, len, len, 1);
   double t1 = wallClock();
   if(party == ALICE) {
