@@ -64,10 +64,14 @@ static void verify_solution(block *out, const block *in, const block *in2) {
 int main(int argc, char** argv) {
   int port, party;
   if(argc < 5) {
-    cerr << "Usage: " << argv[0] << " Party Port d Version\n";
+    cerr << "Usage: " << argv[0] << " Party Port d Version [Address]\n";
     exit(1);
   }
   parse_party_and_port(argv, &party, &port);
+	if(party == BOB && argc < 6) {
+		cerr << "Address argument is mandatory for party " << BOB << "\n";
+		exit(1);
+	}
   d = std::stoi(argv[3]);
   int version = std::stoi(argv[4]);
   size_t len;
