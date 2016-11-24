@@ -39,13 +39,13 @@ typedef struct {
 	size_t n;
 	size_t stride_x;
 } inner_product_args;
-void inner_product_correlator(char *x, const char *y, int ni, void *vargs) {
+void inner_product_correlator(char *a1, const char *a2, int ni, void *vargs) {
 	inner_product_args *args = vargs;
 	size_t k = ni / FIXED_BIT_SIZE;
 	int i = ni % FIXED_BIT_SIZE;
 	ufixed_t b = args->x[k * args->stride_x];
-	ufixed_t *result = (ufixed_t *) x;
-	ufixed_t s_i = *((ufixed_t *) y);
+	ufixed_t *result = (ufixed_t *) a1;
+	ufixed_t s_i = *((ufixed_t *) a2);
 	*result = (((ufixed_t) 1) << i) * b + s_i;
 }
 
@@ -62,7 +62,7 @@ ufixed_t inner_product_ot_sender(struct HonestOTExtSender *sender, ufixed_t *x, 
 		inner_product_correlator,
 		&args
 	);
-	for(int i = 0; i < n * FIXED_BIT_SIZE; i++) {
+	for(size_t i = 0; i < n * FIXED_BIT_SIZE; i++) {
 		result -= s[i];
 	}
 	free(s);
@@ -86,50 +86,13 @@ ufixed_t inner_product_ot_recver(struct HonestOTExtRecver *recvr, ufixed_t *x, s
 		FIXED_BIT_SIZE * n,
 		sizeof(ufixed_t)
 	);
-	for(int i = 0; i < n * FIXED_BIT_SIZE; i++) {
+	for(size_t i = 0; i < n * FIXED_BIT_SIZE; i++) {
 		result += t[i];
 	}
 	free(t);
 	free(sel);
 	return result;
 }
-
-// computes inner product _without_ the CSP using Oblivious Transfers
-ufixed_t inner_product_ot(
-	node *self,
-	config *c,
-	struct timespec *wait_total,
-	ufixed_t *row_start_i,
-	size_t stride_i,
-	ufixed_t *row_start_j,
-	size_t stride_j,
-	int owner_i, int owner_j
-) {
-	ufixed_t result;
-	struct timespec wait_start, wait_end;
-	clock_gettime(CLOCK_MONOTONIC, &wait_start);
-	dhRandomInit(); // needed or else Obliv-C segfaults
-	if(owner_i == c->party-1) { // we own row i, but not j => we are sender
-		orecv(self->peer[owner_j], 0, 0, 0);
-		struct HonestOTExtSender *s = honestOTExtSenderNew(self->peer[owner_j], 0);
-		result = inner_product_ot_sender(s, row_start_i, c->n, stride_i);
-		orecv(self->peer[owner_j], 0, 0, 0);
-		honestOTExtSenderRelease(s);
-	} else {
-		orecv(self->peer[owner_i], 0, 0, 0);
-		struct HonestOTExtRecver *r = honestOTExtRecverNew(self->peer[owner_i], 0);
-		result = inner_product_ot_recver(r, row_start_j, c->n, stride_j);
-		orecv(self->peer[owner_i], 0, 0, 0);
-		honestOTExtRecverRelease(r);
-	}
-	clock_gettime(CLOCK_MONOTONIC, &wait_end);
-	if(wait_total) {
-		wait_total->tv_sec += (wait_end.tv_sec - wait_start.tv_sec);
-		wait_total->tv_nsec += (wait_end.tv_nsec - wait_start.tv_nsec);
-	}
-	return result;
-}
-
 
 // receives a message from peer, storing it in pmsg
 // the result should be freed by the caller after use
@@ -588,13 +551,6 @@ int run_party(
 				} else if(owner_i == c->party-1 && owner_i == owner_j) {
 					share = inner_product_local(row_start_i, row_start_j,
 						c->n, stride_i, stride_j);
-				} else if(use_ot) {
-					share = inner_product_ot(
-						self, c, wait_total,
-						row_start_i, stride_i,
-						row_start_j, stride_j,
-						owner_i, owner_j
-					);
 				} else {
 					share = inner_product_ti(
 						self, c, wait_total,
