@@ -36,7 +36,7 @@ void cgd(void *v) {
 	for (size_t ii = 0; ii < d; ii++) {
 		ofixed_init(&b[ii]);
 	}
-	
+
 	if(read_symmetric_linear_system(ls, a, b)) {
 		fprintf(stderr, "Could not read inputs.");
 		ls->beta.len = -1;
@@ -49,7 +49,7 @@ void cgd(void *v) {
 		ls->beta.len = d;
 		ls->beta.value = malloc(d * sizeof(uint64_t));
 	}
-	
+
 	ofixed_t *x = malloc(d * sizeof(ofixed_t));
 	ofixed_t *ax = malloc(d * sizeof(ofixed_t));
 	ofixed_t *p = malloc(d * sizeof(ofixed_t));
@@ -108,7 +108,7 @@ void cgd(void *v) {
 	if(ocCurrentParty() == 2) {printf("OT time: %f\nStarting iterations.\n", wallClock() - time_start);}
 	//double time = wallClock();
 	obliv bool q_nonzero = true;
-	for(size_t t = 0; !flag && t < ls->num_iterations; t++) {	
+	for(size_t t = 0; !flag && t < ls->num_iterations; t++) {
 		/*// pscl(:) = p;
 		for(size_t i = 0; i < d; i++) {
 			obig_mul_signed(&pscl[i], p[i], d_big);
@@ -123,12 +123,12 @@ void cgd(void *v) {
 				ofixed_add(&pA[i], pA[i], obigtemp);
 			}
 		}
-		
+
 		// q(:) = pA*p;
 		ofixed_inner_product(&q, pA, p, prec, d);
 		// gp(:) = g'*p;
 		ofixed_inner_product(&gp, g, p, prec, d);
-		
+
 		// eta(:) = mydivide(TT,gp,q);
 		ofixed_div(&eta, gp, q, prec);
 
@@ -196,12 +196,12 @@ void cgd(void *v) {
 
 		flag = ocBroadcastBool(flag, 1) || ocBroadcastBool(flag, 2);
 	}
-	
-	
+
+
 	for(size_t i = 0; i < d; i++) {
 			ofixed_copy(&result[i], x[i]);
 	}
-	
+
 	// return the result
 	for(size_t i = 0; i < d; i++) {
 		ofixed_reveal(ls->beta.value + i, result[i], 2); // <- is this right, or should it be &ls->beta.value[i]? <- isn't that the same?

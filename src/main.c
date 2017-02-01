@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
 	double lambda = (double) strtod(argv[6], &end);
 	check(!errno, "strtod: %s", strerror(errno));
 	check(!*end, "lambda must be a number");
-	
+
 	// parse options
 	bool use_ot = false;
 	for(int i = 7; i < argc; i++) {
@@ -117,14 +117,6 @@ int main(int argc, char **argv) {
 	//   - I am a data provider
   	//   - share_A and share_b are my shares of the equation
 
-  	// The first data provider adds lambda to its share
-  	if(party == 3){
-  		fixed_t lambda_fixed = double_to_fixed(lambda, precision);
-  		for(size_t i = 0; i < c->d; i++) {
-  			share_A[idx(i,i)] += lambda_fixed;
-		}
-  	}
-
 	// phase 2 starts here
 	if(party < 3){  // CSP and Evaluator
 		ProtocolDesc *pd;
@@ -137,9 +129,10 @@ int main(int argc, char **argv) {
 		setCurrentParty(pd, party);
 		ls.a.d[0] = ls.a.d[1] = ls.b.len = c->d;
 		ls.precision = precision;
+		ls.lambda = lambda;
 		ls.beta.value = ls.a.value = ls.b.value = NULL;
 		// Run garbled circuit
-		// We'll modify linear.oc so that the inputs are read from a ls if the provided one is not NULL
+		// We'll modify linear.oc so that the inputs are read from a ls if ls->self is NULL
 		// else we'l use dcrRcvdIntArray...
 		if(party == 2) {
 		      printf("\n");

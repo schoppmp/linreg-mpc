@@ -305,20 +305,19 @@ int run_trusted_initializer(node *self, config *c, int precision, bool use_ot) {
 			share_b[i] += pmsg_in->vector[i];
 		}
 		secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
-
 	}
 
 	printf("A = \n");
 	for(size_t i = 0; i < c->d; i++) {
 		for(size_t j = 0; j <= i; j++) {
-			printf("%3.8f ", fixed_to_double((fixed_t) share_A[idx(i, j)], precision));
+			printf("%3.8f ", fixed_to_double((fixed_t) share_A[idx(i, j)] / (fixed_t) d, precision));
 		}
 		printf("\n");
 	}
 
 	printf("b = \n");
 	for(size_t i = 0; i < c->d; i++) {
-		printf("%3.6f ", fixed_to_double((fixed_t) share_b[i], precision));
+		printf("%3.6f ", fixed_to_double((fixed_t) share_b[i] / (fixed_t) d, precision));
 	}
 	printf("\n");
 
@@ -459,7 +458,7 @@ int run_party(
 	ufixed_t *share_A = NULL, *share_b = NULL;
 
 	// read inputs and allocate result buffer
-	double normalizer = sqrt(pow(2,precision) * c->d * c->n);
+	double normalizer = sqrt(pow(2,precision) * c->n);
 	status = read_matrix(c->input, &data, precision, true, normalizer);
 	check(!status, "Could not read data");
 	status = read_vector(c->input, &target, precision, true, normalizer);
@@ -495,8 +494,8 @@ int run_party(
 			share_b_peer[peer-2] = calloc(d, sizeof(ufixed_t));
 			targs[peer-2] = (ot_thread_args) {
 				.self = self, .c = c, .precision = precision, .wait_total = {0, 0},
-				.peer = peer, .data = data.value, .target = target.value, 
-				.res_A = share_A_peer[peer-2], .res_b = share_b_peer[peer-2] 
+				.peer = peer, .data = data.value, .target = target.value,
+				.res_A = share_A_peer[peer-2], .res_b = share_b_peer[peer-2]
 			};
 			pthread_create(&peer_thread[peer-2], NULL, run_party_ot_thread, &targs[peer-2]);
 		}

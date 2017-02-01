@@ -17,6 +17,7 @@ typedef struct {
 	matrix_t a;
 	vector_t b;
 	vector_t beta;
+	double lambda;
 	int precision;
 	long long gates;
 	int num_iterations; // for cgd
