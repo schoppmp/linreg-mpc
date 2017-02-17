@@ -458,7 +458,7 @@ int run_party(
 	ufixed_t *share_A = NULL, *share_b = NULL;
 
 	// read inputs and allocate result buffer
-	double normalizer = sqrt(pow(2,precision) * c->n);
+	double normalizer = sqrt(pow(2,precision) * sqrt(c->n));
 	status = read_matrix(c->input, &data, precision, true, normalizer);
 	check(!status, "Could not read data");
 	status = read_vector(c->input, &target, precision, true, normalizer);

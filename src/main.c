@@ -128,6 +128,7 @@ int main(int argc, char **argv) {
 		orecv(pd, 0, NULL, 0); // flush
 		setCurrentParty(pd, party);
 		ls.a.d[0] = ls.a.d[1] = ls.b.len = c->d;
+		ls.n = c->n;
 		ls.precision = precision;
 		ls.lambda = lambda;
 		ls.beta.value = ls.a.value = ls.b.value = NULL;
