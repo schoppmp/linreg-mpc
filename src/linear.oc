@@ -53,14 +53,14 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, ofixed
 	for(size_t i = 0; i < d; i++) {
 		for(size_t j = 0; j <= i; j++) {
 			size_t ij = idx(i,j);
-			ofixed_import(&a[ij], ofixed_export(a[ij]) / (fixed_t) (d * (size_t) sqrt(ls->n)));
+			ofixed_import(&a[ij], ofixed_export(a[ij]) / (fixed_t) (d * sqrt(ls->n)));
 			if(i == j){
 				ofixed_add(&a[ij], a[ij], obigtemp);
 			}
 		}
 	}
 	for(size_t i = 0; i < d; i++) {
-		ofixed_import(&b[i], ofixed_export(b[i]) / (fixed_t) d);
+		ofixed_import(&b[i], ofixed_export(b[i]) / (fixed_t) (d * sqrt(ls->n)));
 	}
 
 	// if(ocCurrentParty()==2) printf("A = \n");

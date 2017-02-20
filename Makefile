@@ -14,7 +14,7 @@ OCFLAGS=$(CFLAGS) -DREMOTE_HOST=$(REMOTE_HOST)
 ackLibDir=$(libDir)/absentminded-crypto-kit/build/lib
 ackLib=$(ackLibDir)/liback.a
 ackIncDir=$(libDir)/absentminded-crypto-kit/src/
-OLFLAGS += -L$(ackLibDir) -lack
+OLFLAGS += -L$(ackLibDir) -lack -lm
 OCFLAGS += -g -DREMOTE_HOST=$(REMOTE_HOST) -O3 -Werror -I$(ackIncDir)
 
 mkpath=mkdir -p $(@D)
@@ -67,7 +67,7 @@ ifeq ($(BIT_WIDTH_32), 1)
 $(srcDir)/%.pb-c.c: $(srcDir)/%.proto
 	cd $(<D) && protoc-c secure_multiplication_bitwidth_32.proto --c_out=. &&\
 	mv secure_multiplication_bitwidth_32.pb-c.c secure_multiplication.pb-c.c &&\
-	cp secure_multiplication_bitwidth_32.pb-c.h secure_multiplication.pb-c.h 	
+	cp secure_multiplication_bitwidth_32.pb-c.h secure_multiplication.pb-c.h
 else
 $(srcDir)/%.pb-c.c: $(srcDir)/%.proto
 	cd $(<D) && protoc-c secure_multiplication_bitwidth_64.proto --c_out=. &&\
