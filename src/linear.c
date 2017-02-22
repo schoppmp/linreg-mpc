@@ -44,7 +44,7 @@ int read_matrix(FILE *file, matrix_t *matrix, int precision,
 		for(size_t j = 0; j < m; j++) {
 			double val;
 			res = fscanf(file, "%lf", &val);
-			if(normalize){
+			if(normalize) {
 				val /= normalizer;
 			}
 			check(res == 1, "fscanf: %s.", strerror(errno));
@@ -55,14 +55,14 @@ int read_matrix(FILE *file, matrix_t *matrix, int precision,
 	}
 
 	return 0;
-	
+
 error:
 	if(matrix) {
 		matrix->d[0] = matrix->d[1] = 0;
 		free(matrix->value);
 		matrix->value = NULL;
 	}
-	return 1;	
+	return 1;
 }
 
 int read_vector(FILE *file, vector_t *vector,

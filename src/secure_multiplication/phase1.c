@@ -546,6 +546,13 @@ int run_party(
 				// if we own neither i or j, skip.
 				if(owner_i != c->party-1 && owner_j != c->party-1) {
 					continue;
+				// if i == j, compute locally with full normalization
+				} else if(i == j) {
+					double xy = 0;
+					for(size_t k = 0; k < c->n; k++) {
+						xy += pow(fixed_to_double(row_start_i[k], precision) * normalizer, 2);
+					}
+					share = double_to_fixed(xy / c->n / c->d, precision);
 				// if we own both, compute locally
 				} else if(owner_i == c->party-1 && owner_i == owner_j) {
 					share = inner_product_local(row_start_i, row_start_j,
