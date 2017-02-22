@@ -87,6 +87,9 @@ int main(int argc, char **argv) {
 	status = config_new(&c, argv[1]);
 	check(!status, "Could not read config");
 	c->party = party;
+	c->normalizer1 = c->n;
+	c->normalizer2 = c->d;
+
 	double time = wallClock();
 	if(party == 2) {
 		printf("{\"n\":\"%zd\", \"d\":\"%zd\" \"p\":\"%d\"}\n", c->n, c->d, c->num_parties - 1);
@@ -128,7 +131,7 @@ int main(int argc, char **argv) {
 		orecv(pd, 0, NULL, 0); // flush
 		setCurrentParty(pd, party);
 		ls.a.d[0] = ls.a.d[1] = ls.b.len = c->d;
-		ls.n = c->n;
+		ls.normalizer = c->normalizer2;
 		ls.precision = precision;
 		ls.lambda = lambda;
 		ls.beta.value = ls.a.value = ls.b.value = NULL;

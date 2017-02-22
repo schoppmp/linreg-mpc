@@ -56,12 +56,12 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, ofixed
 			if(i == j){
 				ofixed_add(&a[ij], a[ij], obigtemp);
 			} else {
-				ofixed_import(&a[ij], ofixed_export(a[ij]) / (fixed_t) (d * sqrt(ls->n)));
+				ofixed_import(&a[ij], ofixed_export(a[ij]) / (fixed_t) ls->normalizer);
 			}
 		}
 	}
 	for(size_t i = 0; i < d; i++) {
-		ofixed_import(&b[i], ofixed_export(b[i]) / (fixed_t) (d * sqrt(ls->n)));
+		ofixed_import(&b[i], ofixed_export(b[i]) / (fixed_t) ls->normalizer);
 	}
 
 

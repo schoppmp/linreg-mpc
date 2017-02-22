@@ -458,7 +458,7 @@ int run_party(
 	ufixed_t *share_A = NULL, *share_b = NULL;
 
 	// read inputs and allocate result buffer
-	double normalizer = sqrt(pow(2,precision) * sqrt(c->n));
+	double normalizer = sqrt(pow(2,precision) * c->normalizer1); // half of the normalization is done by each party
 	status = read_matrix(c->input, &data, precision, true, normalizer);
 	check(!status, "Could not read data");
 	status = read_vector(c->input, &target, precision, true, normalizer);
@@ -552,7 +552,7 @@ int run_party(
 					for(size_t k = 0; k < c->n; k++) {
 						xy += pow(fixed_to_double(row_start_i[k*stride_i], precision), 2) * pow(2, precision);
 					}
-					share = double_to_fixed(xy / sqrt(c->n) / c->d, precision);
+					share = double_to_fixed(xy / c->normalizer2, precision);
 				// if we own both, compute locally
 				} else if(owner_i == c->party-1 && owner_i == owner_j) {
 					share = inner_product_local(row_start_i, row_start_j,

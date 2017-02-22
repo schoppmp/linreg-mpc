@@ -19,7 +19,7 @@ typedef struct {
 	vector_t beta;
 	double lambda;
 	int precision;
-	size_t n; // for scaling inside the circuit
+	size_t normalizer; // for scaling inside the circuit
 	long long gates;
 	int num_iterations; // for cgd
 	node *self; // for reading input from data providers
