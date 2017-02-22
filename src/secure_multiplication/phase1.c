@@ -285,44 +285,44 @@ int run_trusted_initializer(node *self, config *c, int precision, bool use_ot) {
 		}
 	}
 
-	// Receive and combine shares from peers for testing;
-	uint64_t *share_A = NULL, *share_b = NULL;
-	size_t d = c->d;
-	share_A = calloc(d * (d + 1) / 2, sizeof(uint64_t));
-	share_b = calloc(d, sizeof(uint64_t));
-
-	SecureMultiplication__Msg *pmsg_in;
-	for(int p = 2; p < c->num_parties; p++) {
-		status = recv_pmsg(&pmsg_in, self->peer[p]);
-		check(!status, "Could not receive result share_A from peer %d", p);
-		for(size_t i = 0; i < d * (d + 1) / 2; i++) {
-			share_A[i] += pmsg_in->vector[i];
-		}
-		secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
-		status = recv_pmsg(&pmsg_in, self->peer[p]);
-		check(!status, "Could not receive result share_b from peer %d", p);
-		for(size_t i = 0; i < d; i++) {
-			share_b[i] += pmsg_in->vector[i];
-		}
-		secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
-	}
-
-	printf("A = \n");
-	for(size_t i = 0; i < c->d; i++) {
-		for(size_t j = 0; j <= i; j++) {
-			printf("%3.8f ", fixed_to_double((fixed_t) share_A[idx(i, j)] / (fixed_t) d, precision));
-		}
-		printf("\n");
-	}
-
-	printf("b = \n");
-	for(size_t i = 0; i < c->d; i++) {
-		printf("%3.6f ", fixed_to_double((fixed_t) share_b[i] / (fixed_t) d, precision));
-	}
-	printf("\n");
-
-	free(share_A);
-	free(share_b);
+	// // Receive and combine shares from peers for testing;
+	// uint64_t *share_A = NULL, *share_b = NULL;
+	// size_t d = c->d;
+	// share_A = calloc(d * (d + 1) / 2, sizeof(uint64_t));
+	// share_b = calloc(d, sizeof(uint64_t));
+	//
+	// SecureMultiplication__Msg *pmsg_in;
+	// for(int p = 2; p < c->num_parties; p++) {
+	// 	status = recv_pmsg(&pmsg_in, self->peer[p]);
+	// 	check(!status, "Could not receive result share_A from peer %d", p);
+	// 	for(size_t i = 0; i < d * (d + 1) / 2; i++) {
+	// 		share_A[i] += pmsg_in->vector[i];
+	// 	}
+	// 	secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
+	// 	status = recv_pmsg(&pmsg_in, self->peer[p]);
+	// 	check(!status, "Could not receive result share_b from peer %d", p);
+	// 	for(size_t i = 0; i < d; i++) {
+	// 		share_b[i] += pmsg_in->vector[i];
+	// 	}
+	// 	secure_multiplication__msg__free_unpacked(pmsg_in, NULL);
+	// }
+	//
+	// printf("A = \n");
+	// for(size_t i = 0; i < c->d; i++) {
+	// 	for(size_t j = 0; j <= i; j++) {
+	// 		printf("%3.8f ", fixed_to_double((fixed_t) share_A[idx(i, j)] / (fixed_t) d, precision));
+	// 	}
+	// 	printf("\n");
+	// }
+	//
+	// printf("b = \n");
+	// for(size_t i = 0; i < c->d; i++) {
+	// 	printf("%3.6f ", fixed_to_double((fixed_t) share_b[i] / (fixed_t) d, precision));
+	// }
+	// printf("\n");
+	//
+	// free(share_A);
+	// free(share_b);
 
 
 	free(x);
@@ -550,9 +550,9 @@ int run_party(
 				} else if(i == j) {
 					double xy = 0;
 					for(size_t k = 0; k < c->n; k++) {
-						xy += pow(fixed_to_double(row_start_i[k], precision) * normalizer, 2);
+						xy += pow(fixed_to_double(row_start_i[k*stride_i], precision), 2) * pow(2, precision);
 					}
-					share = double_to_fixed(xy / c->n / c->d, precision);
+					share = double_to_fixed(xy / sqrt(c->n) / c->d, precision);
 				// if we own both, compute locally
 				} else if(owner_i == c->party-1 && owner_i == owner_j) {
 					share = inner_product_local(row_start_i, row_start_j,
@@ -576,18 +576,18 @@ int run_party(
 	}
 
 
-	// send results to TI for testing;
-	SecureMultiplication__Msg pmsg_out;
-	secure_multiplication__msg__init(&pmsg_out);
-	pmsg_out.vector = share_A;
-	pmsg_out.n_vector = d * (d + 1) / 2;
-	status = send_pmsg(&pmsg_out, self->peer[0]);
-	check(!status, "Could not send share_A to TI");
-	pmsg_out.vector = share_b;
-	pmsg_out.n_vector = d;
-	status = send_pmsg(&pmsg_out, self->peer[0]);
-	check(!status, "Could not send share_b to TI");
-	pmsg_out.vector = NULL;
+	// // send results to TI for testing;
+	// SecureMultiplication__Msg pmsg_out;
+	// secure_multiplication__msg__init(&pmsg_out);
+	// pmsg_out.vector = share_A;
+	// pmsg_out.n_vector = d * (d + 1) / 2;
+	// status = send_pmsg(&pmsg_out, self->peer[0]);
+	// check(!status, "Could not send share_A to TI");
+	// pmsg_out.vector = share_b;
+	// pmsg_out.n_vector = d;
+	// status = send_pmsg(&pmsg_out, self->peer[0]);
+	// check(!status, "Could not send share_b to TI");
+	// pmsg_out.vector = NULL;
 
 
 	free(data.value);
