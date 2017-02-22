@@ -77,4 +77,3 @@ endif
 
 clean:
 	rm -rf $(binDir) $(objDir)
-	cd $(libDir)/absentminded-crypto-kit && make clean
