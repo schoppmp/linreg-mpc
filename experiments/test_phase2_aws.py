@@ -270,7 +270,7 @@ def run_instance_remotely(n, d, X, y, lambda_, alg, solution, condition_number,
 def generate_benchmark(dest_folder):
     """
     Writes 100 instances in dest_folder,
-    with condition numbers evenly distributed in the 
+    with condition numbers evenly distributed in the
     interval [1..11] and dimension 20.
     """
     assert os.path.exists(dest_folder), '{0} does not exist.'.format(
@@ -288,15 +288,16 @@ def generate_benchmark(dest_folder):
                 1 - (1 + 6 * pow(sigmaY, 2)) / pow((z + 1) / (z - 1), 2)),
             2)
         nmult = nmult_num / nmult_den
-        n = int(round(nmult * d)) * multiplier
+        n = int(round(nmult * d) * multiplier)
         return n
 
     instances = []
-    count = dict([(i, 0) for i in range(1, 11)])
+    count = dict([(i, 0) for i in range(1, 10)])
     done = False
     while not done:
-        d = 20
-        n = get_n(d, 2)
+        num_needed = 10
+        d = 100
+        n = get_n(d, 3./5)
         if n > 20000:
             continue
         sigma = 0.1
@@ -312,8 +313,8 @@ def generate_benchmark(dest_folder):
         logger.info('Wrote instance in {3}: n = {0}, d = {1}, cd = {2}'.format(
             n, d, condition_number, tmp_filepath))
 
-        for i in range(1, 11):
-            if count[i] < 3 and condition_number <= i + 1 and condition_number > i:
+        for i in range(1, 10):
+            if count[i] < num_needed and condition_number <= 10*(i + 1) and condition_number > 10*i:
                 count[i] += 1
                 filename_in = 'test_LS_{0}x{1}_{2}_{3}.in'.format(
                     n, d, condition_number, count[i])
@@ -324,7 +325,7 @@ def generate_benchmark(dest_folder):
                     (n, d, X, y, lambda_, beta, condition_number,
                         objective_value, filepath_in))
 
-        done = all([count[i] == 3 for i in range(1, 11)])
+        done = all([count[i] >= num_needed for i in range(1, 10)])
     logger.info(
         'Done generating instances: {}'.format(map(lambda x: x[8], instances)))
     return instances
@@ -355,19 +356,21 @@ if __name__ == "__main__":
 
     if args.run_accuracy_tests:
         assert RUN_LOCALLY, 'Accuracy tests can only be run locally.'
-        num_iters_cgd = 30
+        num_iters_cgd = 20
+        precision = 60
         instances = generate_benchmark(dest_folder)
         for (n, d, X, y, lambda_, beta, condition_number, objective_value, filepath_in) in instances:
             for alg in ['cgd', 'cholesky']:
                 for party in [1, 2]:
                     filepath_exec = os.path.splitext(filepath_in)[0] + \
                         '_{0}_p{1}.exec'.format(alg, party)
-                    cmd = '{0} {7} {1} {2} {3} {4} > {5} {6}'.format(
+                    cmd = '{0} {8} {1} {2} {3} {4} {5} > {6} {7}'.format(
                         exec_file,
                         party,
                         filepath_in,
                         alg,
                         num_iters_cgd,
+                        precision,
                         filepath_exec,
                         '&' if party == 1 else '',
                         args.port)
@@ -435,7 +438,7 @@ if __name__ == "__main__":
                 format(
                     n, d, sigma, i + args.instance_num_offset,
                     alg, bit_width, num_iters_cgd)
-        
+
         out_filename = filepath_exec = os.path.join(
             dest_folder, filename_exec_prefix + '_p2.out')
         if os.path.exists(out_filename) and not RECOMPUTE:
@@ -464,7 +467,7 @@ if __name__ == "__main__":
                 precision[bit_width],
                 filepath_exec,
                 '&' if party == 1 else '')
-            
+
             if RUN_LOCALLY:
                 out_filename = os.path.splitext(
                     filepath_exec)[0] + '.out'
