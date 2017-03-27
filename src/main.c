@@ -2,9 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sodium.h>
 #include <time.h>
-#include <czmq.h>
 #include <obliv.h>
 #include <obliv_common.h>
 
