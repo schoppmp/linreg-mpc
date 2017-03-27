@@ -5,8 +5,9 @@ A protocol for secure distributed linear regression. For a detailed description 
 ## Dependencies
 The following libraries need to be installed for a successful build:
 
-* [Obliv-C](https://github.com/samee/obliv-c/) must be cloned from Github to a directory of your choice, to which the `OBLIVC_PATH` environment variable should point.
+* [Obliv-C](https://github.com/samee/obliv-c/) must be cloned from Github and installed in a directory of your choice, to which the `OBLIVC_PATH` environment variable should point.
 * [Protocol Buffers](https://github.com/google/protobuf) and [Protobuf-C](https://github.com/protobuf-c/protobuf-c) can be either built from source or installed using your favorite package manager. If built from source, libraries and binaries need to be installed in a directory where they are found by compilers and linkers.
+* OpenSSL headers. On Ubuntu based systems, these come with the package `libssl-dev`.
 
 ## Compilation
 
