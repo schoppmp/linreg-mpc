@@ -30,7 +30,7 @@ Higher values denote data providers.
 In the case of CGD, `[Num. iterations CGD]` gives the number of iterations used before terminating.
 Finally, `[Lambda]` specifies the regularization parameter, and the `--use-ot` flag enables the aggregation phase protocol based on Oblivious Transfers.
 
-An example input file is 
+An example input file can be found in `examples/readme_example.in`:
 ```
 10 5 3
 localhost:1234
@@ -60,9 +60,9 @@ Finally, the length and values of `y` are given.
 
 Running this example locally with
 ```
-for party in {1..5}; do bin/main input_file 56 $party cgd 10 0.001  & done
+for party in {1..5}; do bin/main examples/readme_example.in 56 $party cgd 10 0.001 & done
 ```
-yields the following result
+yields the following result, in addition to some debug outputs:
 ```
 Time elapsed: 5.673679
 Number of gates: 18503684
