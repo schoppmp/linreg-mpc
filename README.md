@@ -1,12 +1,16 @@
 # Secure distributed linear regression
 
-A protocol for secure distributed linear regression.
-In order to successfully build, [Obliv-C](https://github.com/samee/obliv-c/) must be installed and the `OBLIVC_PATH` environment variable must point to its directory.
+A protocol for secure distributed linear regression. For a detailed description of the protocol and evaluation results, please have a look at the [Paper](https://eprint.iacr.org/2016/892).
 
-Then, in order to compile, run
-```
-git submodule update --init && make
-```
+## Dependencies
+The following libraries need to be installed for a successful build:
+
+* [Obliv-C](https://github.com/samee/obliv-c/) must be cloned from Github to a directory of your choice, to which the `OBLIVC_PATH` environment variable should point.
+* [Protocol Buffers](https://github.com/google/protobuf) and [Protobuf-C](https://github.com/protobuf-c/protobuf-c) can be either built from source or installed using your favorite package manager. If built from source, libraries and binaries need to be installed in a directory where they are found by compilers and linkers.
+
+## Compilation
+
+In order to download submodules and compile, simply run `make`.
 By default, computations are performed using 64 bit fixed-point arithmetic. 
 To enable 32 bit computations at compile time, the additional flag `BIT_WIDTH_32=1` must be passed to `make`.
 This will increase computation speed, but may also reduce the accuracy of the results in some cases.
@@ -15,7 +19,8 @@ This will increase computation speed, but may also reduce the accuracy of the re
 ## Running experiments
 The protocol consists of two phases. `bin/main` is used to run both phases at once.
 ```
-Usage: bin/main [Input_file] [Precision] [Party] [Algorithm] [Num. iterations CGD]
+Usage: bin/main [Input_file] [Precision] [Party] [Algorithm] [Num. iterations CGD] [Lambda] [Options]
+Options: --use_ot: Enables the OT-based phase 1 protocol
 ```
 `[Precision]` specifies the number of bits used for the fractional part of fixed-point encoded numbers.
 The role of the process is given by `[Party]`. 
@@ -23,6 +28,8 @@ Values of 1 and 2 denote the CSP and Evaluator, respectively.
 Higher values denote data providers.
 `[Algorithm]` is the algorithm used for phase 2 of the protocol and can be either `cholesky`, `ldlt`, or `cgd`.
 In the case of CGD, `[Num. iterations CGD]` gives the number of iterations used before terminating.
+Finally, `[Lambda]` specifies the regularization parameter, and the `--use-ot` flag enables the aggregation phase protocol based on Oblivious Transfers.
+
 An example input file is 
 ```
 10 5 3
@@ -53,12 +60,11 @@ Finally, the length and values of `y` are given.
 
 Running this example locally with
 ```
-for party in {1..5}; do bin/main input_file 56 $party cholesky 1 & done
+for party in {1..5}; do bin/main input_file 56 $party cgd 10 0.001  & done
 ```
 yields the following result
 ```
-OT time: 0.301697
-Time elapsed: 4.404333
-Number of gates: 3173835
-Result:    1.000359530238633    0.797558559108423    0.781463858861025    0.605140672557234    0.046213483377146 
+Time elapsed: 5.673679
+Number of gates: 18503684
+Result:    0.984331038221560    0.792399824423250    0.754117843957729    0.592849149141748    0.057351696904535 
 ```
