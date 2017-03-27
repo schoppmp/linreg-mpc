@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
 	check(!errno, "strtol: %s", strerror(errno));
 	check(!*end, "Party must be a number");
 
-	
+
 	// parse options
 	bool use_ot = false;
 	for(int i = 4; i < argc; i++) {

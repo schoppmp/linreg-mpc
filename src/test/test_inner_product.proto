@@ -1,6 +1,0 @@
-package inner_product;
-
-message msg {
-	repeated int64 vector = 1 [packed=true];
-	required int64 value = 2;
-}

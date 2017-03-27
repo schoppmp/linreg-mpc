@@ -1,5 +1,0 @@
-package test;
-
-message Fixed {
-	required int64 value = 1;
-}
