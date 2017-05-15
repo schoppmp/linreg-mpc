@@ -1,0 +1,6 @@
+#pragma once
+#include "input.h"
+
+static inline void
+dcrRecvIntArray(DualconR* con,obliv ufixed_t* input,size_t n,int party)
+  { dcrRecvBitArray(con,(OblivBit*)input,n*ocBitSize(*input),party); }

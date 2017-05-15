@@ -2,7 +2,7 @@
 #include "linear.oh"
 #include "check_error.h"
 #include "secure_multiplication/config.h"
-#include "input.h"
+#include "input.oh"
 #include "util.h"
 #include <time.h>
 
