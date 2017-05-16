@@ -20,7 +20,7 @@ int node_new(node **nn, config *conf) {
 	n->party = conf->party;
 	n->peer = calloc(n->num_parties, sizeof(ProtocolDesc *));
 	check(n->peer, "out of memory");
-	
+
 	int i;
 	// other peer is listening -> connect
 	for(i = 0; i < n->party - 1; i++) {
@@ -28,7 +28,7 @@ int node_new(node **nn, config *conf) {
 		check(host, "out of memory");
 		char* port = strchr(host, ':');
 		*(port++) = '\0'; // split endpoint at ':'
-		n->peer[i] = malloc(sizeof(ProtocolDesc));
+		n->peer[i] = calloc(1, sizeof(ProtocolDesc));
 		check(n->peer[i], "out of memory");
 		util_loop_connect(n->peer[i], host, port);
 		free(host);
@@ -46,17 +46,17 @@ int node_new(node **nn, config *conf) {
 	check(listen_sock >= 0, "Could not create listen socket");
 
 	// accept incoming connections from peers
-	for(i = n->party; i < n->num_parties; i++) { 
-		ProtocolDesc *pd = malloc(sizeof(ProtocolDesc));
+	for(i = n->party; i < n->num_parties; i++) {
+		ProtocolDesc *pd = calloc(1, sizeof(ProtocolDesc));
 		check(pd, "out of memory");
 		int sock = accept(listen_sock, NULL, NULL);
 		protocolUseTcp2P(pd,sock,false);
 		int other;
-		check(orecv(pd, 0, &other, sizeof(other)) == sizeof(other), 
+		check(orecv(pd, 0, &other, sizeof(other)) == sizeof(other),
 			"Party %d: orecv: %s", n->party, strerror(errno));
-		check(other > n->party && other <= n->num_parties, 
+		check(other > n->party && other <= n->num_parties,
 			"Party %d received invalid party number %d from remote", n->party, other);
-		check(n->peer[other-1] == NULL, 
+		check(n->peer[other-1] == NULL,
 			"Duplicate party %d", other);
 		n->peer[other-1] = pd;
 	}
@@ -74,7 +74,7 @@ void node_destroy(node **nn) {
 		node *n = *nn;
 		for(int i = 0; i < n->num_parties; i++) {
 			if(n->peer[i]) {
-				cleanupProtocol(n->peer[i]);			
+				cleanupProtocol(n->peer[i]);
 				free(n->peer[i]);
 			}
 		}
