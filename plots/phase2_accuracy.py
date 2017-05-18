@@ -16,7 +16,6 @@ num_samples = 2
 num_iterations = 20
 
 for bw in [32, 64]:
-
     if bw == 64:
         dirname = "../experiments/results/phase2_64"
     else:
@@ -74,10 +73,23 @@ for bw in [32, 64]:
     rc('errorbar', capsize=5)
     rc('savefig', format='pdf')
 
-    # plot 1: d -> size, compare cgd{5,10,15} and cholesky
+    # plot: d -> error, compare cgd{5,10,15} and cholesky dw bits
     indices_cgd = [4, 9, 14, 19]
     mean_size_cholesky = np.nanmean(data[:,:,:,0,5], axis=(0, 2))
     mean_size_cgd = np.nanmean(data2[:,:,:,:,3], axis=(0, 2))
+    mean_error_cgd = np.nanmean(data2[:,:,:,:,0], axis=(0, 2))
+    mean_error_cholesky = np.nanmean(data[:,:,:,0,4], axis=(0, 2))
+    std_error_cholesky = np.nanstd(data[:,:,:,0,4], axis=(0, 2))
+
+    # compute confidence intervals
+    cis_error_cgd = np.ndarray(shape=(len(ds), num_iterations, 2))
+    cis_error_cholesky = np.ndarray(shape=(len(ds), 2))
+    for i_d in xrange(len(ds)):
+        for iteration in xrange(num_iterations):
+            data_flat = data2[:, i_d, :, iteration, 0].flat
+            cis_error_cgd[i_d, iteration] = scikits.bootstrap.ci(data_flat, method="abc")
+        data_flat=data[:, i_d, :, 0, 4].flat
+        cis_error_cholesky[i_d] = scikits.bootstrap.ci(data_flat, method="abc")
 
     colours = ['#404096', '#529DB7', '#7DB874', '#E39C37', '#D92120', '#000000']
     colourcycler = cycle(colours)
@@ -86,63 +98,18 @@ for bw in [32, 64]:
     plt.xlabel('$d$')
     plt.xticks(ds, ["${}$".format(d) for d in ds]) # axes in mathmode
     plt.yscale('log')
-    plt.ylabel('Circuit size (gates)')
-    plt.xlim(10, 501)
+    plt.ylabel('Error')
+    plt.xlim(10,501)
 
-    plt.plot(ds, mean_size_cholesky, marker='.', c=next(colourcycler))#, yerr=std_size_cholesky)
+    yerr = [mean_error_cholesky - cis_error_cholesky[:,0], cis_error_cholesky[:,1] - mean_error_cholesky]
+    plt.errorbar(ds, mean_error_cholesky, marker='.', c=next(colourcycler), yerr=yerr)
     for i in indices_cgd:
-        plt.plot(ds, mean_size_cgd[:,i], marker='.', c=next(colourcycler))#, yerr=std_cgd[:,i])
+        yerr = [mean_error_cgd[:,i] - cis_error_cgd[:,i,0], cis_error_cgd[:,i,1] - mean_error_cgd[:,i]]
+        plt.errorbar(ds, mean_error_cgd[:,i], marker='.', c=next(colourcycler), yerr=yerr)
     plt.legend(["\small Cholesky"] + ["\small CGD {}".format(index + 1) for index in indices_cgd], loc=3, ncol=3, mode="expand")
     plt.tight_layout()
-    plt.gca().set_ylim(bottom=1e4)
-    plt.savefig("plot_phase2_bw{}_gate_counts.pdf".format(bw), transparent=True)
+    plt.gca().set_ylim(bottom=(1e-8 if bw == 32 else 1e-16))
+    plt.savefig("plot_phase2_accuracy_vs_d_bw{}.pdf".format(bw), transparent=True)
     plt.show()
 
-    # plot 2: d -> time, compare cgd and cholesky
-    indices_cgd = [4, 9, 14, 19]
-    colourcycler=cycle(colours) # reset colours
-
-    # compute confidence intervals for each value of n, d and each iteration
-    cis_cgd = np.ndarray(shape=(len(ds), num_iterations, 2))
-    cis_cholesky = np.ndarray(shape=(len(ds), 2))
-    cis_ot = np.ndarray(shape=(len(ds), 2))
-    for i_d in xrange(len(ds)):
-        for iteration in xrange(num_iterations):
-            data_flat = data2[:, i_d, :, iteration, 2].flat
-            cis_cgd[i_d, iteration] = scikits.bootstrap.ci(data_flat, method="abc")
-        data_flat=data[:, i_d, :, 0, 3].flat
-        cis_cholesky[i_d] = scikits.bootstrap.ci(data_flat, method="abc")
-        cis_ot[i_d] = scikits.bootstrap.ci(data[:,i_d,:,:,2].flat, method="abc")
-
-
-    mean_time_cholesky = np.mean(data[:,:,:,0,3], axis=(0, 2))
-    mean_time_cgd = np.mean(data2[:,:,:,:,2], axis=(0, 2))
-    mean_time_ot = np.mean(data[:,:,:,:,2], axis=(0,2,3))
-
-    plt.xscale('log')
-    plt.xlabel('$d$')
-    plt.xticks(ds, ["${}$".format(d) for d in ds]) # axes in mathmode
-    plt.yscale('log')
-    plt.ylabel('Time (seconds)')
-    plt.xlim(10, 501)
-
-    yerr = [mean_time_cholesky - cis_cholesky[:,0], cis_cholesky[:,1] - mean_time_cholesky]
-    plt.errorbar(ds, mean_time_cholesky, marker='.', yerr=yerr, c=next(colourcycler))
-    for i in indices_cgd:
-        yerr = [mean_time_cgd[:,i] - cis_cgd[:,i,0], cis_cgd[:,i,1] - mean_time_cgd[:,i]]
-        plt.errorbar(ds, mean_time_cgd[:,i], marker='.', yerr=yerr, c=next(colourcycler))
-    yerr = [mean_time_ot - cis_ot[:,0], cis_ot[:,1] - mean_time_ot]
-    plt.errorbar(ds, mean_time_ot, marker='.', linestyle=":", yerr=yerr, c=next(colourcycler))
-    plt.legend(["\small Cholesky"] + ["\small CGD {}".format(index + 1) for index in indices_cgd] + ["\small OT"], loc=3, ncol=3, mode="expand")
-    plt.tight_layout()
-    plt.gca().set_ylim(bottom=1e-4)
-    plt.savefig("plot_phase2_bw{}_times.pdf".format(bw), transparent=True)
-    plt.show()
-
-    for i_d, d in enumerate(ds):
-            sys.stdout.write("{:<10d}".format(d))
-            sys.stdout.write("& {:9.3f} ".format(mean_time_ot[i_d]))
-            sys.stdout.write("& {:9.3f} ".format(mean_time_cholesky[i_d]))
-            for i, idx in enumerate(indices_cgd):
-                sys.stdout.write("& {:9.3f} ".format(mean_time_cgd[i_d,idx]))
-            sys.stdout.write("\\\\\n")
+    print "Average condition number: {}".format(np.mean(data[:,:,:,:,0]))

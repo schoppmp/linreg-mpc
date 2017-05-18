@@ -7,9 +7,9 @@ import random
 
 for bw in [32, 64]:
     if bw == 64:
-        dirname = "experiments/results/phase2_accuracy_64_100/"
+        dirname = "../experiments/results/phase2_accuracy_64"
     else:
-        dirname = "experiments/results/phase2_accuracy_32_100/"
+        dirname = "../experiments/results/phase2_accuracy_32"
 
     files_cgd = glob.glob(os.path.join(dirname, "*_cgd_*.out"))
     # if bw == 32: # only take half of the files
@@ -75,16 +75,16 @@ for bw in [32, 64]:
     #next(colourcycler)
     #next(symbolcycler)
     iters=[4,9,14,19]
-    ax.scatter(condition_numbers_cholesky, data_cholesky, c=next(colourcycler), marker=next(symbolcycler), linewidth=0.1)
+    ax.scatter(condition_numbers_cholesky, data_cholesky, c=next(colourcycler), marker=next(symbolcycler), linewidth=0.2, edgecolor='black')
     for iteration in iters:
-       ax.scatter(condition_numbers_cgd, data_cgd[:,iteration,0], c=next(colourcycler), marker=next(symbolcycler), linewidth=0.1)
+       ax.scatter(condition_numbers_cgd, data_cgd[:,iteration,0], c=next(colourcycler), marker=next(symbolcycler), linewidth=0.2, edgecolor='black')
     ax.set_yscale('log')
     #ax.set_xscale('log')
     #ax.set_xlim([1,11])
     if bw == 64:
         ax.set_ylim([1e-18, 1])
     else:
-        ax.set_ylim([1e-6, 100])
+        ax.set_ylim([1e-6, 1])
     plt.legend(["\small Cholesky"] + ["\small CGD {}".format(i+1) for i in iters], loc=3, ncol=3, mode="expand")
     #plt.legend(["CGD {}".format(i+1) for i in iters], loc=4)
     plt.ylabel(r"Error")
