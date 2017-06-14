@@ -293,13 +293,13 @@ def generate_benchmark(dest_folder):
 
     instances = []
     num_intervals = 20
-    kappa_max = 100.
+    kappa_max = 10.
     count = dict([(i, 0) for i in range(num_intervals)])
     done = False
     while not done:
         num_needed = 5
-        d = 100
-        n = get_n(d, 3./5)
+        d = 20
+        n = get_n(d, 2)
         if n > 1000000:
             continue
         sigma = 0.1
