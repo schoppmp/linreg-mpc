@@ -5,6 +5,7 @@
 #include "input.oh"
 #include "util.h"
 #include <time.h>
+#include <math.h>
 
 int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, ofixed_t *a, ofixed_t *b) {
 	// This function must only be executed by the parties that run the GC protocol: CSP and Evaluator,
@@ -15,10 +16,10 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, ofixed
 	size_t d = ls->a.d[0];
 
 	for(int ij = 0; ij < d * (d+1) / 2; ij++) {
-		ofixed_import(&a[ij], 0);
+			ofixed_import(&a[ij], 0);
 	}
 	for(int i = 0; i < d; i++) {
-		ofixed_import(&a[i], 0);
+		ofixed_import(&b[i], 0);
 	}
 	obliv ufixed_t *share_a = malloc((d*(d + 1)/2) * sizeof(obliv ufixed_t));
 	obliv ufixed_t *share_b = malloc(d * sizeof(obliv ufixed_t));
@@ -31,18 +32,58 @@ int read_symmetric_linear_system_from_data_providers(linear_system_t *ls, ofixed
 		printf("%s receiving A from party %d\n", ocCurrentParty()==1?"CSP":"Evaluator",k);
 		dcrRecvIntArray(conn, share_a, d*(d + 1)/2, k);
 		printf("%s received A from party %d\n", ocCurrentParty()==1?"CSP":"Evaluator",k);
-		for(int ij = 0; ij < d * (d+1) / 2; ij++) {
-			ofixed_import(&obigtemp, share_a[ij]);
-			ofixed_add(&a[ij], a[ij], obigtemp);
+		for(size_t i = 0; i < d; i++) {
+			for(size_t j = 0; j <= i; j++) {
+				size_t ij = idx(i,j);
+				ofixed_import(&obigtemp, share_a[ij]);
+				ofixed_add(&a[ij], a[ij], obigtemp);
+			}
 		}
 		printf("%s receiving b from party %d\n", ocCurrentParty()==1?"CSP":"Evaluator",k);
 		dcrRecvIntArray(conn, share_b, d, k);
 		printf("%s received b from party %d\n", ocCurrentParty()==1?"CSP":"Evaluator",k);
-		for(int i = 0; i < d; i++) {
+		for(size_t i = 0; i < d; i++) {
 			ofixed_import(&obigtemp, share_b[i]);
 			ofixed_add(&b[i], b[i], obigtemp);
 		}
 	}
+	// normalize by dividing by d using integer division, since d is public and integral
+	// regularization parameter lambda is added to the diagonal
+	ofixed_import(&obigtemp, double_to_fixed(ls->lambda, ls->precision));
+	for(size_t i = 0; i < d; i++) {
+		for(size_t j = 0; j <= i; j++) {
+			size_t ij = idx(i,j);
+			if(i == j){
+				ofixed_add(&a[ij], a[ij], obigtemp);
+			} else {
+				ofixed_import(&a[ij], ofixed_export(a[ij]) / (fixed_t) ls->normalizer);
+			}
+		}
+	}
+	for(size_t i = 0; i < d; i++) {
+		ofixed_import(&b[i], ofixed_export(b[i]) / (fixed_t) ls->normalizer);
+	}
+
+
+	// Reveal A and b for debugging
+	if(ocCurrentParty()==2) printf("A = \n");
+	fixed_t out;
+	for(size_t i = 0; i < d; i++) {
+		for(size_t j = 0; j <= i; j++) {
+			ofixed_reveal(&out, a[idx(i,j)], 2);
+			if(ocCurrentParty()==2) printf("%3.8f ", fixed_to_double(out, ls->precision));
+		}
+		if(ocCurrentParty()==2) printf("\n");
+	}
+
+	if(ocCurrentParty()==2) printf("b = \n");
+	for(size_t i = 0; i < d; i++) {
+		ofixed_reveal(&out, b[i], 2);
+		if(ocCurrentParty()==2) printf("%3.6f ", fixed_to_double(out, ls->precision));
+	}
+	if(ocCurrentParty()==2) printf("\n");
+
+
 	clock_gettime(CLOCK_MONOTONIC, &time_end);
 	if(ocCurrentParty() == 2) printf("Time taken for OT: %f\n", (time_end.tv_sec-time_start.tv_sec)+1e-9*(time_end.tv_nsec-time_start.tv_nsec));
 
