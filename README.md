@@ -22,6 +22,7 @@ The protocol consists of two phases. `bin/main` is used to run both phases at on
 ```
 Usage: bin/main [Input_file] [Precision] [Party] [Algorithm] [Num. iterations CGD] [Lambda] [Options]
 Options: --use_ot: Enables the OT-based phase 1 protocol
+         --prec_phase2=<Precision phase 2>: Use different precision for phase 2 of the protocol
 ```
 `[Precision]` specifies the number of bits used for the fractional part of fixed-point encoded numbers.
 The role of the process is given by `[Party]`. 

@@ -49,7 +49,9 @@ int main(int argc, char **argv) {
 	int status;
 
 	// parse arguments
-	check(argc > 6, "Usage: %s [Input_file] [Precision] [Party] [Algorithm] [Num. iterations CGD] [Lambda] [Options]\nOptions: --use_ot: Enables the OT-based phase 1 protocol", argv[0]);
+	check(argc > 6, "Usage: %s [Input_file] [Precision] [Party] [Algorithm] [Num. iterations CGD] [Lambda] [Options]\n"
+	      "Options: --use_ot: Enables the OT-based phase 1 protocol\n"
+	      "         --prec_phase2=<Precision phase 2>: Use different precision for phase 2 of the protocol", argv[0]);
 	char *end;
 	int precision = (int) strtol(argv[2], &end, 10);
 	check(!errno, "strtol: %s", strerror(errno));
@@ -67,12 +69,19 @@ int main(int argc, char **argv) {
 
 	// parse options
 	bool use_ot = false;
+	int precision_phase2 = -1;
 	for(int i = 7; i < argc; i++) {
 		if(!strcmp(argv[i], "--use_ot")) {
 			use_ot = true;
+		} else if (sscanf(argv[i], "--prec_phase2=%i", &precision_phase2) != 1) {
+		  // error while reading the precision
+		  precision_phase2 = -1;
 		}
 	}
-
+	if (precision_phase2 != -1) {
+	  printf("Using different precision for phase 2 (%i)\n", precision_phase2);
+	}
+	
 	// read ls, we only need number of iterations
 	linear_system_t ls;
 	if(!strcmp(algorithm, "cgd")){
@@ -117,8 +126,12 @@ int main(int argc, char **argv) {
 	// if party > 2 then
 	//   - I am a data provider
   	//   - share_A and share_b are my shares of the equation
-
+	
 	// phase 2 starts here
+	if (precision_phase2 != -1) {
+	  precision = precision_phase2;
+	}
+	
 	if(party < 3){  // CSP and Evaluator
 		ProtocolDesc *pd;
 		if(party == 1) {
