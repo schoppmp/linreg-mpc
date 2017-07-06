@@ -110,8 +110,12 @@ int main(int argc, char **argv) {
 		status = run_trusted_initializer(self, c, precision, use_ot);
 		check(!status, "Error while running trusted initializer");
 	} else if(party > 2){
-		//printf("Party %d running as DP\n", party);
-		status = run_party(self, c, precision, NULL, &share_A, &share_b, use_ot);
+	        //printf("Party %d running as DP\n", party);
+	        if (precision_phase2 != -1) {
+	          status = run_party(self, c, precision, precision_phase2, NULL, &share_A, &share_b, use_ot);
+	        } else {
+		  status = run_party(self, c, precision, precision, NULL, &share_A, &share_b, use_ot);
+		}
 		check(!status, "Error while running party %d", party);
 	}
 

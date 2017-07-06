@@ -21,6 +21,7 @@ int run_party(
   node *self,
   config *c,
   int precision,
+  int precision_p2,
   struct timespec *wait_total,
   ufixed_t **res_A,
   ufixed_t **res_b,

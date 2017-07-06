@@ -32,7 +32,7 @@ void dcsClose(DualconS* dcs)
   honestOTExtRecverRelease(dcs->r);
   free(dcs);
 }
-static const int intsize = FIXED_BIT_SIZE;
+static const int intsize = FIXED_BIT_SIZE_P2;
 void dcsSendIntArray(DualconS* dcs,const ufixed_t* input,size_t n)
 {
   size_t i,j,nn = n*intsize;
