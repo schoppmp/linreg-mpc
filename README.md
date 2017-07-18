@@ -13,15 +13,18 @@ The following libraries need to be installed for a successful build:
 
 In order to download submodules and compile, simply run `make`.
 By default, computations are performed using 64 bit fixed-point arithmetic.
+
 One can change the bit width for phase 1 of the protocol to 32 bit by setting the flag `BIT_WIDTH_32_P1=1` at compile time.
 (either by passing it to `make` or setting it directly in the `Makefile`).
+
 One can change the bit width for phase 2 of the protocol to 32 bit by setting the flag `BIT_WIDTH_32_P2=1` at compile time.
 (either by passing it to `make` or setting it directly in the `Makefile`).
+
 Currently only the following combinations of bitwidths for both phases are supported:
 
 | bit width phase 1 | bit width phase 2 |
 |-------------------|-------------------|
-| 32                | 64                |
+| 32                | 32                |
 | 64                | 64                |
 | 64                | 32                |
 
