@@ -362,13 +362,23 @@ void *run_party_ot_thread(void *vargs) {
 		size_t max = self->party-1 < self->num_parties-1 ? c->index_owned[self->party] : c->d;
 		for(size_t i = args->c->index_owned[self->party-1]; i < max; i++) {
 			for(size_t j = args->c->index_owned[self->party-1]; j <= i; j++) {
+			  if (i == j) {
+			    double xy = 0;
+			    for (size_t k = 0; k < c->n; k++) {
+			      xy += pow(fixed_to_double_p1((args->data + i)[k*(c->d)], args->precision), 2) * pow(2, args->precision);
+			    }
+			    args->res_A[idx(i,j)] = double_to_fixed_p1(xy / c->normalizer2, args->precision);
+			  } else {
 				share = inner_product_local(args->data + i, args->data + j, c->n, c->d, c->d);
 				args->res_A[idx(i,j)] = share;
+				printf("Share A: %f\n", fixed_to_double_p1(share, args->precision));
+			  }
 			}
 			if(self->party-1 == self->num_parties-1) {
 				// we own the target vector
 				share = inner_product_local(args->data + i, args->target, c->n, c->d, 1);
 				args->res_b[i] = share;
+				printf("Share B: %f\n", fixed_to_double_p1(share, args->precision));
 			}
 		}
 		return NULL;

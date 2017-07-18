@@ -81,6 +81,12 @@ int main(int argc, char **argv) {
 	if (precision_phase2 != -1) {
 	  printf("Using different precision for phase 2 (%i)\n", precision_phase2);
 	}
+
+	// check precisions
+	check(precision >= 0, "Precision of phase 1 must be nonnegative");
+	check(precision_phase2 >= -1, "Precision of phase 2 must be nonnegative");
+	check(precision < FIXED_BIT_SIZE, "Precision of phase 1 must be smaller than bit size of phase 1");
+	check(precision_phase2 < FIXED_BIT_SIZE_P2, "Precision of phase 2 must be smaller than bit size of phase 2");
 	
 	// read ls, we only need number of iterations
 	linear_system_t ls;
@@ -90,6 +96,7 @@ int main(int argc, char **argv) {
 	       ls.num_iterations = 0;
 	}
 
+	
 	// read config
 	status = config_new(&c, argv[1]);
 	check(!status, "Could not read config");

@@ -12,10 +12,20 @@ The following libraries need to be installed for a successful build:
 ## Compilation
 
 In order to download submodules and compile, simply run `make`.
-By default, computations are performed using 64 bit fixed-point arithmetic. 
-To enable 32 bit computations at compile time, the additional flag `BIT_WIDTH_32=1` must be passed to `make`.
-This will increase computation speed, but may also reduce the accuracy of the results in some cases.
+By default, computations are performed using 64 bit fixed-point arithmetic.
+One can change the bit width for phase 1 of the protocol to 32 bit by setting the flag `BIT_WIDTH_32_P1=1` at compile time.
+(either by passing it to `make` or setting it directly in the `Makefile`).
+One can change the bit width for phase 2 of the protocol to 32 bit by setting the flag `BIT_WIDTH_32_P2=1` at compile time.
+(either by passing it to `make` or setting it directly in the `Makefile`).
+Currently only the following combinations of bitwidths for both phases are supported:
 
+| bit width phase 1 | bit width phase 2 |
+|-------------------|-------------------|
+| 32                | 64                |
+| 64                | 64                |
+| 64                | 32                |
+
+Using smaller bit widths will increase computation speed at the cost of accuracy. 
 
 ## Running experiments
 The protocol consists of two phases. `bin/main` is used to run both phases at once.
@@ -30,7 +40,9 @@ Values of 1 and 2 denote the CSP and Evaluator, respectively.
 Higher values denote data providers.
 `[Algorithm]` is the algorithm used for phase 2 of the protocol and can be either `cholesky`, `ldlt`, or `cgd`.
 In the case of CGD, `[Num. iterations CGD]` gives the number of iterations used before terminating.
-Finally, `[Lambda]` specifies the regularization parameter, and the `--use-ot` flag enables the aggregation phase protocol based on Oblivious Transfers.
+`[Lambda]` specifies the regularization parameter, and the `--use-ot` flag enables the aggregation phase protocol based on Oblivious Transfers.
+When using different bit widths for phase 1 and 2 (see above) one can use `--prec_phase2<=Precision phase 2>` to set a different precision for the second
+phase of the protocol.
 
 An example input file can be found in `examples/readme_example.in`:
 ```
