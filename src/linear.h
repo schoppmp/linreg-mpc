@@ -5,12 +5,12 @@
 
 typedef struct {
 	size_t d[2];
-	fixed_t *value;
+	fixed_p1_t *value;
 } matrix_t;
 
 typedef struct {
 	size_t len;
-	fixed_t *value;
+	fixed_p1_t *value;
 } vector_t;
 
 typedef struct {

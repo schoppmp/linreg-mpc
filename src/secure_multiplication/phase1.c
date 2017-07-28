@@ -9,9 +9,11 @@
 #include "obliv_types.h"
 #include "obliv_bits.h"
 
+#include "../linear.h"
+
 // computes inner product locally
-static ufixed_t inner_product_local(ufixed_t *x, ufixed_t *y, size_t n, size_t stride_x, size_t stride_y) {
-	ufixed_t xy = 0;
+static ufixed_p1_t inner_product_local(ufixed_p1_t *x, ufixed_p1_t *y, size_t n, size_t stride_x, size_t stride_y) {
+	ufixed_p1_t xy = 0;
 	for(size_t i = 0; i < n; i++) {
 		xy += x[i*stride_x] * y[i*stride_y];
 	}
@@ -35,7 +37,7 @@ error:
 // callback function for OT-based inner product
 // see Two Party RSA Key Generation. CRYPTO 1999: 116-129, section 4.1
 typedef struct {
-	ufixed_t *x;
+	ufixed_p1_t *x;
 	size_t n;
 	size_t stride_x;
 } inner_product_args;
@@ -43,22 +45,22 @@ void inner_product_correlator(char *a1, const char *a2, int ni, void *vargs) {
 	inner_product_args *args = vargs;
 	size_t k = ni / FIXED_BIT_SIZE;
 	int i = ni % FIXED_BIT_SIZE;
-	ufixed_t b = args->x[k * args->stride_x];
-	ufixed_t *result = (ufixed_t *) a1;
-	ufixed_t s_i = *((ufixed_t *) a2);
-	*result = (((ufixed_t) 1) << i) * b + s_i;
+	ufixed_p1_t b = args->x[k * args->stride_x];
+	ufixed_p1_t *result = (ufixed_p1_t *) a1;
+	ufixed_p1_t s_i = *((ufixed_p1_t *) a2);
+	*result = (((ufixed_p1_t) 1) << i) * b + s_i;
 }
 
-ufixed_t inner_product_ot_sender(struct HonestOTExtSender *sender, ufixed_t *x, size_t n, size_t stride_x) {
-	ufixed_t result = 0;
-	ufixed_t *s = malloc(n * FIXED_BIT_SIZE * sizeof(ufixed_t));
-	ufixed_t *t = malloc(n * FIXED_BIT_SIZE * sizeof(ufixed_t));
+ufixed_p1_t inner_product_ot_sender(struct HonestOTExtSender *sender, ufixed_p1_t *x, size_t n, size_t stride_x) {
+	ufixed_p1_t result = 0;
+	ufixed_p1_t *s = malloc(n * FIXED_BIT_SIZE * sizeof(ufixed_p1_t));
+	ufixed_p1_t *t = malloc(n * FIXED_BIT_SIZE * sizeof(ufixed_p1_t));
 	inner_product_args args = {.x = x, .n = n, .stride_x = stride_x};
 	honestCorrelatedOTExtSend1Of2(sender,
 		(char *) s,
 		(char *) t,
 		FIXED_BIT_SIZE * n,
-		sizeof(ufixed_t),
+		sizeof(ufixed_p1_t),
 		inner_product_correlator,
 		&args
 	);
@@ -70,12 +72,12 @@ ufixed_t inner_product_ot_sender(struct HonestOTExtSender *sender, ufixed_t *x, 
 	return result;
 }
 
-ufixed_t inner_product_ot_recver(struct HonestOTExtRecver *recvr, ufixed_t *x, size_t n, size_t stride_x) {
-	ufixed_t result = 0;
-	ufixed_t *t = malloc(n * FIXED_BIT_SIZE * sizeof(ufixed_t));
+ufixed_p1_t inner_product_ot_recver(struct HonestOTExtRecver *recvr, ufixed_p1_t *x, size_t n, size_t stride_x) {
+	ufixed_p1_t result = 0;
+	ufixed_p1_t *t = malloc(n * FIXED_BIT_SIZE * sizeof(ufixed_p1_t));
 	bool *sel = malloc(n * FIXED_BIT_SIZE * sizeof(bool));
 	for(size_t k = 0; k < n; k++) {
-		ufixed_t a = x[k * stride_x];
+		ufixed_p1_t a = x[k * stride_x];
 		for(int i = 0; i < FIXED_BIT_SIZE; i++) {
 			sel[k * FIXED_BIT_SIZE + i] = (a >> i) & 1;
 		}
@@ -84,7 +86,7 @@ ufixed_t inner_product_ot_recver(struct HonestOTExtRecver *recvr, ufixed_t *x, s
 		(char *) t,
 		sel,
 		FIXED_BIT_SIZE * n,
-		sizeof(ufixed_t)
+		sizeof(ufixed_p1_t)
 	);
 	for(size_t i = 0; i < n * FIXED_BIT_SIZE; i++) {
 		result += t[i];
@@ -144,25 +146,25 @@ error:
 }
 
 // computes inner product using the TI
-ufixed_t inner_product_ti(
+ufixed_p1_t inner_product_ti(
 	node *self,
 	config *c,
 	struct timespec *wait_total,
-	ufixed_t *row_start_i,
+	ufixed_p1_t *row_start_i,
 	size_t stride_i,
-	ufixed_t *row_start_j,
+	ufixed_p1_t *row_start_j,
 	size_t stride_j,
 	int owner_i, int owner_j
 ) {
 	int status;
-	ufixed_t share;
+	ufixed_p1_t share;
 	struct timespec wait_start, wait_end; // count how long we wait for other parties
 	SecureMultiplication__Msg *pmsg_ti = NULL,
 					*pmsg_in = NULL,
 					pmsg_out;
 	secure_multiplication__msg__init(&pmsg_out);
 	pmsg_out.n_vector = c->n;
-	pmsg_out.vector = malloc(c->n * sizeof(ufixed_t));
+	pmsg_out.vector = malloc(c->n * sizeof(ufixed_p1_t));
 	check(pmsg_out.vector, "malloc: %s", strerror(errno));
 
 	// receive random values from TI
@@ -241,8 +243,8 @@ int run_trusted_initializer(node *self, config *c, int precision, bool use_ot) {
 
 	BCipherRandomGen *gen = newBCipherRandomGen();
 	int status;
-	ufixed_t *x = calloc(c->n , sizeof(ufixed_t));
-	ufixed_t *y = calloc(c->n , sizeof(ufixed_t));
+	ufixed_p1_t *x = calloc(c->n , sizeof(ufixed_p1_t));
+	ufixed_p1_t *y = calloc(c->n , sizeof(ufixed_p1_t));
 	check(x && y, "malloc: %s", strerror(errno));
 	SecureMultiplication__Msg pmsg_a, pmsg_b;
 	secure_multiplication__msg__init(&pmsg_a);
@@ -266,11 +268,11 @@ int run_trusted_initializer(node *self, config *c, int precision, bool use_ot) {
 				}
 
 				// generate random vectors x, y and value r
-				ufixed_t r = 0;
-				randomizeBuffer(gen, (char *)x, c->n * sizeof(ufixed_t));
-				randomizeBuffer(gen, (char *)y, c->n * sizeof(ufixed_t));
-				randomizeBuffer(gen, (char *)&r, sizeof(ufixed_t));
-				ufixed_t xy = inner_product_local(x, y, c->n, 1, 1);
+				ufixed_p1_t r = 0;
+				randomizeBuffer(gen, (char *)x, c->n * sizeof(ufixed_p1_t));
+				randomizeBuffer(gen, (char *)y, c->n * sizeof(ufixed_p1_t));
+				randomizeBuffer(gen, (char *)&r, sizeof(ufixed_p1_t));
+				ufixed_p1_t xy = inner_product_local(x, y, c->n, 1, 1);
 
 				// create protobuf message
 				pmsg_a.value = xy-r;
@@ -344,29 +346,39 @@ typedef struct {
 	int precision;
 	struct timespec wait_total;
 	int peer; // the party we communicate with in this thread
-	ufixed_t *data;
-	ufixed_t *target;
-	ufixed_t *res_A;
-	ufixed_t *res_b;
+	ufixed_p1_t *data;
+	ufixed_p1_t *target;
+	ufixed_p1_t *res_A;
+	ufixed_p1_t *res_b;
 } ot_thread_args;
 void *run_party_ot_thread(void *vargs) {
 	ot_thread_args *args = vargs;
 	node *self = args->self;
 	config *c = args->c;
-	ufixed_t share;
+	ufixed_p1_t share;
 
 	if(self->party-1 == args->peer) {
 		// do stuff locally
 		size_t max = self->party-1 < self->num_parties-1 ? c->index_owned[self->party] : c->d;
 		for(size_t i = args->c->index_owned[self->party-1]; i < max; i++) {
 			for(size_t j = args->c->index_owned[self->party-1]; j <= i; j++) {
+			  if (i == j) {
+			    double xy = 0;
+			    for (size_t k = 0; k < c->n; k++) {
+			      xy += pow(fixed_to_double_p1((args->data + i)[k*(c->d)], args->precision), 2) * pow(2, args->precision);
+			    }
+			    args->res_A[idx(i,j)] = double_to_fixed_p1(xy / c->normalizer2, args->precision);
+			  } else {
 				share = inner_product_local(args->data + i, args->data + j, c->n, c->d, c->d);
 				args->res_A[idx(i,j)] = share;
+				printf("Share A: %f\n", fixed_to_double_p1(share, args->precision));
+			  }
 			}
 			if(self->party-1 == self->num_parties-1) {
 				// we own the target vector
 				share = inner_product_local(args->data + i, args->target, c->n, c->d, 1);
 				args->res_b[i] = share;
+				printf("Share B: %f\n", fixed_to_double_p1(share, args->precision));
 			}
 		}
 		return NULL;
@@ -443,6 +455,7 @@ int run_party(
 	node *self,
 	config *c,
 	int precision,
+	int precision_p2,
 	struct timespec *wait_total,
 	ufixed_t **res_A,
 	ufixed_t **res_b,
@@ -455,7 +468,7 @@ int run_party(
 	if(wait_total) {
 		wait_total->tv_sec = wait_total->tv_nsec = 0;
 	}
-	ufixed_t *share_A = NULL, *share_b = NULL;
+	ufixed_p1_t *share_A = NULL, *share_b = NULL;
 
 	// read inputs and allocate result buffer
 	double normalizer = sqrt(pow(2,precision) * c->normalizer1); // half of the normalization is done by each party
@@ -467,8 +480,8 @@ int run_party(
 	check(c->n == target.len && d == c->d && c->n == data.d[0],
 		"Input dimensions invalid: (%zd, %zd), %zd",
 		data.d[0], data.d[1], target.len);
-	share_A = calloc(d * (d + 1) / 2, sizeof(ufixed_t));
-	share_b = calloc(d, sizeof(ufixed_t));
+	share_A = calloc(d * (d + 1) / 2, sizeof(ufixed_p1_t));
+	share_b = calloc(d, sizeof(ufixed_p1_t));
 
 	/*
 	This is now done in floating point in the
@@ -484,14 +497,14 @@ int run_party(
 	}*/
 
 	if(use_ot) {
-		ufixed_t **share_A_peer = malloc((self->num_parties-2) * sizeof(ufixed_t *));
-		ufixed_t **share_b_peer = malloc((self->num_parties-2) * sizeof(ufixed_t *));
+		ufixed_p1_t **share_A_peer = malloc((self->num_parties-2) * sizeof(ufixed_p1_t *));
+		ufixed_p1_t **share_b_peer = malloc((self->num_parties-2) * sizeof(ufixed_p1_t *));
 		pthread_t *peer_thread = malloc((self->num_parties-2) * sizeof(pthread_t));
 		ot_thread_args *targs = malloc((self->num_parties-2) * sizeof(ot_thread_args));
 		for(int peer = 2; peer < self->num_parties; peer++) {
 			// spawn one thread per party (including ourselves)
-			share_A_peer[peer-2] = calloc(d * (d + 1) / 2, sizeof(ufixed_t));
-			share_b_peer[peer-2] = calloc(d, sizeof(ufixed_t));
+			share_A_peer[peer-2] = calloc(d * (d + 1) / 2, sizeof(ufixed_p1_t));
+			share_b_peer[peer-2] = calloc(d, sizeof(ufixed_p1_t));
 			targs[peer-2] = (ot_thread_args) {
 				.self = self, .c = c, .precision = precision, .wait_total = {0, 0},
 				.peer = peer, .data = data.value, .target = target.value,
@@ -520,21 +533,21 @@ int run_party(
 		free(targs);
 	} else {
 		for(size_t i = 0; i <= c->d; i++) {
-			ufixed_t *row_start_i, *row_start_j;
+			ufixed_p1_t *row_start_i, *row_start_j;
 			size_t stride_i, stride_j;
 			if(i < c->d) { // row of input matrix
-				row_start_i = (ufixed_t *) data.value + i;
+				row_start_i = (ufixed_p1_t *) data.value + i;
 				stride_i = d;
 			} else { // row is target vector
-				row_start_i = (ufixed_t *) target.value;
+				row_start_i = (ufixed_p1_t *) target.value;
 				stride_i = 1;
 			}
 			for(size_t j = 0; j <= i && j < c->d; j++) {
 				if(j < c->d) { // row of input matrix
-					row_start_j = (ufixed_t *) data.value + j;
+					row_start_j = (ufixed_p1_t *) data.value + j;
 					stride_j = d;
 				} else { // row is target vector
-					row_start_j = (ufixed_t *) target.value;
+					row_start_j = (ufixed_p1_t *) target.value;
 					stride_j = 1;
 				}
 				int owner_i = get_owner(i, c);
@@ -542,7 +555,7 @@ int run_party(
 				check(owner_i >= 2, "Invalid owner %d for row %zd", owner_i, i);
 				check(owner_j >= 2, "Invalid owner %d for row %zd", owner_j, j);
 
-				ufixed_t share;
+				ufixed_p1_t share;
 				// if we own neither i or j, skip.
 				if(owner_i != c->party-1 && owner_j != c->party-1) {
 					continue;
@@ -550,9 +563,9 @@ int run_party(
 				} else if(i == j) {
 					double xy = 0;
 					for(size_t k = 0; k < c->n; k++) {
-						xy += pow(fixed_to_double(row_start_i[k*stride_i], precision), 2) * pow(2, precision);
+						xy += pow(fixed_to_double_p1(row_start_i[k*stride_i], precision), 2) * pow(2, precision);
 					}
-					share = double_to_fixed(xy / c->normalizer2, precision);
+					share = double_to_fixed_p1(xy / c->normalizer2, precision);
 				// if we own both, compute locally
 				} else if(owner_i == c->party-1 && owner_i == owner_j) {
 					share = inner_product_local(row_start_i, row_start_j,
@@ -593,12 +606,37 @@ int run_party(
 	free(data.value);
 	free(target.value);
 	if(res_A){
+	        // we used different bit widths in phase1 and phase2, so we have to adjust share a
+                #if (!BIT_WIDTH_32_P1 && BIT_WIDTH_32_P2)
+	        int buf_len = d * (d + 1) / 2;
+	        *res_A = calloc(buf_len, sizeof(ufixed_p1_t));
+		for (size_t i = 0; i < d; i++) {
+		  for (size_t j = 0; j <= i; j++) {
+		    /* if (j == i) { */
+		    /*   printf("%d,%d,%d,%lx\n", self->party,(int)i,(int)j, share_A[idx(i,j)]); */
+		    /* } */
+		    (*res_A)[idx(i,j)] = (ufixed_t) (((fixed_p1_t) share_A[idx(i,j)]) >> (precision - precision_p2));
+		  }
+		}
+		free(share_A);
+         	#else
 		*res_A = share_A;
+		#endif
 	} else {
 		free(share_A);
 	}
 	if(res_b){
+	        // we used different bit widths in phase1 and phase2, so we have to adjust share b
+                #if (!BIT_WIDTH_32_P1 && BIT_WIDTH_32_P2)
+	        int buf_len = d;
+	        *res_b = calloc(buf_len, sizeof(ufixed_p1_t));
+		for (int i = 0; i < buf_len; i++) {
+		  (*res_b)[i] = (ufixed_t) (((fixed_p1_t) share_b[i]) >> (precision - precision_p2));
+		}
+		free(share_b);
+         	#else
 		*res_b = share_b;
+		#endif
 	} else {
 		free(share_b);
 	}

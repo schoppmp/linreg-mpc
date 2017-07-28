@@ -2,7 +2,7 @@
 #include "fixed.h"
 #include "obig.oh"
 
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
     typedef obliv fixed_t ofixed_t;
 #else
     typedef obig ofixed_t;

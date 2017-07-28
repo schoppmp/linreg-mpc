@@ -6,7 +6,7 @@ size_t ceildiv(size_t dividend, size_t divisor) {
 	return (dividend + divisor - 1) / divisor;
 }
 
-#if !(BIT_WIDTH_32)
+#if !(BIT_WIDTH_32_P2)
 void obig_max(obig *a) obliv {
 	for(size_t i = 0; i < a->digits; i++) {
 		if(i < a->digits - 1) {
@@ -22,7 +22,7 @@ void obig_max(obig *a) obliv {
 // and sets 'out' to the respecitve limit if that's the case, and to 'in' 
 // otherwise
 void ofixed_check_overflow(ofixed_t *out, ofixed_t in) obliv {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	obliv if(in > (obliv int64_t) INT32_MAX) {
 		*out = INT32_MAX;
 	} else obliv if(in < (obliv int64_t) INT32_MIN) {
@@ -76,7 +76,7 @@ void ofixed_check_overflow(ofixed_t *out, ofixed_t in) obliv {
 
 
 obliv int8_t ofixed_cmp(ofixed_t a, ofixed_t b) obliv {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	obliv int8_t result = 0;
 	obliv if(a < b) result = -1;
 	obliv if(a > b) result = 1;
@@ -88,7 +88,7 @@ obliv int8_t ofixed_cmp(ofixed_t a, ofixed_t b) obliv {
 }
 
 void ofixed_abs(ofixed_t *out, ofixed_t a) obliv {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	obliv if(a < 0) *out = 0-a; // unary minus not defined for "obliv" types?
 	else *out = a;
 #else
@@ -97,7 +97,7 @@ void ofixed_abs(ofixed_t *out, ofixed_t a) obliv {
 }
 
 void ofixed_add(ofixed_t *out, ofixed_t a, ofixed_t b) obliv {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	*out = a + b;
 #else
 	obig temp;
@@ -109,7 +109,7 @@ void ofixed_add(ofixed_t *out, ofixed_t a, ofixed_t b) obliv {
 }
 
 void ofixed_sub(ofixed_t *out, ofixed_t a, ofixed_t b) obliv {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	*out = a - b;
 #else
 	obig temp;
@@ -122,7 +122,7 @@ void ofixed_sub(ofixed_t *out, ofixed_t a, ofixed_t b) obliv {
 
 
 void ofixed_inner_product(ofixed_t *out, ofixed_t *a, ofixed_t *b, size_t p, size_t d) obliv {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	obliv int64_t temp;
 	for(size_t i = 0; i < d; i++) {
 		temp += (obliv int64_t) a[i] * (obliv int64_t) b[i];
@@ -147,7 +147,7 @@ void ofixed_inner_product(ofixed_t *out, ofixed_t *a, ofixed_t *b, size_t p, siz
 }
 
 void ofixed_mul(ofixed_t *out, ofixed_t a, ofixed_t b, size_t p) obliv {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	*out = ((obliv int64_t) a * (obliv int64_t) b) >> p;
 #else
 	obig temp, temp2;
@@ -162,7 +162,7 @@ void ofixed_mul(ofixed_t *out, ofixed_t a, ofixed_t b, size_t p) obliv {
 }
 
 obliv bool ofixed_div(ofixed_t *out, ofixed_t a, ofixed_t b, size_t p) obliv {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	*out = ((obliv int64_t) a << p) / (obliv int64_t) b;
 	return true;
 #else
@@ -188,7 +188,7 @@ obliv bool ofixed_div(ofixed_t *out, ofixed_t a, ofixed_t b, size_t p) obliv {
 }
 
 obliv bool ofixed_div_overflow(ofixed_t *out, ofixed_t a, ofixed_t b, size_t p) obliv {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	obliv int64_t temp = ((obliv int64_t) a << p) / (obliv int64_t) b;
 	ofixed_check_overflow(out, temp);
 	return true;
@@ -214,16 +214,16 @@ obliv bool ofixed_div_overflow(ofixed_t *out, ofixed_t a, ofixed_t b, size_t p) 
 #endif
 }
 
-#if BIT_WIDTH_32
-// returns a mask of the lowest (FIXED_BIT_SIZE + p) bits.
+#if BIT_WIDTH_32_P2
+// returns a mask of the lowest (FIXED_BIT_SIZE_P2 + p) bits.
 // saves garbled gates for some operations
 static int64_t fixed_mask(int p) {
-	return ((1ll << (FIXED_BIT_SIZE + p)) - 1);
+	return ((1ll << (FIXED_BIT_SIZE_P2 + p)) - 1);
 }
 #endif
 
 void ofixed_sqrt(ofixed_t *out, ofixed_t a, size_t p) obliv {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	// limit number of bits
 	int64_t mask;
 	~obliv() mask = fixed_mask(p);
@@ -252,16 +252,16 @@ void ofixed_sqrt(ofixed_t *out, ofixed_t a, size_t p) obliv {
 
 
 void ofixed_init(ofixed_t *a) {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	*a = 0;
 	return;
 #else
-	obig_init(a, FIXED_BIT_SIZE / 8);
+	obig_init(a, FIXED_BIT_SIZE_P2 / 8);
 #endif
 }
 
 void ofixed_free(ofixed_t *a) {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	return;
 #else
 	obig_free(a);
@@ -269,7 +269,7 @@ void ofixed_free(ofixed_t *a) {
 }
 
 void ofixed_import(ofixed_t *a, obliv fixed_t b) {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	*a = b;
 #else
 	obig_import_onative_signed(a, b);
@@ -277,7 +277,7 @@ void ofixed_import(ofixed_t *a, obliv fixed_t b) {
 }
 
 obliv fixed_t ofixed_export(ofixed_t a) {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	return a;
 #else
 	return obig_export_onative_signed(a);
@@ -285,7 +285,7 @@ obliv fixed_t ofixed_export(ofixed_t a) {
 }
 
 void ofixed_copy(ofixed_t *a, ofixed_t b) obliv {
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	*a = b;
 #else
 	obig_copy_signed(a, b);
@@ -294,7 +294,7 @@ void ofixed_copy(ofixed_t *a, ofixed_t b) obliv {
 
 void ofixed_reveal(fixed_t *out, ofixed_t a, int party) {
 	obliv fixed_t temp = ofixed_export(a);
-#if BIT_WIDTH_32
+#if BIT_WIDTH_32_P2
 	revealOblivInt(out, temp, party);
 #else
 	revealOblivLLong(out, temp, party);

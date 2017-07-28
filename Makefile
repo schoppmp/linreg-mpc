@@ -6,8 +6,9 @@ srcDir=src
 libDir=lib
 
 REMOTE_HOST=localhost
-BIT_WIDTH_32=0
-CFLAGS=-O3 -g -Werror -I $(srcDir) -I $(OBLIVC_PATH)/src/ext/oblivc -std=c11 -D_POSIX_C_SOURCE=201605L -DBIT_WIDTH_32=$(BIT_WIDTH_32)
+BIT_WIDTH_32_P1=0
+BIT_WIDTH_32_P2=1
+CFLAGS=-O3 -g -Werror -I $(srcDir) -I $(OBLIVC_PATH)/src/ext/oblivc -std=c11 -D_POSIX_C_SOURCE=201605L -DBIT_WIDTH_32_P1=$(BIT_WIDTH_32_P1) -DBIT_WIDTH_32_P2=$(BIT_WIDTH_32_P2)
 LFLAGS=-L$(HOME)/lib
 OCFLAGS=$(CFLAGS) -DREMOTE_HOST=$(REMOTE_HOST)
 
@@ -59,7 +60,7 @@ $(objDir)/%_o.o: $(srcDir)/%.oc
 $(objDir)/%.o: $(srcDir)/%.c
 	$(compile)
 
-ifeq ($(BIT_WIDTH_32), 1)
+ifeq ($(BIT_WIDTH_32_P1), 1)
 $(srcDir)/%.pb-c.c: $(srcDir)/%.proto
 	cd $(<D) && protoc-c secure_multiplication_bitwidth_32.proto --c_out=. &&\
 	mv secure_multiplication_bitwidth_32.pb-c.c secure_multiplication.pb-c.c &&\

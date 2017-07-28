@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
 		status = run_trusted_initializer(self, c, precision, use_ot);
 		check(!status, "Error while running trusted initializer");
 	} else if(c->party > 2) {
-		status = run_party(self, c, precision, &wait_total, NULL, NULL, use_ot);
+       	        status = run_party(self, c, precision, 0, &wait_total, NULL, NULL, use_ot);
 		check(!status, "Error while running party %d", c->party);
 	}
 
