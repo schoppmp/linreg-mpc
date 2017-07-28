@@ -1,2 +1,4 @@
 bin/
 obj/
+*.pb-c.h
+*.pb-c.c
