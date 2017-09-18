@@ -14,7 +14,7 @@ void sig_handler(int signo) {
 	flag = 1;
 }
 
-// solves a symmetric, positive definite linear system using coordinate gradient descent
+// solves a symmetric, positive definite linear system using conjugate gradient descent
 // and scaling.
 void cgd(void *v) {
 	double time_start = wallClock();
