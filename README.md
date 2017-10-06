@@ -82,6 +82,6 @@ for party in {1..5}; do bin/main examples/readme_example.in 56 $party cgd 10 0.0
 yields the following result, in addition to some debug outputs:
 ```
 Time elapsed: 5.673679
-Number of gates: 18503684
-Result:    0.984331038221560    0.792399824423250    0.754117843957729    0.592849149141748    0.057351696904535 
+Number of gates: 18569664
+Result:    0.984331027786964    0.792399824970372    0.754117840176144    0.592849130685193    0.057351715952213 
 ```
