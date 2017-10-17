@@ -14,5 +14,5 @@ if __name__=="__main__":
     with open("params.tmp.json", "r") as jsonfile:
         parameters = json.load(jsonfile)
         for i, v in enumerate(args.results):
-            dest_results.append(v, parameters["means"][i], parameters["variances"][i])
+            dest_results.append(destudentize(v, parameters["means"][i], parameters["variances"][i]))
     print(dest_results)
