@@ -35,7 +35,6 @@ class MPCLinearRegression(LinearModel):
         self.csp_ip = ""
         self.eval_ip = ""
         self.owned_columns = []
-        self.category_columns = []
         self.csv_file = ""
         self.delimiter = delimiter
         self.category_mappings = category_mappings
@@ -43,7 +42,7 @@ class MPCLinearRegression(LinearModel):
         self.mpc_args = mpc_args
         self.debug = debug
         self.parameters = {
-            "min": -1,
+            "is_last": False,
             "arith_means": [],
             "variances": [],
             "length": -1,
@@ -58,18 +57,20 @@ class MPCLinearRegression(LinearModel):
             for i, row in enumerate(reader):
                 if i != 0:
                     newrow = []
-                    for j, cell in enumerate(row):
-                        if j in self.owned_columns:
-                            newrow.append(float(cell))
-                        elif j in self.category_columns:
+                    for (is_category, index) in self.owned_columns:
+                        cell = row[index]
+                        # TODO: result column shouldn't be a multicolumn category
+                        if is_category:
                             newrow += self.category_mappings[cell]
+                        else:
+                            newrow.append(float(cell))
                     matrix.append(newrow)
         return matrix
 
     def make_csv(self, matrix):
         # if no csp & eval ips set, use first peer for csp, second peer for esp
         print("Generating csv file...")
-        if self.parameters["min"] < self.other_parameters["min"]:
+        if not self.parameters["is_last"]:
             self.csp_ip = self.own_ip.split(":")[0]+":"+str(int(self.own_ip.split(":")[1])+10)
             self.eval_ip = self.other_ip.split(":")[0]+":"+str(int(self.other_ip.split(":")[1])+10)
         else:
@@ -86,7 +87,7 @@ class MPCLinearRegression(LinearModel):
         writer.writerow([n, m-1, 2])
         writer.writerow([self.csp_ip])
         writer.writerow([self.eval_ip])
-        if self.parameters["min"] < self.other_parameters["min"]:
+        if not self.parameters["is_last"]:
             writer.writerow([self.own_ip, 0])
             writer.writerow([self.other_ip, self.parameters["length"]])
         else:
@@ -112,7 +113,7 @@ class MPCLinearRegression(LinearModel):
             s.bind((ip, int(port) + 20))
             s.listen(1)
             print(self.own_ip + " waiting for peer " + self.other_ip)
-            conn, addr = s.accept()
+            conn, _ = s.accept()
             conn.send(json.dumps(self.parameters).encode())
             self.other_parameters = json.loads(conn.recv(BUFFER_SIZE).decode('utf-8'))
             conn.close()
@@ -132,6 +133,8 @@ class MPCLinearRegression(LinearModel):
             s.send(json.dumps(self.parameters).encode())
             self.other_parameters = json.loads(s.recv(BUFFER_SIZE).decode('utf-8'))
             s.close()
+        if not (self.parameters["is_last"] != self.other_parameters["is_last"]):
+            raise Exception("Two result columns or no result columns specified")
         print("Parameters exchanged")
 
     def calculate_matrix(self):
@@ -144,7 +147,7 @@ class MPCLinearRegression(LinearModel):
         self.exchange_parameters()
 
         # fill matrix with zeros for parts that are owned by the peer
-        if self.parameters["min"] > self.other_parameters["min"]:
+        if self.parameters["is_last"]:
             matrix = [[0.0] * len(matrix[0])] * self.other_parameters["length"] + matrix
         else:
             matrix = matrix + [[0.0] * len(matrix[0])] * self.other_parameters["length"]
@@ -158,7 +161,7 @@ class MPCLinearRegression(LinearModel):
         outputfd = None if self.debug else subprocess.DEVNULL
         # TODO: error handling
         # TODO: handle when subprocess aborts unnormally and kill it so the socket is freed
-        if self.parameters["min"] < self.other_parameters["min"]:
+        if not self.parameters["is_last"]:
             print("Starting DP1 on " + self.own_ip)
             cmd[3] = "3"
             subprocess.Popen(cmd, stdout=outputfd)
@@ -199,15 +202,25 @@ class MPCLinearRegression(LinearModel):
     def fit(self, csv_file, owned_columns):
         # setup
         self.owned_columns = []
-        self.category_columns = []
+        result_col = ()
+        is_last = False
         for val in owned_columns.split():
-            m = re.search("(c?)([0-9]+)", val)
+            m = re.search("(r?c?)([0-9]+)", val)
             if m.group(1) == "c":
-                self.category_columns.append(int(m.group(2)))
+                self.owned_columns.append((True, int(m.group(2))))
+            elif m.group(1) == "rc":
+                is_last = True
+                result_col = (True, int(m.group(2)))
+            elif m.group(1) == "r":
+                is_last = True
+                result_col = (False, int(m.group(2)))
             else:
-                self.owned_columns.append(int(m.group(0)))
+                self.owned_columns.append((False, int(m.group(0))))
+        # if there is a result column it must be the last
+        if result_col != ():
+            self.owned_columns.append(result_col)
         self.csv_file = csv_file
-        self.parameters["min"] = min(self.owned_columns + self.category_columns)       
+        self.parameters["is_last"] = is_last   
         matrix = self.calculate_matrix()
         temp_path = self.make_csv(matrix)
 
@@ -231,7 +244,7 @@ class MPCLinearRegression(LinearModel):
         # todo handle inputting "m" or "w"
         means = []
         variances = []
-        if self.parameters["min"] < self.other_parameters["min"]:
+        if not self.parameters["is_last"]:
             means = self.parameters["arith_means"] + self.other_parameters["arith_means"]
             variances = self.parameters["variances"] + self.other_parameters["variances"]
         else:
