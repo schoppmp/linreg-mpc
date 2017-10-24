@@ -29,7 +29,7 @@ def studentize_matrix(matrix):
     return (matrix, arith_means, variances)
 
 class MPCLinearRegression(LinearModel):
-    def __init__(self, own_ip, other_ip, delimiter=";", category_mappings={"m": [1.0,0.0], "w": [0.0, 1.0]}, mpc_binary_path="../bin/main", mpc_args=["56", "cholesky", "10", "0.001"], debug=False):
+    def __init__(self, own_ip, other_ip, delimiter=";", category_mappings={"m": [1.0], "w": [0.0]}, mpc_binary_path="../bin/main", mpc_args=["56", "cholesky", "10", "0.001"], debug=False):
         self.own_ip = own_ip
         self.other_ip = other_ip
         self.csp_ip = ""
@@ -151,34 +151,13 @@ class MPCLinearRegression(LinearModel):
             
         # transpose back
         return [list(x) for x in zip(*matrix)]
-    
-    def fit(self, csv_file, owned_columns):
-        # setup
-        self.owned_columns = []
-        self.category_columns = []
-        for val in owned_columns.split():
-            m = re.search("(c?)([0-9]+)", val)
-            if m.group(1) == "c":
-                self.category_columns.append(int(m.group(2)))
-            else:
-                self.owned_columns.append(int(m.group(0)))
-        self.csv_file = csv_file
-        self.parameters["min"] = min(self.owned_columns + self.category_columns)
-        # this len is wrong!
-        # self.parameters["length"] = len(self.owned_columns) + 2 * len(self.category_columns)        
-        matrix = self.calculate_matrix()
-        temp_path = self.make_csv(matrix)
 
-        if not os.path.exists(self.mpc_binary_path):
-            print("Can't find mpc binary!")
-            return
-
-        # start mpc binary
-        cmd = [self.mpc_binary_path, temp_path, self.mpc_args[0], "3"] + self.mpc_args[1:]
+    def run_mpc(self, path):
+                # start mpc binary
+        cmd = [self.mpc_binary_path, path, self.mpc_args[0], "3"] + self.mpc_args[1:]
         outputfd = None if self.debug else subprocess.DEVNULL
         # TODO: error handling
         # TODO: handle when subprocess aborts unnormally and kill it so the socket is freed
-        # TODO: open tcp connection only once...
         if self.parameters["min"] < self.other_parameters["min"]:
             print("Starting DP1 on " + self.own_ip)
             cmd[3] = "3"
@@ -216,11 +195,34 @@ class MPCLinearRegression(LinearModel):
             s.connect((ip, int(port) + 30))
             s.send(json.dumps(self.result).encode())
             s.close()
+    
+    def fit(self, csv_file, owned_columns):
+        # setup
+        self.owned_columns = []
+        self.category_columns = []
+        for val in owned_columns.split():
+            m = re.search("(c?)([0-9]+)", val)
+            if m.group(1) == "c":
+                self.category_columns.append(int(m.group(2)))
+            else:
+                self.owned_columns.append(int(m.group(0)))
+        self.csv_file = csv_file
+        self.parameters["min"] = min(self.owned_columns + self.category_columns)       
+        matrix = self.calculate_matrix()
+        temp_path = self.make_csv(matrix)
+
+        if not os.path.exists(self.mpc_binary_path):
+            print("Can't find mpc binary!")
+            return
+
+        self.run_mpc(temp_path)
+        
         if self.debug:
             print("Results: ", self.result)
         else:
             # delete temporary file if we are not in debug
             os.remove(temp_path)
+
 
     def predict(self, X):
         if self.result == []:
