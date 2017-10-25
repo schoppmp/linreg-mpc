@@ -151,6 +151,7 @@ class MPCLinearRegression(LinearModel):
 
     def calculate_matrix(self):
         matrix = self.parse_csv(self.csv_file)
+        print(matrix)
         # transpose
         matrix = [list(x) for x in zip(*matrix)]
         matrix, self.parameters["arith_means"], self.parameters["variances"] = studentize_matrix(matrix)
@@ -168,10 +169,9 @@ class MPCLinearRegression(LinearModel):
         return [list(x) for x in zip(*matrix)]
 
     def run_mpc(self, path):
-                # start mpc binary
+        # start mpc binary
         cmd = [self.mpc_binary_path, path, self.mpc_args[0], "3"] + self.mpc_args[1:]
         outputfd = None if self.debug else subprocess.DEVNULL
-        # TODO: error handling
         # TODO: handle when subprocess aborts unnormally and kill it so the socket is freed
         if not self.parameters["is_last"]:
             
@@ -242,6 +242,7 @@ class MPCLinearRegression(LinearModel):
                     
     def fit(self, csv_file, owned_columns):
         temp_path = self.make_csv(self.make_matrix(csv_file, owned_columns))
+        print(self.parameters["owned_columns"])
         
         if not os.path.exists(self.mpc_binary_path):
             raise Exception("Can't find mpc binary!")
@@ -257,7 +258,6 @@ class MPCLinearRegression(LinearModel):
     def predict(self, X):
         if self.result == []:
             raise Exception("Please fit a model first!")
-        # todo handle inputting "m" or "w"
         result_col = None
         means = []
         variances = []
