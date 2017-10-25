@@ -6,6 +6,7 @@ import tempfile
 import time
 import os
 import subprocess
+from math import isnan
 from math import sqrt
 from sklearn.linear_model.base import LinearModel
 
@@ -34,7 +35,6 @@ class MPCLinearRegression(LinearModel):
         self.other_ip = other_ip
         self.csp_ip = ""
         self.eval_ip = ""
-        self.owned_columns = []
         self.csv_file = ""
         self.delimiter = delimiter
         self.category_mappings = category_mappings
@@ -46,24 +46,30 @@ class MPCLinearRegression(LinearModel):
             "arith_means": [],
             "variances": [],
             "length": -1,
+            "owned_columns": [],
         }
         self.other_parameters = {}
         self.result = []
 
-    def parse_csv(self):
+    def parse_csv(self, csv_file):
         matrix = []
-        with open(self.csv_file, "r") as f:
+        with open(csv_file, "r") as f:
             reader = csv.reader(f, delimiter=self.delimiter)
             for i, row in enumerate(reader):
-                if i != 0:
-                    newrow = []
-                    for (is_category, index) in self.owned_columns:
-                        cell = row[index]
-                        # TODO: result column shouldn't be a multicolumn category
-                        if is_category:
+                newrow = []
+                for j, (is_category, index, name) in enumerate(self.parameters["owned_columns"]):
+                    cell = row[index]    
+                    if i == 0:
+                        self.parameters["owned_columns"][j] = (is_category, index, cell.strip())
+                    else:
+                        if is_category > 0:
+                            if self.parameters["is_last"] and len(self.category_mappings[cell]) > 1 and j == (len(self.parameters["owned_columns"]) - 1):
+                                raise Exception("Result column can't be a category feature")
                             newrow += self.category_mappings[cell]
+                            self.parameters["owned_columns"][j] = (len(self.category_mappings[cell]), index, name)
                         else:
                             newrow.append(float(cell))
+                if newrow != []:
                     matrix.append(newrow)
         return matrix
 
@@ -111,34 +117,41 @@ class MPCLinearRegression(LinearModel):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             [ip, port] = self.own_ip.split(":")
             s.bind((ip, int(port) + 20))
-            s.listen(1)
-            print(self.own_ip + " waiting for peer " + self.other_ip)
-            conn, _ = s.accept()
-            conn.send(json.dumps(self.parameters).encode())
-            self.other_parameters = json.loads(conn.recv(BUFFER_SIZE).decode('utf-8'))
-            conn.close()
-            s.close()
+            try:
+                s.listen(1)
+                print(self.own_ip + " waiting for peer " + self.other_ip)
+                conn, _ = s.accept()
+                conn.send(json.dumps(self.parameters).encode())
+                self.other_parameters = json.loads(conn.recv(BUFFER_SIZE).decode('utf-8'))
+            finally:
+                conn.close()
+                s.close()
         else:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            [ip, port] = self.other_ip.split(":")
             print(self.own_ip + " waiting for peer " + self.other_ip)
             while True:
                 try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    [ip, port] = self.other_ip.split(":")
                     s.connect((ip, int(port) + 20))
+                    s.send(json.dumps(self.parameters).encode())
+                    self.other_parameters = json.loads(s.recv(BUFFER_SIZE).decode('utf-8'))
+                    s.close()
                     break
                 except socket.error as serr:
-                    time.sleep(1)
+                    # try here fixes 
+                    try:
+                        time.sleep(1)
+                    finally:
+                        s.close()
+                finally:
                     s.close()
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.send(json.dumps(self.parameters).encode())
-            self.other_parameters = json.loads(s.recv(BUFFER_SIZE).decode('utf-8'))
-            s.close()
         if not (self.parameters["is_last"] != self.other_parameters["is_last"]):
             raise Exception("Two result columns or no result columns specified")
         print("Parameters exchanged")
 
     def calculate_matrix(self):
-        matrix = self.parse_csv()
+        matrix = self.parse_csv(self.csv_file)
+        print(matrix)
         # transpose
         matrix = [list(x) for x in zip(*matrix)]
         matrix, self.parameters["arith_means"], self.parameters["variances"] = studentize_matrix(matrix)
@@ -162,6 +175,7 @@ class MPCLinearRegression(LinearModel):
         # TODO: error handling
         # TODO: handle when subprocess aborts unnormally and kill it so the socket is freed
         if not self.parameters["is_last"]:
+            
             print("Starting DP1 on " + self.own_ip)
             cmd[3] = "3"
             subprocess.Popen(cmd, stdout=outputfd)
@@ -172,13 +186,15 @@ class MPCLinearRegression(LinearModel):
             # getting the result
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             [ip, port] = self.own_ip.split(":")
-            s.bind((ip, int(port) + 30))
-            s.listen(1)
-            print("Waiting for result...")
-            conn, addr = s.accept()
-            self.result = json.loads(conn.recv(BUFFER_SIZE).decode("utf-8"))
-            conn.close()
-            s.close()
+            try:
+                s.bind((ip, int(port) + 30))
+                s.listen(1)
+                print("Waiting for result...")
+                conn, addr = s.accept()
+                self.result = json.loads(conn.recv(BUFFER_SIZE).decode("utf-8"))
+            finally:
+                conn.close()
+                s.close()
         else:
             print("Starting DP2 on " + self.own_ip)
             cmd[3] = "4"
@@ -193,40 +209,44 @@ class MPCLinearRegression(LinearModel):
             
             # sending result
             print("Sending result...")
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            [ip, port] = self.other_ip.split(":")
-            s.connect((ip, int(port) + 30))
-            s.send(json.dumps(self.result).encode())
-            s.close()
-    
-    def fit(self, csv_file, owned_columns):
-        # setup
-        self.owned_columns = []
-        result_col = ()
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                [ip, port] = self.other_ip.split(":")
+                s.connect((ip, int(port) + 30))
+                s.send(json.dumps(self.result).encode())
+            finally:
+                s.close()
+
+
+    def make_matrix(self, csv_file, owned_columns):
+        self.parameters["owned_columns"] = []
+        result_col = None
         is_last = False
         for val in owned_columns.split():
             m = re.search("(r?c?)([0-9]+)", val)
             if m.group(1) == "c":
-                self.owned_columns.append((True, int(m.group(2))))
+                self.parameters["owned_columns"].append((1, int(m.group(2)), ""))
             elif m.group(1) == "rc":
                 is_last = True
-                result_col = (True, int(m.group(2)))
+                result_col = (1, int(m.group(2)), "")
             elif m.group(1) == "r":
                 is_last = True
-                result_col = (False, int(m.group(2)))
+                result_col = (0, int(m.group(2)), "")
             else:
-                self.owned_columns.append((False, int(m.group(0))))
+                self.parameters["owned_columns"].append((0, int(m.group(0)), ""))
         # if there is a result column it must be the last
-        if result_col != ():
-            self.owned_columns.append(result_col)
+        if not result_col is None:
+            self.parameters["owned_columns"].append(result_col)
         self.csv_file = csv_file
-        self.parameters["is_last"] = is_last   
-        matrix = self.calculate_matrix()
-        temp_path = self.make_csv(matrix)
-
+        self.parameters["is_last"] = is_last 
+        return self.calculate_matrix()
+                    
+    def fit(self, csv_file, owned_columns):
+        temp_path = self.make_csv(self.make_matrix(csv_file, owned_columns))
+        print(self.parameters["owned_columns"])
+        
         if not os.path.exists(self.mpc_binary_path):
-            print("Can't find mpc binary!")
-            return
+            raise Exception("Can't find mpc binary!")
 
         self.run_mpc(temp_path)
         
@@ -235,26 +255,68 @@ class MPCLinearRegression(LinearModel):
         else:
             # delete temporary file if we are not in debug
             os.remove(temp_path)
-
-
+        
     def predict(self, X):
         if self.result == []:
-            print("Please fit a model first!")
-            return -1
+            raise Exception("Please fit a model first!")
         # todo handle inputting "m" or "w"
+        result_col = None
         means = []
         variances = []
+        columns = []
         if not self.parameters["is_last"]:
             means = self.parameters["arith_means"] + self.other_parameters["arith_means"]
             variances = self.parameters["variances"] + self.other_parameters["variances"]
+            columns = self.parameters["owned_columns"] + self.other_parameters["owned_columns"]
         else:
             means = self.other_parameters["arith_means"] + self.parameters["arith_means"]
             variances = self.other_parameters["variances"] + self.parameters["variances"]
+            columns = self.other_parameters["owned_columns"] + self.parameters["owned_columns"]
+        # fix json looses tuple 
+        columns = [tuple(x) for x in columns]
         if self.debug:
             print("means: ", means)
             print("variances: ", variances)
+            print("columns: ", columns)
             print("coefficients: ", self.result)
+        if len(means) != len(variances):
+            raise Exception("Length of means != length of variances. This should not happen.")
+
+        ordered_X = [None] * (len(columns))
+
+        # fix the input list to match length of the parameters
+        if isinstance(X, list):
+            X.insert(columns[-1][1]-1, None)
+        for i, (is_category, index, col_name) in enumerate(columns[:-1]):
+            if isinstance(X, dict):
+                if is_category > 0:
+                    ordered_X[i] = self.category_mappings[X[col_name]]
+                else:
+                    ordered_X[i] = float(X[col_name])
+            elif isinstance(X, list):
+                if is_category > 0:
+                    ordered_X[i] = self.category_mappings[X[index-1]]
+                else:
+                    ordered_X[i] = float(X[index-1])
+            else:
+                raise Exception("input must be a dict or a list")
+            
+        # flatten list
+        result_col = columns[-1]
+        tmp = []
+        for x in ordered_X:
+            if x is None:
+                continue
+            if isinstance(x, list):
+                tmp += x
+            else:
+                tmp.append(x)
+        # replace nans with means
+        ordered_X = [means[i] if isnan(x) else x for i,x in enumerate(tmp)]
+        
+        if self.debug:
+            print("X ordered:", ordered_X)
         result = 0
-        for i, x in enumerate(X):
+        for i, x in enumerate(ordered_X):
             result += ((x-means[i]) / variances[i]) * self.result[i]
         return result * variances[-1] + means[-1]
