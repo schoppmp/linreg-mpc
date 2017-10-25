@@ -2,3 +2,5 @@ bin/
 obj/
 *.pb-c.h
 *.pb-c.c
+__pycache__/
+*.pyc
