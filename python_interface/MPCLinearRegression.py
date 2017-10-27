@@ -30,7 +30,11 @@ def studentize_matrix(matrix):
     return (matrix, arith_means, variances)
 
 class MPCLinearRegression(LinearModel):
-    def __init__(self, own_ip, other_ip, delimiter=";", category_mappings={"m": [1.0], "w": [0.0]}, mpc_binary_path="../bin/main", mpc_args=["56", "cholesky", "10", "0.001"], debug=False):
+    """
+    Secure linear regression with another party (semi-honest).
+    """
+    def __init__(self, own_ip, other_ip, delimiter=";", category_mappings={"m": [1.0], "w": [0.0]},
+                 mpc_binary_path="../bin/main", mpc_args=["56", "cholesky", "10", "0.001"], debug=False):
         self.own_ip = own_ip
         self.other_ip = other_ip
         self.csp_ip = ""
@@ -52,6 +56,9 @@ class MPCLinearRegression(LinearModel):
         self.result = []
 
     def parse_csv(self, csv_file):
+        """
+        parse the csv input file and extract owned data
+        """
         matrix = []
         with open(csv_file, "r") as f:
             reader = csv.reader(f, delimiter=self.delimiter)
@@ -74,6 +81,9 @@ class MPCLinearRegression(LinearModel):
         return matrix
 
     def make_csv(self, matrix):
+        """
+        Create the csv that is fed into the mpc binary
+        """
         # if no csp & eval ips set, use first peer for csp, second peer for esp
         print("Generating csv file...")
         if not self.parameters["is_last"]:
@@ -113,6 +123,9 @@ class MPCLinearRegression(LinearModel):
         return path
 
     def exchange_parameters(self):
+        """
+        exchange needed parameters with peer
+        """
         if int(self.own_ip.split(":")[1]) < int(self.other_ip.split(":")[1]):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             [ip, port] = self.own_ip.split(":")
@@ -150,6 +163,9 @@ class MPCLinearRegression(LinearModel):
         print("Parameters exchanged")
 
     def calculate_matrix(self):
+        """
+        calculate the input matrix for linear regression from the parsed csv file
+        """
         matrix = self.parse_csv(self.csv_file)
         # transpose
         matrix = [list(x) for x in zip(*matrix)]
@@ -168,13 +184,13 @@ class MPCLinearRegression(LinearModel):
         return [list(x) for x in zip(*matrix)]
 
     def run_mpc(self, path):
-                # start mpc binary
+        """ 
+        starts the mpc binary to securely calculate the linear regression model with peer
+        """
         cmd = [self.mpc_binary_path, path, self.mpc_args[0], "3"] + self.mpc_args[1:]
         outputfd = None if self.debug else subprocess.DEVNULL
-        # TODO: error handling
         # TODO: handle when subprocess aborts unnormally and kill it so the socket is freed
-        if not self.parameters["is_last"]:
-            
+        if not self.parameters["is_last"]:            
             print("Starting DP1 on " + self.own_ip)
             cmd[3] = "3"
             subprocess.Popen(cmd, stdout=outputfd)
@@ -183,17 +199,18 @@ class MPCLinearRegression(LinearModel):
             subprocess.Popen(cmd, stdout=outputfd)
             
             # getting the result
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            [ip, port] = self.own_ip.split(":")
             try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                [ip, port] = self.own_ip.split(":")
                 s.bind((ip, int(port) + 30))
                 s.listen(1)
                 print("Waiting for result...")
-                conn, addr = s.accept()
+                conn, _ = s.accept()
                 self.result = json.loads(conn.recv(BUFFER_SIZE).decode("utf-8"))
             finally:
                 conn.close()
                 s.close()
+            print("Got result.")
         else:
             print("Starting DP2 on " + self.own_ip)
             cmd[3] = "4"
@@ -215,9 +232,13 @@ class MPCLinearRegression(LinearModel):
                 s.send(json.dumps(self.result).encode())
             finally:
                 s.close()
+            print("Sent result.")
 
 
     def make_matrix(self, csv_file, owned_columns):
+        """
+        setup parameters and calculate matrix
+        """
         self.parameters["owned_columns"] = []
         result_col = None
         is_last = False
@@ -237,12 +258,16 @@ class MPCLinearRegression(LinearModel):
         if not result_col is None:
             self.parameters["owned_columns"].append(result_col)
         self.csv_file = csv_file
-        self.parameters["is_last"] = is_last 
+        self.parameters["is_last"] = is_last
         return self.calculate_matrix()
-                    
+                   
     def fit(self, csv_file, owned_columns):
+        """
+        Take CSV data, columns we own and securely calculate linear
+        regression parameters with other party
+        """
         temp_path = self.make_csv(self.make_matrix(csv_file, owned_columns))
-        
+      
         if not os.path.exists(self.mpc_binary_path):
             raise Exception("Can't find mpc binary!")
 
@@ -255,9 +280,14 @@ class MPCLinearRegression(LinearModel):
             os.remove(temp_path)
         
     def predict(self, X):
+        """
+        predict based on the previously learned linear regression model.
+        You can specify the values as a dict with the csv's column names as keys
+        or as a list ordered after the columns. If you specify a value with "NaN"
+        it will get filled with the training data's mean value for that column.
+        """
         if self.result == []:
             raise Exception("Please fit a model first!")
-        # todo handle inputting "m" or "w"
         result_col = None
         means = []
         variances = []
@@ -270,7 +300,8 @@ class MPCLinearRegression(LinearModel):
             means = self.other_parameters["arith_means"] + self.parameters["arith_means"]
             variances = self.other_parameters["variances"] + self.parameters["variances"]
             columns = self.other_parameters["owned_columns"] + self.parameters["owned_columns"]
-        # fix json looses tuple 
+
+        # fixes json looses tuple structure
         columns = [tuple(x) for x in columns]
         if self.debug:
             print("means: ", means)
@@ -282,25 +313,26 @@ class MPCLinearRegression(LinearModel):
 
         ordered_X = [None] * (len(columns))
 
-        # fix the input list to match length of the parameters
-        if isinstance(X, list):
-            X.insert(columns[-1][1]-1, None)
-        for i, (is_category, index, col_name) in enumerate(columns[:-1]):
-            if isinstance(X, dict):
+        if isinstance(X, dict):
+            for i, (is_category, index, col_name) in enumerate(columns[:-1]):
                 if is_category > 0:
                     ordered_X[i] = self.category_mappings[X[col_name]]
                 else:
-                    ordered_X[i] = float(X[col_name])
-            elif isinstance(X, list):
-                if is_category > 0:
-                    ordered_X[i] = self.category_mappings[X[index-1]]
-                else:
-                    ordered_X[i] = float(X[index-1])
-            else:
-                raise Exception("input must be a dict or a list")
-            
-        # flatten list
+                    ordered_X[i] = float(X[col_name])  
+        elif isinstance(X, list):
+            mapping = [(i, index) for i, (_, index, _) in enumerate(columns[:-1])]
+            mapping.sort(key=lambda x: x[1])
+
+            for (x, (index, _)) in zip(X, mapping):
+                try:
+                    ordered_X[index] = float(x)
+                except ValueError:
+                    ordered_X[index] = self.category_mappings[x]
+        else:
+            raise Exception("input must be a dict or a list")
+
         result_col = columns[-1]
+        # flatten list
         tmp = []
         for x in ordered_X:
             if x is None:
