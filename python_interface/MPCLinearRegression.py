@@ -127,10 +127,10 @@ class MPCLinearRegression(LinearModel):
         exchange needed parameters with peer
         """
         if int(self.own_ip.split(":")[1]) < int(self.other_ip.split(":")[1]):
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            [ip, port] = self.own_ip.split(":")
-            s.bind((ip, int(port) + 20))
             try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                [ip, port] = self.own_ip.split(":")
+                s.bind((ip, int(port) + 20))
                 s.listen(1)
                 print(self.own_ip + " waiting for peer " + self.other_ip)
                 conn, _ = s.accept()
