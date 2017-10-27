@@ -208,7 +208,10 @@ class MPCLinearRegression(LinearModel):
                 conn, _ = s.accept()
                 self.result = json.loads(conn.recv(BUFFER_SIZE).decode("utf-8"))
             finally:
-                conn.close()
+                try:
+                    conn.close()
+                except UnboundLocalError:
+                    pass
                 s.close()
             print("Got result.")
         else:
