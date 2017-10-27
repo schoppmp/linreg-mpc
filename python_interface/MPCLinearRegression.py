@@ -228,13 +228,20 @@ class MPCLinearRegression(LinearModel):
             
             # sending result
             print("Sending result...")
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                [ip, port] = self.other_ip.split(":")
-                s.connect((ip, int(port) + 30))
-                s.send(json.dumps(self.result).encode())
-            finally:
-                s.close()
+            while True:
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    [ip, port] = self.other_ip.split(":")
+                    s.connect((ip, int(port) + 30))
+                    s.send(json.dumps(self.result).encode())
+                    break
+                except socket.error:
+                    try:
+                        time.sleep(1)
+                    finally:
+                        s.close()
+                finally:
+                    s.close()
             print("Sent result.")
 
 
