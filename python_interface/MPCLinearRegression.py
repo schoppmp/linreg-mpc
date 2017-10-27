@@ -137,7 +137,10 @@ class MPCLinearRegression(LinearModel):
                 conn.send(json.dumps(self.parameters).encode())
                 self.other_parameters = json.loads(conn.recv(BUFFER_SIZE).decode('utf-8'))
             finally:
-                conn.close()
+                try:
+                    conn.close()
+                except UnboundLocalError:
+                    pass
                 s.close()
         else:
             print(self.own_ip + " waiting for peer " + self.other_ip)
