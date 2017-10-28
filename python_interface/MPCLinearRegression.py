@@ -1,7 +1,7 @@
 import re
 import csv
-import json
-import socket
+import logging
+from MsgPackConnection import Client, Server
 import tempfile
 import time
 import os
@@ -9,6 +9,7 @@ import subprocess
 from math import isnan
 from math import sqrt
 from sklearn.linear_model.base import LinearModel
+
 
 # todo: fix buffer_size for bigger datasets
 BUFFER_SIZE = 1024
@@ -85,7 +86,7 @@ class MPCLinearRegression(LinearModel):
         Create the csv that is fed into the mpc binary
         """
         # if no csp & eval ips set, use first peer for csp, second peer for esp
-        print("Generating csv file...")
+        logging.info("Generating csv file...")
         if not self.parameters["is_last"]:
             self.csp_ip = self.own_ip.split(":")[0]+":"+str(int(self.own_ip.split(":")[1])+10)
             self.eval_ip = self.other_ip.split(":")[0]+":"+str(int(self.other_ip.split(":")[1])+10)
@@ -119,51 +120,24 @@ class MPCLinearRegression(LinearModel):
         writer.writerow(y_row)
         f.close()
         os.close(fd)
-        print("csv file generated: " + path)
+        logging.info("csv file generated: " + path)
         return path
 
     def exchange_parameters(self):
         """
         exchange needed parameters with peer
         """
-        if int(self.own_ip.split(":")[1]) < int(self.other_ip.split(":")[1]):
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                [ip, port] = self.own_ip.split(":")
-                s.bind((ip, int(port) + 20))
-                s.listen(1)
-                print(self.own_ip + " waiting for peer " + self.other_ip)
-                conn, _ = s.accept()
-                conn.send(json.dumps(self.parameters).encode())
-                self.other_parameters = json.loads(conn.recv(BUFFER_SIZE).decode('utf-8'))
-            finally:
-                try:
-                    conn.close()
-                except UnboundLocalError:
-                    pass
-                s.close()
+        logging.info("Exchanging parameters...")
+        if self.parameters["is_last"]:
+            [ip, port] = self.own_ip.split(":")
+            conn = Client(ip=ip, port=port+20)
         else:
-            print(self.own_ip + " waiting for peer " + self.other_ip)
-            while True:
-                try:
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    [ip, port] = self.other_ip.split(":")
-                    s.connect((ip, int(port) + 20))
-                    s.send(json.dumps(self.parameters).encode())
-                    self.other_parameters = json.loads(s.recv(BUFFER_SIZE).decode('utf-8'))
-                    s.close()
-                    break
-                except socket.error as serr:
-                    # try here fixes 
-                    try:
-                        time.sleep(1)
-                    finally:
-                        s.close()
-                finally:
-                    s.close()
-        if not (self.parameters["is_last"] != self.other_parameters["is_last"]):
-            raise Exception("Two result columns or no result columns specified")
-        print("Parameters exchanged")
+            [ip, port] = self.other_ip.split(":")
+            conn = Server(ip=ip, port=port+20)
+        with conn as c:
+            c.write(self.parameters)
+            self.other_parameters= c.read()
+        logging.info("Parameters exchanged")
 
     def calculate_matrix(self):
         """
@@ -194,58 +168,35 @@ class MPCLinearRegression(LinearModel):
         outputfd = None if self.debug else subprocess.DEVNULL
         # TODO: handle when subprocess aborts unnormally and kill it so the socket is freed
         if not self.parameters["is_last"]:            
-            print("Starting DP1 on " + self.own_ip)
+            logging.debug("Starting DP1 on " + self.own_ip)
             cmd[3] = "3"
             subprocess.Popen(cmd, stdout=outputfd)
-            print("Starting CSP on " + self.csp_ip)
+            logging.debug("Starting CSP on " + self.csp_ip)
             cmd[3] = "1"
             subprocess.Popen(cmd, stdout=outputfd)
             
             # getting the result
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                [ip, port] = self.own_ip.split(":")
-                s.bind((ip, int(port) + 30))
-                s.listen(1)
-                print("Waiting for result...")
-                conn, _ = s.accept()
-                self.result = json.loads(conn.recv(BUFFER_SIZE).decode("utf-8"))
-            finally:
-                try:
-                    conn.close()
-                except UnboundLocalError:
-                    pass
-                s.close()
-            print("Got result.")
+            logging.info("Waiting for result...")
+            with Server(self.own_ip.split[0], self.own_ip.split[1] + 20) as c:
+                self.result = c.read()
+            logging.info("Got result.")
         else:
-            print("Starting DP2 on " + self.own_ip)
+            logging.debug("Starting DP2 on " + self.own_ip)
             cmd[3] = "4"
             subprocess.Popen(cmd, stdout=outputfd)
-            print("Starting EVAL on " + self.eval_ip)
+            logging.debug("Starting EVAL on " + self.eval_ip)
             cmd[3] = "2"
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
             output, _ = process.communicate()
             if self.debug:
-                print(output.decode("UTF-8"))
+                logging.debug(output.decode("UTF-8"))
             self.result = [float(x) for x in re.findall("-?[0-9]+.[0-9]+", output.splitlines()[-1].decode("UTF-8"))]
             
             # sending result
-            print("Sending result...")
-            while True:
-                try:
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    [ip, port] = self.other_ip.split(":")
-                    s.connect((ip, int(port) + 30))
-                    s.send(json.dumps(self.result).encode())
-                    break
-                except socket.error:
-                    try:
-                        time.sleep(1)
-                    finally:
-                        s.close()
-                finally:
-                    s.close()
-            print("Sent result.")
+            logging.info("Sending result...")
+            with Client(self.other_ip.split[0], self.other_ip.split[1] + 20) as c:
+                c.write(self.result)
+            logging.info("Sent result.")
 
 
     def make_matrix(self, csv_file, owned_columns):
@@ -286,9 +237,8 @@ class MPCLinearRegression(LinearModel):
 
         self.run_mpc(temp_path)
         
-        if self.debug:
-            print("Results: ", self.result)
-        else:
+        logging.debug("Results: " + str(self.result))
+        if not self.debug:
             # delete temporary file if we are not in debug
             os.remove(temp_path)
         
@@ -316,11 +266,12 @@ class MPCLinearRegression(LinearModel):
 
         # fixes json looses tuple structure
         columns = [tuple(x) for x in columns]
-        if self.debug:
-            print("means: ", means)
-            print("variances: ", variances)
-            print("columns: ", columns)
-            print("coefficients: ", self.result)
+        
+        logging.debug("means: " + str(means))
+        logging.debug("variances: " + str( variances))
+        logging.debug("columns: " + str(columns))
+        logging.debug("coefficients: " + str(self.result))
+        
         if len(means) != len(variances):
             raise Exception("Length of means != length of variances. This should not happen.")
 
@@ -357,8 +308,8 @@ class MPCLinearRegression(LinearModel):
         # replace nans with means
         ordered_X = [means[i] if isnan(x) else x for i,x in enumerate(tmp)]
         
-        if self.debug:
-            print("X ordered:", ordered_X)
+        logging.debug("X ordered:" + str(ordered_X))
+        
         result = 0
         for i, x in enumerate(ordered_X):
             result += ((x-means[i]) / variances[i]) * self.result[i]
