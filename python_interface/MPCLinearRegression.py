@@ -1,7 +1,7 @@
 import re
 import csv
 import logging
-from MsgPackConnection import Client, Server
+from MsgPackConnection import *
 import tempfile
 import time
 import os
@@ -55,6 +55,8 @@ class MPCLinearRegression(LinearModel):
         }
         self.other_parameters = {}
         self.result = []
+        if debug:
+            logging.basicConfig(level=logging.INFO)
 
     def parse_csv(self, csv_file):
         """
@@ -130,13 +132,11 @@ class MPCLinearRegression(LinearModel):
         logging.info("Exchanging parameters...")
         if self.parameters["is_last"]:
             [ip, port] = self.own_ip.split(":")
-            conn = Client(ip=ip, port=port+20)
         else:
             [ip, port] = self.other_ip.split(":")
-            conn = Server(ip=ip, port=port+20)
-        with conn as c:
+        with create_connection(ip, int(port) + 20, self.parameters["is_last"]) as c:
             c.write(self.parameters)
-            self.other_parameters= c.read()
+            self.other_parameters = c.read()
         logging.info("Parameters exchanged")
 
     def calculate_matrix(self):
@@ -166,8 +166,10 @@ class MPCLinearRegression(LinearModel):
         """
         cmd = [self.mpc_binary_path, path, self.mpc_args[0], "3"] + self.mpc_args[1:]
         outputfd = None if self.debug else subprocess.DEVNULL
+
         # TODO: handle when subprocess aborts unnormally and kill it so the socket is freed
-        if not self.parameters["is_last"]:            
+        if not self.parameters["is_last"]:
+            [ip, port] = self.own_ip.split(":")
             logging.debug("Starting DP1 on " + self.own_ip)
             cmd[3] = "3"
             subprocess.Popen(cmd, stdout=outputfd)
@@ -177,10 +179,11 @@ class MPCLinearRegression(LinearModel):
             
             # getting the result
             logging.info("Waiting for result...")
-            with Server(self.own_ip.split[0], self.own_ip.split[1] + 20) as c:
+            with create_connection(ip, int(port) + 20, False) as c:
                 self.result = c.read()
             logging.info("Got result.")
         else:
+            [ip, port] = self.other_ip.split(":")
             logging.debug("Starting DP2 on " + self.own_ip)
             cmd[3] = "4"
             subprocess.Popen(cmd, stdout=outputfd)
@@ -194,7 +197,7 @@ class MPCLinearRegression(LinearModel):
             
             # sending result
             logging.info("Sending result...")
-            with Client(self.other_ip.split[0], self.other_ip.split[1] + 20) as c:
+            with create_connection(ip, int(port) + 20, True) as c:
                 c.write(self.result)
             logging.info("Sent result.")
 
