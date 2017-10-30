@@ -165,7 +165,7 @@ class MPCLinearRegression(LinearModel):
 
         # TODO: handle when subprocess aborts unnormally and kill it so the socket is freed
         if not self.parameters["is_last"]:
-            [ip, port] = self.own_ip.split(":")
+            [ip, port] = self.other_ip.split(":")
             logging.debug("Starting DP1 on " + self.own_ip)
             cmd[3] = "3"
             subprocess.Popen(cmd, stdout=outputfd)
@@ -179,7 +179,7 @@ class MPCLinearRegression(LinearModel):
                 self.result = c.read()
             logging.info("Got result.")
         else:
-            [ip, port] = self.other_ip.split(":")
+            [ip, port] = self.own_ip.split(":")
             logging.debug("Starting DP2 on " + self.own_ip)
             cmd[3] = "4"
             subprocess.Popen(cmd, stdout=outputfd)
