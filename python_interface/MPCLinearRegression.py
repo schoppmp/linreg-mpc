@@ -10,10 +10,6 @@ from math import isnan
 from math import sqrt
 from sklearn.linear_model.base import LinearModel
 
-
-# todo: fix buffer_size for bigger datasets
-BUFFER_SIZE = 1024
-
 def studentize(values):
     n = len(values)
     arith_mean = sum(values)/n
@@ -56,7 +52,7 @@ class MPCLinearRegression(LinearModel):
         self.other_parameters = {}
         self.result = []
         if debug:
-            logging.basicConfig(level=logging.INFO)
+            logging.basicConfig(level=logging.DEBUG)
 
     def parse_csv(self, csv_file):
         """
@@ -312,6 +308,7 @@ class MPCLinearRegression(LinearModel):
         ordered_X = [means[i] if isnan(x) else x for i,x in enumerate(tmp)]
         
         logging.debug("X ordered:" + str(ordered_X))
+        logging.debug(str(result_col))
         
         result = 0
         for i, x in enumerate(ordered_X):
