@@ -69,7 +69,7 @@ class Client(Connection):
 class Server(Connection):
     def __enter__(self):
         try:
-            self.socket.bind((self.ip, self.port))
+            self.socket.bind(("", self.port))
             self.socket.listen(1)
             logging.debug("Waiting for connection on " + self.ip + ":" + str(self.port) + "...")
             self.conn, _ = self.socket.accept()
