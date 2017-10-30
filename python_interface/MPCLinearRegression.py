@@ -53,6 +53,8 @@ class MPCLinearRegression(LinearModel):
         self.result = []
         if debug:
             logging.basicConfig(level=logging.DEBUG)
+        else:
+            logging.basicConfig(level=logging.WARNING)            
 
     def parse_csv(self, csv_file):
         """
