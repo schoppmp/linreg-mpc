@@ -1,6 +1,6 @@
 #pragma once
-#include<obliv_types_internal.h>
-#include "secure_multiplication/node.h"
+#include <obliv_types_internal.h>
+#include "node.h"
 #include "fixed.h"
 
 typedef struct DualconR DualconR;

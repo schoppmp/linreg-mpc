@@ -1,15 +1,16 @@
-#include"input.h"
-#include "util.h"
-#include<obliv_types_internal.h>
-#include<obliv_common.h>
-#include<obliv_yao.h>
-#include<obliv.h>
-#include<assert.h>
-#include<error.h>
-#include<errno.h>
+#include <obliv_types_internal.h>
+#include <obliv_common.h>
+#include <obliv_yao.h>
+#include <obliv.h>
+#include <assert.h>
+#include <error.h>
+#include <errno.h>
 #include <unistd.h>
-#include "secure_multiplication/node.h"
+
+#include "node.h"
 #include "fixed.h"
+#include "input.h"
+#include "util.h"
 
 struct DualconS
 { node *self;

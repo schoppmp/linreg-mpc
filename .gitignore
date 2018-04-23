@@ -1,7 +1,11 @@
 bin/
-obj/
 *.pb-c.h
 *.pb-c.c
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+*.d
+*.od
+*.o
+*.oo
+secure_multiplication.proto

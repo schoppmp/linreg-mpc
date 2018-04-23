@@ -4,7 +4,7 @@
 #include <errno.h>
 #include <time.h>
 
-#include "secure_multiplication.pb-c.h"
+#include "protobuf/secure_multiplication.pb-c.h"
 #include "node.h"
 #include "config.h"
 #include "check_error.h"

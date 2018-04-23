@@ -1,7 +1,7 @@
 #pragma once
 #include <stdio.h>
 #include "fixed.h"
-#include "secure_multiplication/node.h"
+#include "node.h"
 
 typedef struct {
 	size_t d[2];

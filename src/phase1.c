@@ -8,8 +8,7 @@
 #include "obliv_common.h"
 #include "obliv_types.h"
 #include "obliv_bits.h"
-
-#include "../linear.h"
+#include "linear.h"
 
 // computes inner product locally
 static ufixed_p1_t inner_product_local(ufixed_p1_t *x, ufixed_p1_t *y, size_t n, size_t stride_x, size_t stride_y) {

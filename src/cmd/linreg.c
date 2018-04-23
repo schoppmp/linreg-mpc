@@ -6,15 +6,14 @@
 #include <obliv.h>
 #include <obliv_common.h>
 
-#include "secure_multiplication/secure_multiplication.pb-c.h"
-#include "secure_multiplication/node.h"
-#include "secure_multiplication/config.h"
+#include "protobuf/secure_multiplication.pb-c.h"
+#include "node.h"
+#include "config.h"
 #include "check_error.h"
 #include "linear.h"
-#include "secure_multiplication/phase1.h"
+#include "phase1.h"
 #include "input.h"
 #include "util.h"
-#include "secure_multiplication/node.h"
 
 
 static int barrier(node *self) {
@@ -87,7 +86,7 @@ int main(int argc, char **argv) {
 	check(precision_phase2 >= -1, "Precision of phase 2 must be nonnegative");
 	check(precision < FIXED_BIT_SIZE, "Precision of phase 1 must be smaller than bit size of phase 1");
 	check(precision_phase2 < FIXED_BIT_SIZE_P2, "Precision of phase 2 must be smaller than bit size of phase 2");
-	
+
 	// read ls, we only need number of iterations
 	linear_system_t ls;
 	if(!strcmp(algorithm, "cgd")){
@@ -96,7 +95,7 @@ int main(int argc, char **argv) {
 	       ls.num_iterations = 0;
 	}
 
-	
+
 	// read config
 	status = config_new(&c, argv[1]);
 	check(!status, "Could not read config");
@@ -137,12 +136,12 @@ int main(int argc, char **argv) {
 	// if party > 2 then
 	//   - I am a data provider
   	//   - share_A and share_b are my shares of the equation
-	
+
 	// phase 2 starts here
 	if (precision_phase2 != -1) {
 	  precision = precision_phase2;
 	}
-	
+
 	if(party < 3){  // CSP and Evaluator
 		ProtocolDesc *pd;
 		if(party == 1) {

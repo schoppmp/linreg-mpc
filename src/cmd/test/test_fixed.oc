@@ -1,25 +1,25 @@
 #include <obliv.oh>
 #include "fixed.h"
 #include "fixed.oh"
-#include "test/test_fixed.h"
+#include "test_fixed.h"
 #include "util.h"
 #include <stdio.h>
 
 
 void test_fixed(void *v) {
 	protocolIO *args = v;
-	
+
 	// check for equal length inputs
 	bool equal;
-	revealOblivBool(&equal, 
-		feedOblivInt(args->len, 1) == 
+	revealOblivBool(&equal,
+		feedOblivInt(args->len, 1) ==
 		feedOblivInt(args->len, 2), 0);
 
 	if(!equal) {
 		args->len = -1;
 		return;
-	} 
-	
+	}
+
 	// compute the dot product of a and b
 	ofixed_t c, x, y, t;
 	ofixed_init(&c);
@@ -37,7 +37,7 @@ void test_fixed(void *v) {
 		ofixed_mul(&t, x, y, args->p);
 		ofixed_add(&c, c, t);
 	}
-	
+
 	obliv fixed_t out = ofixed_export(c);
 	revealOblivLLong(&(args->result), out, 0);
 	args->gates = yaoGateCount();

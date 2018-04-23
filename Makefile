@@ -1,79 +1,82 @@
 OBLIVCC=$(OBLIVC_PATH)/bin/oblivcc
 
-binDir=bin
-objDir=obj
-srcDir=src
-libDir=lib
+BINDIR=bin
+SRCDIR=src
+LIBDIR=lib
 
 REMOTE_HOST=localhost
 BIT_WIDTH_32_P1=0
 BIT_WIDTH_32_P2=0
-CFLAGS=-O3 -g -Werror -I $(srcDir) -I $(OBLIVC_PATH)/src/ext/oblivc -std=c11 -D_POSIX_C_SOURCE=201605L -DBIT_WIDTH_32_P1=$(BIT_WIDTH_32_P1) -DBIT_WIDTH_32_P2=$(BIT_WIDTH_32_P2)
-LFLAGS=-L$(HOME)/lib
+
+SOURCES := $(shell find -L $(SRCDIR) -type f -name '*.c' -not -path '*/cmd/*' )
+OBJECTS := $(patsubst %.c, %.o, $(SOURCES))
+SOURCES_OBLIVC := $(shell find -L $(SRCDIR) -type f -name '*.oc')
+OBJECTS_OBLIVC := $(patsubst %.oc, %.oo, $(SOURCES_OBLIVC))
+SOURCES_BIN := $(shell find -L $(SRCDIR)/cmd -type f -name '*.c')
+OBJECTS_BIN := $(patsubst %.c, %.o, $(SOURCES_BIN))
+BINARIES = $(patsubst $(SRCDIR)/cmd/%.c, $(BINDIR)/%, $(SOURCES_BIN))
+
+CFLAGS=-O3 -g -Werror -pthread -I$(SRCDIR) -I$(OBLIVC_PATH)/src/ext/oblivc -std=c11 -D_POSIX_C_SOURCE=201605L -DBIT_WIDTH_32_P1=$(BIT_WIDTH_32_P1) -DBIT_WIDTH_32_P2=$(BIT_WIDTH_32_P2)
+LDFLAGS= -lm -lgcrypt -lprotobuf-c
 OCFLAGS=$(CFLAGS) -DREMOTE_HOST=$(REMOTE_HOST)
 
-ackLibDir=$(libDir)/absentminded-crypto-kit/build/lib
-ackLib=$(ackLibDir)/liback.a
-ackIncDir=$(libDir)/absentminded-crypto-kit/src/
-OLFLAGS += -L$(ackLibDir) -lack -lm
-OCFLAGS += -g -DREMOTE_HOST=$(REMOTE_HOST) -O3 -Werror -I$(ackIncDir)
+# Absentminded Crypto Kit
+ACKLIBDIR=$(LIBDIR)/absentminded-crypto-kit/build/lib
+ACKLIB=$(ACKLIBDIR)/liback.a
+LDFLAGS += -L$(ACKLIBDIR) -L$(OBLIVC_PATH)/_build -lack -lobliv
+OCFLAGS += -I$(LIBDIR)/absentminded-crypto-kit/src/ -D_Float128=double
 
-mkpath=mkdir -p $(@D)
-compile=$(mkpath) && $(CC) $(CFLAGS) -c $< -o $@
-link=$(mkpath) && $(CC) $(LFLAGS) $^ -o $@
-compile_obliv=$(mkpath) && $(OBLIVCC) $(OCFLAGS) -c $< -o $@
-link_obliv=$(mkpath) && $(OBLIVCC) $(OLFLAGS) $^ -o $@
+all: $(BINARIES)
 
-native=$(objDir)/$(1)_c.o
-obliv=$(objDir)/$(1)_o.o
-both=$(call native,$(1)) $(call obliv,$(1))
-
-all: $(binDir)/test_linear_system $(binDir)/test_fixed $(binDir)/secure_multiplication $(binDir)/main
-
-$(binDir)/main: $(objDir)/main.o $(objDir)/secure_multiplication/node.o $(objDir)/secure_multiplication/config.o $(objDir)/secure_multiplication/phase1.o $(objDir)/secure_multiplication/secure_multiplication.pb-c.o $(call both,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd) $(call native,input)
-	$(link_obliv) -lprotobuf-c -lm
-
-$(binDir)/secure_multiplication:$(objDir)/secure_multiplication/secure_multiplication.pb-c.o $(objDir)/secure_multiplication/secure_multiplication.o $(objDir)/secure_multiplication/config.o $(objDir)/secure_multiplication/node.o $(objDir)/linear.o $(objDir)/fixed.o $(objDir)/secure_multiplication/phase1.o $(objDir)/util.o
-	$(link_obliv) -lprotobuf-c -lm
-
-$(binDir)/test_linear_system: $(ackLib) $(call native,test/test_linear_system) $(call both,linear) $(call both,fixed) $(call native,util) $(call obliv,ldlt) $(call obliv,cholesky) $(call obliv,cgd) $(call native,input)
-	$(link_obliv)
-
-$(binDir)/test_fixed: $(call both,test/test_fixed) $(call both,fixed) $(call native,util)
-	$(link_obliv)
-
-$(binDir)/test_input: $(call native,input) $(call obliv,test/test_input) $(call native,util)
-	$(link_obliv)
-
-$(ackLib): $(libDir)/absentminded-crypto-kit/Makefile
-	cd $(libDir)/absentminded-crypto-kit && make
-
-$(libDir)/absentminded-crypto-kit/Makefile:
+# Libraries
+$(ACKLIB): $(LIBDIR)/absentminded-crypto-kit/Makefile
+	CFLAGS=-D_Float128=double make -C $(LIBDIR)/absentminded-crypto-kit
+$(LIBDIR)/absentminded-crypto-kit/Makefile:
 	git submodule update --init
 
-$(objDir)/%_c.o: $(srcDir)/%.c
-	$(compile_obliv)
-
-$(objDir)/%_o.o: $(srcDir)/%.oc
-	$(compile_obliv)
-
-$(objDir)/%.o: $(srcDir)/%.c
-	$(compile)
-
+# Protocol Buffers
+PROTOBUF_PROTOS = $(SRCDIR)/protobuf/secure_multiplication.proto
+PROTOBUF_HEADERS = $(PROTOBUF_PROTOS:.proto=.pb-c.h)
+PROTOBUF_OBJECTS = $(PROTOBUF_HEADERS:.h=.o)
+PROTOBUF_ALL = $(PROTOBUF_PROTOS) $(PROTOBUF_HEADERS) $(PROTOBUF_OBJECTS) $(PROTOBUF_HEADERS:.h=.{c,d})
 ifeq ($(BIT_WIDTH_32_P1), 1)
-$(srcDir)/%.pb-c.c: $(srcDir)/%.proto
-	cd $(<D) && protoc-c secure_multiplication_bitwidth_32.proto --c_out=. &&\
-	mv secure_multiplication_bitwidth_32.pb-c.c secure_multiplication.pb-c.c &&\
-	cp secure_multiplication_bitwidth_32.pb-c.h secure_multiplication.pb-c.h
+BIT_WIDTH_P1 = 32
 else
-$(srcDir)/%.pb-c.c: $(srcDir)/%.proto
-	cd $(<D) && protoc-c secure_multiplication_bitwidth_64.proto --c_out=. &&\
-	mv secure_multiplication_bitwidth_64.pb-c.c secure_multiplication.pb-c.c &&\
-	cp secure_multiplication_bitwidth_64.pb-c.h secure_multiplication.pb-c.h
+BIT_WIDTH_P1 = 64
 endif
+%.proto: %.bitwidth_$(BIT_WIDTH_P1).proto
+	cp $< $@
+%.pb-c.c %.pb-c.h: %.proto
+	cd $(@D) && protoc-c $(<F) --c_out=.
 
+# Dependencies
+-include $(SOURCES:.c=.d)
+-include $(SOURCES_BIN:.c=.d)
+-include $(SOURCES_OBLIVC:.oc=.od)
+
+# do not delete intermediate objects
+.SECONDARY: $(OBJECTS) $(OBJECTS_BIN) $(OBJECTS_OBLIVC) $(PROTOBUF_ALL)
+
+# Binaries
+$(BINDIR)/%: $(OBJECTS) $(OBJECTS_OBLIVC) $(SRCDIR)/cmd/%.o  $(PROTOBUF_OBJECTS) | $(ACKLIB)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+# C sources
+%.o: %.c $(PROTOBUF_HEADERS)
+	$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC) -MM $(CFLAGS) -MT "$*.o $@" $< > $*.d;
+# Obliv-C Sources
+%.oo : %.oc
+	$(OBLIVCC) $(OCFLAGS) -o $@ -c $<
+	$(OBLIVCC) -MM $(OCFLAGS) -MT "$*.oo $@" $< > $*.od;
+
+.PHONY: clean cleanall
 clean:
-	rm -rf $(binDir) $(objDir)
+	$(RM) -r $(BINDIR)
+	$(RM) $(OBJECTS) $(OBJECTS_BIN) $(OBJECTS_OBLIVC) $(OBJECTS_PROTOBUF)
+	$(RM) $(OBJECTS:.o=.d) $(OBJECTS_BIN:.o=.d) $(OBJECTS_OBLIVC:.oo=.od)
+	$(RM) $(PROTOBUF_ALL)
 
 cleanall: clean
-	cd $(libDir)/absentminded-crypto-kit && make clean
+	cd $(LIBDIR)/absentminded-crypto-kit && make clean
