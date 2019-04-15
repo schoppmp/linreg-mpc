@@ -1,4 +1,5 @@
 # Secure distributed linear regression
+[![Build Status](https://api.travis-ci.org/schoppmp/linreg-mpc.svg?branch=master)](https://travis-ci.org/schoppmp/linreg-mpc)
 
 A protocol for secure distributed linear regression. For a detailed description of the protocol and evaluation results, please have a look at the [Paper](https://eprint.iacr.org/2016/892).
 
