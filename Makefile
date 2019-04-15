@@ -24,7 +24,7 @@ OCFLAGS=$(CFLAGS) -DREMOTE_HOST=$(REMOTE_HOST)
 ACKLIBDIR=$(LIBDIR)/absentminded-crypto-kit/build/lib
 ACKLIB=$(ACKLIBDIR)/liback.a
 LDFLAGS += -L$(ACKLIBDIR) -L$(OBLIVC_PATH)/_build -lack -lobliv
-OCFLAGS += -I$(LIBDIR)/absentminded-crypto-kit/src/ -D_Float128=double -Dopenssl_noreturn=""
+OCFLAGS += -I$(LIBDIR)/absentminded-crypto-kit/src/ -D_Float128=double
 
 all: $(BINARIES)
 
